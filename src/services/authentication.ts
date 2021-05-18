@@ -1,6 +1,7 @@
 import { AuthenticationError } from 'apollo-server'
-import { userDataSource } from '../store/firestoreDataSource'
 import { auth } from 'firebase-admin'
+import { userDataSource } from '../store/firestoreDataSource'
+
 import type { UserDoc } from '../store/schema'
 
 export async function userFromAuthorizationHeader (header?: string): Promise<UserDoc | undefined> {

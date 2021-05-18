@@ -24,8 +24,7 @@ const typeDefs = gql`
     # findUser (username: String): User
 
     getTrick (id: ID!, lang: String): Trick
-    # getTrickBySlug (slug: String!, lang: String): Trick
-    # getTrickByOldId (ttLevel: Int!, oldId: Int!, lang: String): Trick
+    getTrickBySlug (discipline: Discipline!, slug: String!, lang: String): Trick
     getTricks (
       lang: String,
       discipline: Discipline,
@@ -45,28 +44,33 @@ const typeDefs = gql`
     name: String!
     alternativeNames: [String]
     description: String!
-    # videos: [Video]!
-    # levels (organisation: String, rulesVersion: String): [TrickLevel]!
+    videos: [Video]!
+    levels (organisation: String, rulesVersion: String): [TrickLevel]!
 
-    # prerequisites: [Trick]!
-    # prerequisiteFor: [Trick]!
+    prerequisites: [Trick]!
+    prerequisiteFor: [Trick]!
 
-    # submitter: User
+    submitter: User
 
-    # oldLevel, oldId
-    # updatedAt, createdAt
+    createdAt: Timestamp
+    updatedAt: Timestamp
   }
 
   type TrickLevel {
-    # id: String! # maybe not if just stored in-document
-    # trick: Trick! # maybe not if stored in-document
+    id: String!
+    trick: Trick!
     organisation: String!
     level: String!
     rulesVersion: String
+    createdAt: Timestamp!
     updatedAt: Timestamp! # = verified at
 
-    # verifier: User # internal only?
     verificationLevel: VerificationLevel
+  }
+
+  enum VerificationLevel {
+    JUDGE
+    OFFICIAL
   }
 
   type Video {
@@ -83,12 +87,6 @@ const typeDefs = gql`
   enum VideoType {
     SlowMo
     Explainer
-  }
-
-  enum VerificationLevel {
-    # NONE
-    JUDGE
-    OFFICIAL
   }
 
   type User {

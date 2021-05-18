@@ -1,4 +1,6 @@
 import { PORT } from './config'
+import '@sentry/node'
+import '@sentry/tracing'
 import { server } from './apollo'
 
 server.listen(PORT)

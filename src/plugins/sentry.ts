@@ -1,6 +1,7 @@
 import { ApolloError } from 'apollo-server'
-import type { ApolloServerPlugin } from 'apollo-server-plugin-base'
 import * as Sentry from '@sentry/node'
+
+import type { ApolloServerPlugin } from 'apollo-server-plugin-base'
 
 // from: https://blog.sentry.io/2020/07/22/handling-graphql-errors-using-sentry
 

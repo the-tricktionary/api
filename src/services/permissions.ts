@@ -1,5 +1,6 @@
 import { AuthenticationError } from 'apollo-server'
-import { UserDoc } from '../store/schema'
+
+import type { UserDoc } from '../store/schema'
 
 export function allowUser (user?: UserDoc) {
   function enrich (checkMethod: () => boolean) {

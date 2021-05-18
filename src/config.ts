@@ -9,5 +9,7 @@ initializeApp({
 
 export const {
   SENTRY_DSN,
+  GITHUB_SHA,
+  GITHUB_REF,
   PORT = 3000
 } = process.env

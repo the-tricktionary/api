@@ -16,6 +16,7 @@ generates:
       mappers:
         User: ../store/schema#UserDoc
         Trick: ../store/schema#TrickDoc
+        TrickLevel: ../store/schema#TrickLevelDoc
     plugins:
       - typescript
       - typescript-resolvers
