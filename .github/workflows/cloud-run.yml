@@ -1,0 +1,59 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+  SERVICE: tricktionary-api
+  REGION: us-central1
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    # Setup gcloud CLI
+    - uses: google-github-actions/setup-gcloud@v0.2.0
+      with:
+        service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        project_id: ${{ secrets.GCP_PROJECT }}
+        export_default_credentials: true
+
+    # Configure Docker to use the gcloud command-line tool as a credential
+    # helper for authentication
+    - name: Authorize Docker push
+      run: gcloud auth configure-docker
+
+    # Build the Docker image
+    - name: Build
+      run: |-
+        docker build \
+          --tag "gcr.io/$PROJECT_ID/$SERVICE:$GITHUB_SHA" \
+          --build-arg GITHUB_SHA="$GITHUB_SHA" \
+          --build-arg GITHUB_REF="$GITHUB_REF" \
+          .
+
+    # Push the Docker image to Google Container Registry
+    - name: Publish
+      run: |-
+        docker push "gcr.io/$PROJECT_ID/$SERVICE:$GITHUB_SHA"
+
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v0.4.0
+      with:
+        service: ${{ env.SERVICE }}
+        image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
+        region: ${{ env.REGION }}
+        env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+
+    - name: Show Output
+      run: echo ${{ steps.deploy.outputs.url }}

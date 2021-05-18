@@ -1,0 +1,25 @@
+overwrite: true
+schema:
+  - src/schema.ts
+config:
+  scalars:
+    Timestamp: Timestamp
+generates:
+  graphql.schema.json:
+    plugins:
+      - "introspection"
+  src/generated/graphql.ts:
+    config:
+      useIndexSignature: true
+      avoidOptionals: false
+      contextType: ApolloContext
+      mappers:
+        User: ../store/schema#UserDoc
+        Trick: ../store/schema#TrickDoc
+    plugins:
+      - typescript
+      - typescript-resolvers
+      - add:
+          content: |
+            import type { ApolloContext } from '../apollo'
+            import type { Timestamp } from '@google-cloud/firestore'

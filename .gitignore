@@ -1,0 +1,7 @@
+node_modules
+src-old
+.env
+.firebaserc
+graphql.schema.json
+src/generated
+dist
