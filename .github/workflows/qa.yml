@@ -19,5 +19,6 @@ jobs:
         with:
           node-version: 14
       - run: npm ci --prefer-offline
+      - run: npm run codegen
       - run: npm run lint
       - run: npm run typecheck
