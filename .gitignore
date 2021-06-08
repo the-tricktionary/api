@@ -5,3 +5,4 @@ src-old
 graphql.schema.json
 src/generated
 dist
+.vscode
