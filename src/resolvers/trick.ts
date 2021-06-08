@@ -82,7 +82,7 @@ export const trickResolvers: Resolvers = {
       return tricks
     },
     async levels (trick, { organisation, rulesVersion }, { dataSources }) {
-      return await dataSources.trickLevels.findManyByFilters({ trickId: trick.id, organisation, rulesVersion })
+      return dataSources.trickLevels.findManyByFilters({ trickId: trick.id, organisation, rulesVersion })
     }
   }
 }
