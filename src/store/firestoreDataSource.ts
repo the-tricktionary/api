@@ -1,5 +1,6 @@
 import { Firestore } from 'firebase-admin/firestore'
 import { FirestoreDataSource } from 'apollo-datasource-firestore'
+import { logger } from '../services/logger'
 
 import type { Discipline, TrickType } from '../generated/graphql'
 import type { ApolloContext } from '../apollo'
@@ -24,11 +25,11 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc, ApolloContext
     return result[0]
   }
 }
-export const trickDataSource = new TrickDataSource(firestore.collection('tricks') as CollectionReference<TrickDoc>)
+export const trickDataSource = new TrickDataSource(firestore.collection('tricks') as CollectionReference<TrickDoc>, { logger: logger.child({ name: 'trick-data-source' }) })
 trickDataSource.initialize()
 
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc, ApolloContext> {}
-export const trickLocalisationDataSource = new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>)
+export const trickLocalisationDataSource = new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }) })
 trickDataSource.initialize()
 
 export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereqDoc, ApolloContext> {
@@ -40,7 +41,7 @@ export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereq
     return await this.findManyByQuery(c => c.where('childId', '==', trickId), options)
   }
 }
-export const trickPrerequisiteDataSource = new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>)
+export const trickPrerequisiteDataSource = new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }) })
 trickPrerequisiteDataSource.initialize()
 
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, ApolloContext> {
@@ -53,9 +54,9 @@ export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, Apo
     }, options)
   }
 }
-export const trickLevelDataSource = new TrickLevelDataSource(firestore.collection('trick-levels') as CollectionReference<TrickLevelDoc>)
+export const trickLevelDataSource = new TrickLevelDataSource(firestore.collection('trick-levels') as CollectionReference<TrickLevelDoc>, { logger: logger.child({ name: 'trick-level-data-source' }) })
 trickLevelDataSource.initialize()
 
 export class UserDataSource extends FirestoreDataSource<UserDoc, ApolloContext> {}
-export const userDataSource = new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>)
+export const userDataSource = new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>, { logger: logger.child({ name: 'user-data-source' }) })
 userDataSource.initialize()

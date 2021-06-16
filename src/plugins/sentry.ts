@@ -14,8 +14,8 @@ const sentryPlugin: ApolloServerPlugin = {
         Sentry.getCurrentHub().getScope()?.getTransaction()?.finish()
         await Sentry.flush(2000)
       },
-      didResolveOperation ({ request, document, operationName }) {
-        console.log(operationName)
+      didResolveOperation ({ request, document, operationName, context }) {
+        context.log.trace(operationName)
         if (operationName !== 'IntrospectionQuery') {
           const transaction = Sentry.startTransaction({ name: operationName ?? 'GraphQL Query', op: 'transaction' })
           Sentry.configureScope(scope => scope.setSpan(transaction))

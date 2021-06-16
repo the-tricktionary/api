@@ -6,8 +6,6 @@ export interface DocBase {
   readonly collection: string
 }
 
-export const $$lang = Symbol.for('lang')
-
 export interface TrickDoc extends DocBase {
   readonly collection: 'tricks'
   slug: string
@@ -19,8 +17,6 @@ export interface TrickDoc extends DocBase {
   submittedBy: UserDoc['id']
 
   videos: Array<Omit<Video, '__typename'>>
-
-  [$$lang]: string // ONLY USE THIS LOCALLY
 }
 export function isTrick (t: any): t is TrickDoc {
   return t?.collection === 'tricks'

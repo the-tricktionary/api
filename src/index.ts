@@ -2,12 +2,13 @@ import { PORT } from './config'
 import '@sentry/node'
 import '@sentry/tracing'
 import { server } from './apollo'
+import { logger } from './services/logger'
 
 server.listen(PORT)
   .then(({ url }) => {
-    console.log(`🚀 Server ready at ${url}`)
+    logger.info(`Server ready at ${url}`)
   })
   .catch(err => {
-    console.error(err)
+    logger.error(err)
     process.exit(1)
   })

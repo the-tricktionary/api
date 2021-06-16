@@ -1,13 +1,16 @@
 import { ApolloServer } from 'apollo-server'
-import type { DataSources as ApolloDataSources } from 'apollo-server-core/dist/graphqlOptions'
 import * as Sentry from '@sentry/node'
 
-import { GITHUB_SHA, SENTRY_DSN } from './config'
+import type { DataSources as ApolloDataSources } from 'apollo-server-core/dist/graphqlOptions'
+import type { Logger } from 'pino'
+
+import { GCP_PROJECT, GITHUB_SHA, SENTRY_DSN } from './config'
 import typeDefs from './schema'
 import { rootResolver as resolvers } from './resolvers/rootResolver'
 import sentryPlugin from './plugins/sentry'
 import { userFromAuthorizationHeader } from './services/authentication'
 import { allowUser } from './services/permissions'
+import { logger } from './services/logger'
 import {
   trickPrerequisiteDataSource,
   trickDataSource,
@@ -28,6 +31,7 @@ import type { UserDoc } from './store/schema'
 const plugins = []
 
 if (SENTRY_DSN) {
+  logger.info('Sentry enabled')
   Sentry.init({
     dsn: SENTRY_DSN,
     release: `the-tricktionary/api@${GITHUB_SHA}`,
@@ -54,13 +58,18 @@ export const server = new ApolloServer({
     origin: ['https://the-tricktionary.com', /\.the-tricktionary\.com$/, /https?:\/\/localhost(:\d+)?$/]
   },
   context: async (context) => {
+    const trace = context.req.get('X-Cloud-Trace-Context')
+    const childLogger = logger.child({
+      ...(GCP_PROJECT && trace ? { 'logging.googleapis.com/trace': `project/${GCP_PROJECT ?? ''}/traces/${trace ?? ''}` } : {})
+    })
     const authHeader = context.req.get('authorization')
-    const user = await userFromAuthorizationHeader(authHeader)
+    const user = await userFromAuthorizationHeader(authHeader, { logger: childLogger })
 
     return {
       ...context,
       user,
-      allowUser: allowUser(user)
+      allowUser: allowUser(user, { logger: childLogger }),
+      logger: childLogger
     }
   }
 })
@@ -79,4 +88,5 @@ export interface ApolloContext {
   dataSources: DataSources
   user?: UserDoc
   allowUser: ReturnType<typeof allowUser>
+  logger: Logger
 }

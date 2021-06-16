@@ -11,5 +11,6 @@ export const {
   SENTRY_DSN,
   GITHUB_SHA,
   GITHUB_REF,
+  GCP_PROJECT,
   PORT = 3000
 } = process.env

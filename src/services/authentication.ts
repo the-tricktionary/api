@@ -2,10 +2,18 @@ import { AuthenticationError } from 'apollo-server'
 import { auth } from 'firebase-admin'
 import { userDataSource } from '../store/firestoreDataSource'
 
+import type { Logger } from 'pino'
 import type { UserDoc } from '../store/schema'
 
-export async function userFromAuthorizationHeader (header?: string): Promise<UserDoc | undefined> {
-  if (!header) return
+interface HeaderParserOptions {
+  logger: Logger
+}
+
+export async function userFromAuthorizationHeader (header: string | undefined, { logger }: HeaderParserOptions): Promise<UserDoc | undefined> {
+  if (!header) {
+    logger.debug('Unauthenticated request')
+    return
+  }
   const split = header.split(' ')
   if (
     split.length !== 2 ||
@@ -22,6 +30,7 @@ export async function userFromAuthorizationHeader (header?: string): Promise<Use
     throw new AuthenticationError(err.message)
   }
 
+  logger.debug(decoded, 'Finding user or device')
   let user = await userDataSource.findOneById(decoded.uid, { ttl: 60 })
 
   if (!user) {

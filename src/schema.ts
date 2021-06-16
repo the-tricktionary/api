@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server'
 
 const typeDefs = gql`
-  # scalar JSON
   scalar Timestamp
 
   enum Discipline {
@@ -23,10 +22,9 @@ const typeDefs = gql`
     me: User
     # findUser (username: String): User
 
-    getTrick (id: ID!, lang: String): Trick
-    getTrickBySlug (discipline: Discipline!, slug: String!, lang: String): Trick
+    getTrick (id: ID!): Trick
+    getTrickBySlug (discipline: Discipline!, slug: String!): Trick
     getTricks (
-      lang: String,
       discipline: Discipline,
       trickType: TrickType,
       # ttLevel: Int,
@@ -41,9 +39,9 @@ const typeDefs = gql`
     discipline: Discipline!
     trickType: TrickType!
 
-    name: String!
-    alternativeNames: [String]
-    description: String!
+    # defaults to english
+    localisation (lang: String): TrickLocalisation
+
     videos: [Video]!
     levels (organisation: String, rulesVersion: String): [TrickLevel]!
 
@@ -56,8 +54,15 @@ const typeDefs = gql`
     updatedAt: Timestamp
   }
 
+  type TrickLocalisation {
+    id: ID!
+    name: String!
+    alternativeNames: [String]
+    description: String!
+  }
+
   type TrickLevel {
-    id: String!
+    id: ID!
     trick: Trick!
     organisation: String!
     level: String!
