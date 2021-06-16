@@ -54,6 +54,7 @@ jobs:
         image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
         region: ${{ env.REGION }}
         env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ secrets.GCP_PROJECT }},APOLLO_KEY=${{ secrets.APOLLO_KEY }},APOLLO_GRAPH_VARIANT=current,APOLLO_SCHEMA_REPORTING=true
+        secrets: STRIPE_SK=${{ secrets.STRIPE_SK_SECRET }}
         flags: --max-instances=1
 
     - name: Show Output

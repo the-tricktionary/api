@@ -1,7 +1,8 @@
 import pino from 'pino'
+import { name } from '../../package.json'
 
 export const logger = pino({
-  name: 'ropescore-app',
+  name,
   level: 'trace',
   formatters: {
     level (label, number) {

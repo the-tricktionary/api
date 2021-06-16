@@ -12,5 +12,6 @@ export const {
   GITHUB_SHA,
   GITHUB_REF,
   GCP_PROJECT,
+  STRIPE_SK,
   PORT = 3000
 } = process.env

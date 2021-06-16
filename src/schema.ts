@@ -22,15 +22,17 @@ const typeDefs = gql`
     me: User
     # findUser (username: String): User
 
-    getTrick (id: ID!): Trick
-    getTrickBySlug (discipline: Discipline!, slug: String!): Trick
-    getTricks (
+    trick (id: ID!): Trick
+    trickBySlug (discipline: Discipline!, slug: String!): Trick
+    tricks (
       discipline: Discipline,
       trickType: TrickType,
       # ttLevel: Int,
       # limit: Int,
       # startAt: ID,
     ): [Trick]!
+
+    products: [Product]!
   }
 
   type Mutation {
@@ -135,6 +137,20 @@ const typeDefs = gql`
     id: ID!
     trick: Trick!
     createdAt: Timestamp!
+  }
+
+  type Product {
+    id: ID!
+    name: String!
+    description: String
+    image: String
+    prices: [Price]
+  }
+
+  type Price {
+    id: ID!
+    currency: String!
+    unitAmount: Int
   }
 `
 

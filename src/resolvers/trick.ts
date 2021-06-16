@@ -5,15 +5,15 @@ import type { TrickDoc, UserDoc } from '../store/schema'
 
 export const trickResolvers: Resolvers = {
   Query: {
-    async getTricks (_, { discipline, trickType }, { dataSources, allowUser }) {
+    async tricks (_, { discipline, trickType }, { dataSources, allowUser }) {
       allowUser.getTricks.assert()
       return dataSources.tricks.findManyByFilters({ discipline, trickType }, { ttl: 3600 })
     },
-    async getTrick (_, { id }, { dataSources, allowUser }) {
+    async trick (_, { id }, { dataSources, allowUser }) {
       allowUser.getTricks.assert()
       return (await dataSources.tricks.findOneById(id, { ttl: 3600 })) ?? null
     },
-    async getTrickBySlug (_, { slug, discipline }, { dataSources, allowUser }) {
+    async trickBySlug (_, { slug, discipline }, { dataSources, allowUser }) {
       allowUser.getTricks.assert()
       return (await dataSources.tricks.findOneBySlug({ slug, discipline }, { ttl: 3600 })) ?? null
     }

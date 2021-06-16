@@ -34,7 +34,8 @@
     "firebase-admin": "^9.100.0-alpha.0",
     "firestore-admin": "^1.3.0",
     "graphql": "^15.5.0",
-    "pino": "^6.11.3"
+    "pino": "^6.11.3",
+    "stripe": "^8.154.0"
   },
   "devDependencies": {
     "@graphql-codegen/add": "^2.0.2",
