@@ -24,6 +24,20 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
 
   return {
     getTricks: enrich(() => true),
-    editTrickCompletions: isAuthenticated
+    editTrickCompletions: isAuthenticated,
+
+    user (subUser: UserDoc) {
+      const isMe = enrich(function isMe () { return !!user && user.id === subUser.id })
+      const hasPublicProfile = enrich(function hasPublicProfile () { return subUser.profile.public })
+      const hasPublicChecklist = enrich(function hasPublicProfile () { return subUser.profile.checklist })
+      const hasPublicSpeed = enrich(function hasPublicProfile () { return subUser.profile.speed })
+
+      const isMeOrHasPublicChecklist = enrich(function isMeAndHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicChecklist()) })
+      const isMeOrHasPublicSpeed = enrich(function isMeAndHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicSpeed()) })
+      return {
+        getChecklist: isMeOrHasPublicChecklist,
+        getSpeedResults: isMeOrHasPublicSpeed
+      }
+    }
   }
 }

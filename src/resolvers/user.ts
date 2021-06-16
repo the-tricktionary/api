@@ -8,7 +8,7 @@ export const userResolvers: Resolvers = {
   },
   User: {
     async checklist (user, _, { dataSources, allowUser }) {
-      // allowUser.user(user).
+      allowUser.user(user).getChecklist.assert()
 
       return dataSources.trickCompletions.findManyByUser(user.id)
     }
