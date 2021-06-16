@@ -58,7 +58,11 @@ const typeDefs = gql`
     id: ID!
     name: String!
     alternativeNames: [String]
-    description: String!
+    description: String
+
+    createdAt: Timestamp
+    updatedAt: Timestamp
+    submitter: User
   }
 
   type TrickLevel {
@@ -124,6 +128,7 @@ const typeDefs = gql`
   }
 
   type TrickCompletion {
+    id: ID!
     trick: Trick!
     createdAt: Timestamp!
   }

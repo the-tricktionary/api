@@ -28,6 +28,10 @@ export interface TrickLocalisationDoc extends DocBase {
   name: string
   alternativeNames?: string[]
   description: string
+
+  createdAt: Timestamp
+  updatedAt: Timestamp
+  submittedBy: UserDoc['id']
 }
 
 export interface UnverifiedTrickLevelDoc extends DocBase {

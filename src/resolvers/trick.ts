@@ -23,8 +23,7 @@ export const trickResolvers: Resolvers = {
       return trick.videos ?? []
     },
     async localisation (trick, { lang }, { dataSources }) {
-      const [local, en] = await dataSources.trickLocalisations.findManyByIds([`${trick.id}-${lang}`, `${trick.id}-en`], { ttl: 3600 })
-      return local ?? en ?? null
+      return (await dataSources.trickLocalisations.findOneById(`${trick.id}-${lang ?? 'en'}`, { ttl: 3600 })) ?? null
     },
     async submitter (trick, _, { dataSources }) {
       const user = await dataSources.users.findOneById(trick.submittedBy, { ttl: 60 })
