@@ -1,10 +1,10 @@
 import { Firestore } from 'firebase-admin/firestore'
-import { FirestoreDataSource } from 'apollo-datasource-firestore'
+import { FindArgs, FirestoreDataSource } from 'apollo-datasource-firestore'
 import { logger } from '../services/logger'
 
 import type { Discipline, TrickType } from '../generated/graphql'
 import type { ApolloContext } from '../apollo'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc } from './schema'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { QueryFindArgs } from 'apollo-datasource-firestore/dist/datasource'
 
@@ -32,18 +32,6 @@ export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocali
 export const trickLocalisationDataSource = new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }) })
 trickDataSource.initialize()
 
-export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereqDoc, ApolloContext> {
-  async findManyPrerequisitesByTrick (trickId: string, options?: QueryFindArgs) {
-    return await this.findManyByQuery(c => c.where('parentId', '==', trickId), options)
-  }
-
-  async findManyRequisitesByTrick (trickId: string, options?: QueryFindArgs) {
-    return await this.findManyByQuery(c => c.where('childId', '==', trickId), options)
-  }
-}
-export const trickPrerequisiteDataSource = new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }) })
-trickPrerequisiteDataSource.initialize()
-
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, ApolloContext> {
   async findManyByFilters ({ trickId, organisation, rulesVersion }: { trickId: string, organisation?: string | null, rulesVersion?: string | null }, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => {
@@ -57,6 +45,27 @@ export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, Apo
 export const trickLevelDataSource = new TrickLevelDataSource(firestore.collection('trick-levels') as CollectionReference<TrickLevelDoc>, { logger: logger.child({ name: 'trick-level-data-source' }) })
 trickLevelDataSource.initialize()
 
+export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereqDoc, ApolloContext> {
+  async findManyPrerequisitesByTrick (trickId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('parentId', '==', trickId), options)
+  }
+
+  async findManyRequisitesByTrick (trickId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('childId', '==', trickId), options)
+  }
+}
+export const trickPrerequisiteDataSource = new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }) })
+trickPrerequisiteDataSource.initialize()
+
 export class UserDataSource extends FirestoreDataSource<UserDoc, ApolloContext> {}
 export const userDataSource = new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>, { logger: logger.child({ name: 'user-data-source' }) })
 userDataSource.initialize()
+
+export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc, ApolloContext> {
+  async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
+    return this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
+  }
+}
+
+export const trickCompletionDataSource = new TrickCompletionDataSource(firestore.collection('trick-completions') as CollectionReference<TrickCompletionDoc>, { logger: logger.child({ name: 'trick-completion-source' }) })
+trickCompletionDataSource.initialize()

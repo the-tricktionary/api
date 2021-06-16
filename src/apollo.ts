@@ -8,12 +8,14 @@ import { GCP_PROJECT, GITHUB_SHA, SENTRY_DSN } from './config'
 import typeDefs from './schema'
 import { rootResolver as resolvers } from './resolvers/rootResolver'
 import sentryPlugin from './plugins/sentry'
+import loggingPlugin from './plugins/logging'
 import { userFromAuthorizationHeader } from './services/authentication'
 import { allowUser } from './services/permissions'
 import { logger } from './services/logger'
 import {
   trickPrerequisiteDataSource,
   trickDataSource,
+  trickCompletionDataSource,
   trickLevelDataSource,
   trickLocalisationDataSource,
   userDataSource
@@ -22,13 +24,14 @@ import {
 import type {
   TrickPrerequisiteDataSource,
   TrickDataSource,
+  TrickCompletionDataSource,
   TrickLevelDataSource,
   TrickLocalisationDataSource,
   UserDataSource
 } from './store/firestoreDataSource'
 import type { UserDoc } from './store/schema'
 
-const plugins = []
+const plugins = [loggingPlugin]
 
 if (SENTRY_DSN) {
   logger.info('Sentry enabled')
@@ -51,7 +54,8 @@ export const server = new ApolloServer({
     tricks: trickDataSource as any,
     trickLocalisations: trickLocalisationDataSource as any,
     trickPrerequisites: trickPrerequisiteDataSource as any,
-    trickLevels: trickLevelDataSource as any
+    trickLevels: trickLevelDataSource as any,
+    trickCompletions: trickCompletionDataSource as any
   }),
   plugins,
   cors: {
@@ -80,6 +84,7 @@ interface DataSources {
   trickLocalisations: TrickLocalisationDataSource
   trickPrerequisites: TrickPrerequisiteDataSource
   trickLevels: TrickLevelDataSource
+  trickCompletions: TrickCompletionDataSource
 }
 
 export type DataSourceContext = ApolloDataSources<DataSources>

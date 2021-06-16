@@ -20,7 +20,10 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     return Object.assign(checkMethod, annotations)
   }
 
+  const isAuthenticated = enrich(function isAuthenticated () { return !!user })
+
   return {
-    getTricks: enrich(() => true)
+    getTricks: enrich(() => true),
+    editTrickCompletions: isAuthenticated
   }
 }

@@ -17,6 +17,7 @@ generates:
         User: ../store/schema#UserDoc
         Trick: ../store/schema#TrickDoc
         TrickLevel: ../store/schema#TrickLevelDoc
+        TrickCompletion: ../store/schema#TrickCompletionDoc
     plugins:
       - typescript
       - typescript-resolvers

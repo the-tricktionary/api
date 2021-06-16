@@ -18,9 +18,7 @@ export interface TrickDoc extends DocBase {
 
   videos: Array<Omit<Video, '__typename'>>
 }
-export function isTrick (t: any): t is TrickDoc {
-  return t?.collection === 'tricks'
-}
+export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tricks' }
 
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'
@@ -33,6 +31,7 @@ export interface TrickLocalisationDoc extends DocBase {
   updatedAt: Timestamp
   submittedBy: UserDoc['id']
 }
+export function isTrickLocalisation (t: any): t is TrickLocalisationDoc { return t?.collection === 'trick-localisations' }
 
 export interface UnverifiedTrickLevelDoc extends DocBase {
   readonly collection: 'trick-levels'
@@ -52,13 +51,15 @@ export interface VerifiedTrickLevelDoc extends UnverifiedTrickLevelDoc {
 }
 
 export type TrickLevelDoc = UnverifiedTrickLevelDoc | VerifiedTrickLevelDoc
+export function isTrickLevel (t: any): t is TrickLevelDoc { return t?.collection === 'trick-levels' }
 
 export interface TrickPrereqDoc extends DocBase {
-  readonly collection: 'prerequisites'
+  readonly collection: 'trick-prerequisites'
   parentId: TrickDoc['id']
   childId: TrickDoc['id']
   createdAt: Timestamp
 }
+export function isTrickPrereq (t: any): t is TrickDoc { return t?.collection === 'trick-prerequisites' }
 
 export interface UserDoc extends DocBase {
   readonly collection: 'users'
@@ -68,3 +69,12 @@ export interface UserDoc extends DocBase {
   photo?: string
   profile: Omit<ProfileOptions, '__typename'>
 }
+export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
+
+export interface TrickCompletionDoc extends DocBase {
+  readonly collection: 'trick-completions'
+  userId: UserDoc['id']
+  trickId: TrickDoc['id']
+  createdAt: Timestamp
+}
+export function isTrickCompletion (t: any): t is TrickDoc { return t?.collection === 'trick-completions' }

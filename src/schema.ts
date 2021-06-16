@@ -33,6 +33,10 @@ const typeDefs = gql`
     ): [Trick]!
   }
 
+  type Mutation {
+    setTrickCompletion (trickId: ID!, completed: Boolean!): TrickCompletion
+  }
+
   type Trick {
     id: ID!
     slug: String!

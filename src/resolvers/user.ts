@@ -5,5 +5,12 @@ export const userResolvers: Resolvers = {
     async me (_, args, { dataSources, user }) {
       return user ?? null
     }
+  },
+  User: {
+    async checklist (user, _, { dataSources, allowUser }) {
+      // allowUser.user(user).
+
+      return dataSources.trickCompletions.findManyByUser(user.id)
+    }
   }
 }
