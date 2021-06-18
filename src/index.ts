@@ -1,6 +1,6 @@
-import { PORT } from './config'
 import '@sentry/node'
 import '@sentry/tracing'
+import { PORT } from './config'
 import { server } from './apollo'
 import { logger } from './services/logger'
 

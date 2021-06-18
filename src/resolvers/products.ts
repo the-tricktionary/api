@@ -1,5 +1,6 @@
-import type { Product, Resolvers } from '../generated/graphql'
-import { getPrices, getProducts } from '../services/stripe'
+import { createCheckoutSession, getPrices, getProducts } from '../services/stripe'
+
+import type { Product, Currency, Resolvers } from '../generated/graphql'
 
 export const productResolvers: Resolvers = {
   Query: {
@@ -12,11 +13,17 @@ export const productResolvers: Resolvers = {
       })) as Product[]
     }
   },
+  Mutation: {
+    async createCheckoutSession (_, { products, currency }, { dataSources, user, allowUser, logger }) {
+      allowUser.makePurchase.assert()
+      return createCheckoutSession({ products, user, currency })
+    }
+  },
   Product: {
     async prices (product, _, { dataSources, allowUser }) {
       return (await getPrices(product.id)).map(p => ({
         id: p.id,
-        currency: p.currency,
+        currency: p.currency as Currency,
         unitAmount: p.unit_amount,
         unitAmountDecimal: p.unit_amount_decimal
       }))

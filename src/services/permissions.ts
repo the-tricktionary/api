@@ -21,11 +21,13 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   }
 
   const isAuthenticated = enrich(function isAuthenticated () { return !!user })
+  const everyone = enrich(function everyone () { return true })
 
   return {
-    getTricks: enrich(() => true),
+    getTricks: everyone,
     editTrickCompletions: isAuthenticated,
     createSpeedResult: isAuthenticated,
+    makePurchase: everyone,
 
     user (subUser: UserDoc) {
       const isMe = enrich(function isMe () { return !!user && user.id === subUser.id })

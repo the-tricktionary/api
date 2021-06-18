@@ -67,6 +67,7 @@ export interface UserDoc extends DocBase {
   name?: string
   lang?: string
   photo?: string
+  email?: string
   profile: Omit<ProfileOptions, '__typename'>
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
