@@ -1,6 +1,6 @@
 import { AuthenticationError } from 'apollo-server'
 
-import type { UserDoc } from '../store/schema'
+import type { SpeedResultDoc, UserDoc } from '../store/schema'
 import type { Logger } from 'pino'
 
 interface AllowUserContext { logger: Logger }
@@ -25,6 +25,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   return {
     getTricks: enrich(() => true),
     editTrickCompletions: isAuthenticated,
+    createSpeedResult: isAuthenticated,
 
     user (subUser: UserDoc) {
       const isMe = enrich(function isMe () { return !!user && user.id === subUser.id })
@@ -36,7 +37,19 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       const isMeOrHasPublicSpeed = enrich(function isMeAndHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicSpeed()) })
       return {
         getChecklist: isMeOrHasPublicChecklist,
-        getSpeedResults: isMeOrHasPublicSpeed
+        getSpeedResults: isMeOrHasPublicSpeed,
+
+        speedResult (speedResult: SpeedResultDoc) {
+          const isMine = enrich(function isMine () { return !!user && speedResult.userId === user.id })
+
+          const isMineOrHasPublicSpeed = enrich(function isMineOrHasPublicSpeed () { return isMine() || (hasPublicProfile() && hasPublicSpeed()) })
+          return {
+            get: isMineOrHasPublicSpeed,
+            edit: isMine,
+            delete: isMine,
+            getCreator: isMineOrHasPublicSpeed
+          }
+        }
       }
     }
   }

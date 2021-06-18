@@ -4,7 +4,7 @@ import { logger } from '../services/logger'
 
 import type { Discipline, TrickType } from '../generated/graphql'
 import type { ApolloContext } from '../apollo'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc } from './schema'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { QueryFindArgs } from 'apollo-datasource-firestore/dist/datasource'
 
@@ -66,6 +66,21 @@ export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompleti
     return this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
   }
 }
-
 export const trickCompletionDataSource = new TrickCompletionDataSource(firestore.collection('trick-completions') as CollectionReference<TrickCompletionDoc>, { logger: logger.child({ name: 'trick-completion-source' }) })
 trickCompletionDataSource.initialize()
+
+export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc, ApolloContext> {
+  async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
+    return this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
+  }
+}
+export const speedResultDataSource = new SpeedResultDataSource(firestore.collection('speed-results') as CollectionReference<SpeedResultDoc>, { logger: logger.child({ name: 'speed-result-data-source' }) })
+speedResultDataSource.initialize()
+
+export class EventDefinitionDataSource extends FirestoreDataSource<EventDefinitionDoc, ApolloContext> {
+  async findOneByLookupCode (lookupCode: string, { ttl }: FindArgs = {}) {
+    return (await this.findManyByQuery(c => c.where('lookupCode', '==', lookupCode), { ttl }))[0]
+  }
+}
+export const eventDefinitionDataSource = new EventDefinitionDataSource(firestore.collection('event-definitions') as CollectionReference<EventDefinitionDoc>, { logger: logger.child({ name: 'event-definition-data-source' }) })
+eventDefinitionDataSource.initialize()

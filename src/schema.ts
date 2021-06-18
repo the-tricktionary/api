@@ -36,7 +36,13 @@ const typeDefs = gql`
   }
 
   type Mutation {
+    # Checklist
     setTrickCompletion (trickId: ID!, completed: Boolean!): TrickCompletion
+
+    # Speed
+    createSpeedResult (eventDefinitionId: ID!, data: SpeedResultInput!, name: String): SpeedResult
+    updateSpeedResult (speedResultId: ID!, name: String): SpeedResult
+    deleteSpeedResult (speedResultId: ID!): Boolean
   }
 
   type Trick {
@@ -117,8 +123,8 @@ const typeDefs = gql`
     # friends: [User]! # maybe in the future?
 
     checklist: [TrickCompletion]!
-    # speedResults: [SpeedResult]!
-    # getSpeedResult (id: ID!): SpeedResult
+    speedResults: [SpeedResult]!
+    speedResult (speedResultId: ID!): SpeedResult
 
     # store fcm tokens in db? don't expose if so
 
@@ -137,6 +143,46 @@ const typeDefs = gql`
     id: ID!
     trick: Trick!
     createdAt: Timestamp!
+  }
+
+  union SpeedResult = SimpleSpeedResult | DetailedSpeedResult
+
+  type SimpleSpeedResult {
+    id: ID!
+    name: String
+    creator: User!
+    createdAt: Timestamp!
+
+    count: Int!
+    event: EventDefinition!
+  }
+
+  type DetailedSpeedResult {
+    id: ID!
+    name: String
+    creator: User!
+    createdAt: Timestamp!
+
+    count: Int!
+    event: EventDefinition!
+
+    clicks: [Timestamp]!
+    clicksPerSecond: Float!
+    maxClicksPerSecond: Float!
+    misses: Int!
+    jumpsLost: Int!
+  }
+
+  input SpeedResultInput {
+    count: Int!
+    clicks: [Timestamp]
+  }
+
+  type EventDefinition {
+    id: ID!
+    name: String!
+    totalDuration: Int!
+    eventDefinitionLookupCode: String
   }
 
   type Product {

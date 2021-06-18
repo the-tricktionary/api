@@ -78,3 +78,30 @@ export interface TrickCompletionDoc extends DocBase {
   createdAt: Timestamp
 }
 export function isTrickCompletion (t: any): t is TrickDoc { return t?.collection === 'trick-completions' }
+
+export type SpeedResultDoc = SimpleSpeedResultDoc | DetailedSpeedResultDoc
+export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed' }
+
+export interface SimpleSpeedResultDoc extends DocBase {
+  readonly collection: 'speed-results'
+  name?: string
+  userId: UserDoc['id']
+  createdAt: Timestamp
+
+  count: number
+  eventDefinitionId: EventDefinitionDoc['id']
+}
+export function isSimpleSpeedResult (t: any): t is SimpleSpeedResultDoc { return t?.collection === 'speed-results' && !t.clicks }
+
+export interface DetailedSpeedResultDoc extends SimpleSpeedResultDoc {
+  clicks: Timestamp[]
+}
+export function isDetailedSpeedResult (t: any): t is DetailedSpeedResultDoc { return t?.collection === 'speed-results' && !!t.clicks }
+
+export interface EventDefinitionDoc extends DocBase {
+  collection: 'event-definitions'
+  name: string
+  totalDuration: number
+  lookupCode?: string
+}
+export function isEventDefinition (t: any): t is EventDefinitionDoc { return t?.collection === 'event-definitions' }

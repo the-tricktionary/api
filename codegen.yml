@@ -18,6 +18,9 @@ generates:
         Trick: ../store/schema#TrickDoc
         TrickLevel: ../store/schema#TrickLevelDoc
         TrickCompletion: ../store/schema#TrickCompletionDoc
+        SpeedResult: ../store/schema#SpeedResultDoc
+        SimpleSpeedResult: ../store/schema#SimpleSpeedResultDoc
+        DetailedSpeedResult: ../store/schema#DetailedSpeedResultDoc
     plugins:
       - typescript
       - typescript-resolvers
