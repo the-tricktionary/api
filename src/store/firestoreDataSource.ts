@@ -30,7 +30,7 @@ trickDataSource.initialize()
 
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc, ApolloContext> {}
 export const trickLocalisationDataSource = new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }) })
-trickDataSource.initialize()
+trickLocalisationDataSource.initialize()
 
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, ApolloContext> {
   async findManyByFilters ({ trickId, organisation, rulesVersion }: { trickId: string, organisation?: string | null, rulesVersion?: string | null }, options?: QueryFindArgs) {
