@@ -13,6 +13,8 @@ import { userFromAuthorizationHeader } from './services/authentication'
 import { allowUser } from './services/permissions'
 import { logger } from './services/logger'
 import {
+  eventDefinitionDataSource,
+  speedResultDataSource,
   trickPrerequisiteDataSource,
   trickDataSource,
   trickCompletionDataSource,
@@ -22,6 +24,8 @@ import {
 } from './store/firestoreDataSource'
 
 import type {
+  EventDefinitionDataSource,
+  SpeedResultDataSource,
   TrickPrerequisiteDataSource,
   TrickDataSource,
   TrickCompletionDataSource,
@@ -37,7 +41,7 @@ if (SENTRY_DSN) {
   logger.info('Sentry enabled')
   Sentry.init({
     dsn: SENTRY_DSN,
-    release: `the-tricktionary/api@${GITHUB_SHA}`,
+    release: `tricktionary-api@${GITHUB_SHA}`,
     integrations: [
       new Sentry.Integrations.Http({ tracing: true })
     ],
@@ -50,12 +54,14 @@ export const server = new ApolloServer({
   typeDefs,
   resolvers,
   dataSources: (): DataSourceContext => ({
-    users: userDataSource as any,
+    eventDefinitions: eventDefinitionDataSource as any,
+    speedResults: speedResultDataSource as any,
     tricks: trickDataSource as any,
     trickLocalisations: trickLocalisationDataSource as any,
     trickPrerequisites: trickPrerequisiteDataSource as any,
     trickLevels: trickLevelDataSource as any,
-    trickCompletions: trickCompletionDataSource as any
+    trickCompletions: trickCompletionDataSource as any,
+    users: userDataSource as any
   }),
   plugins,
   cors: {
@@ -79,12 +85,14 @@ export const server = new ApolloServer({
 })
 
 interface DataSources {
-  users: UserDataSource
+  eventDefinitions: EventDefinitionDataSource
+  speedResults: SpeedResultDataSource
   tricks: TrickDataSource
   trickLocalisations: TrickLocalisationDataSource
   trickPrerequisites: TrickPrerequisiteDataSource
   trickLevels: TrickLevelDataSource
   trickCompletions: TrickCompletionDataSource
+  users: UserDataSource
 }
 
 export type DataSourceContext = ApolloDataSources<DataSources>
