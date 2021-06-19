@@ -30,9 +30,9 @@ const typeDefs = gql`
       # ttLevel: Int,
       # limit: Int,
       # startAt: ID,
-    ): [Trick]!
+    ): [Trick!]!
 
-    products: [Product]!
+    products: [Product!]!
   }
 
   type Mutation {
@@ -55,10 +55,10 @@ const typeDefs = gql`
     localisation (lang: String): TrickLocalisation
 
     videos: [Video]!
-    levels (organisation: String, rulesVersion: String): [TrickLevel]!
+    levels (organisation: String, rulesVersion: String): [TrickLevel!]!
 
-    prerequisites: [Trick]!
-    prerequisiteFor: [Trick]!
+    prerequisites: [Trick!]!
+    prerequisiteFor: [Trick!]!
 
     submitter: User
 
@@ -69,7 +69,7 @@ const typeDefs = gql`
   type TrickLocalisation {
     id: ID!
     name: String!
-    alternativeNames: [String]
+    alternativeNames: [String!]
     description: String
 
     createdAt: Timestamp
@@ -122,8 +122,8 @@ const typeDefs = gql`
     # groups: [Group]! # Only top-level groups?
     # friends: [User]! # maybe in the future?
 
-    checklist: [TrickCompletion]!
-    speedResults: [SpeedResult]!
+    checklist: [TrickCompletion!]!
+    speedResults: [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
 
     # store fcm tokens in db? don't expose if so
@@ -166,7 +166,7 @@ const typeDefs = gql`
     count: Int!
     event: EventDefinition!
 
-    clicks: [Timestamp]!
+    clicks: [Timestamp!]!
     clicksPerSecond: Float!
     maxClicksPerSecond: Float!
     misses: Int!
@@ -175,7 +175,7 @@ const typeDefs = gql`
 
   input SpeedResultInput {
     count: Int!
-    clicks: [Timestamp]
+    clicks: [Timestamp!]
   }
 
   type EventDefinition {
@@ -190,7 +190,7 @@ const typeDefs = gql`
     name: String!
     description: String
     image: String
-    prices: [Price]
+    prices: [Price!]!
   }
 
   type Price {

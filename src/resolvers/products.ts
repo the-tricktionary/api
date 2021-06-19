@@ -1,4 +1,4 @@
-import type { Resolvers } from '../generated/graphql'
+import type { Product, Resolvers } from '../generated/graphql'
 import { getPrices, getProducts } from '../services/stripe'
 
 export const productResolvers: Resolvers = {
@@ -9,7 +9,7 @@ export const productResolvers: Resolvers = {
         name: p.name,
         description: p.description,
         image: p.images[0]
-      }))
+      })) as Product[]
     }
   },
   Product: {
