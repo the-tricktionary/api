@@ -9,12 +9,13 @@ export const trickCompletionResolvers: Resolvers = {
       allowUser.editTrickCompletions.assert()
       if (!user) throw new ApolloError('You need to be logged in to perform this action')
       const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user?.id).where('trickId', '==', trickId)))[0]
-      if (completed && existing) return existing ?? null
+
+      if (completed && existing) return existing
       else if (completed && !existing) return dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>
       else if (!completed && existing) {
         await dataSources.trickCompletions.deleteOne(existing.id)
-        return existing ?? null
-      } else return null
+        return existing
+      } else return existing
     }
   },
   TrickCompletion: {

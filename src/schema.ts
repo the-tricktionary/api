@@ -37,12 +37,12 @@ const typeDefs = gql`
 
   type Mutation {
     # Checklist
-    setTrickCompletion (trickId: ID!, completed: Boolean!): TrickCompletion
+    setTrickCompletion (trickId: ID!, completed: Boolean!): TrickCompletion!
 
     # Speed
-    createSpeedResult (eventDefinitionId: ID!, data: SpeedResultInput!, name: String): SpeedResult
-    updateSpeedResult (speedResultId: ID!, name: String): SpeedResult
-    deleteSpeedResult (speedResultId: ID!): Boolean
+    createSpeedResult (eventDefinitionId: ID!, data: SpeedResultInput!, name: String): SpeedResult!
+    updateSpeedResult (speedResultId: ID!, name: String): SpeedResult!
+    deleteSpeedResult (speedResultId: ID!): SpeedResult!
   }
 
   type Trick {
