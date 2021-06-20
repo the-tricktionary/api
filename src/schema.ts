@@ -55,7 +55,7 @@ const typeDefs = gql`
     # defaults to english
     localisation (lang: String): TrickLocalisation
 
-    videos: [Video]!
+    videos: [Video!]!
     levels (organisation: String, rulesVersion: String): [TrickLevel!]!
 
     prerequisites: [Trick!]!
@@ -120,8 +120,8 @@ const typeDefs = gql`
 
     profile: ProfileOptions!
 
-    # groups: [Group]! # Only top-level groups?
-    # friends: [User]! # maybe in the future?
+    # groups: [Group!]! # Only top-level groups?
+    # friends: [User!]! # maybe in the future?
 
     checklist: [TrickCompletion!]!
     speedResults: [SpeedResult!]!
