@@ -5,17 +5,25 @@ import type { TrickCompletionDoc, TrickDoc } from '../store/schema'
 
 export const trickCompletionResolvers: Resolvers = {
   Mutation: {
-    async setTrickCompletion (_, { trickId, completed }, { dataSources, allowUser, user }) {
+    async createTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
       allowUser.editTrickCompletions.assert()
       if (!user) throw new ApolloError('You need to be logged in to perform this action')
-      const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user?.id).where('trickId', '==', trickId)))[0]
+      const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
 
-      if (completed && existing) return existing
-      else if (completed && !existing) return dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>
-      else if (!completed && existing) {
+      if (!existing) return dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>
+      else return existing
+    },
+    async deleteTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
+      allowUser.editTrickCompletions.assert()
+      if (!user) throw new ApolloError('You need to be logged in to perform this action')
+      const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
+
+      if (existing) {
         await dataSources.trickCompletions.deleteOne(existing.id)
         return existing
-      } else return existing
+      } else {
+        return null
+      }
     }
   },
   TrickCompletion: {
