@@ -72,7 +72,7 @@ export const speedResultResolvers: Resolvers = {
       if (!speedResultUser) throw new ApolloError(`Speed Result with id ${speedResultId} does not have an owning user`)
       allowUser.user(speedResultUser).speedResult(speedResult).delete.assert()
       await dataSources.speedResults.deleteOne(speedResult.id)
-      return true
+      return speedResult
     }
   },
   SimpleSpeedResult: sharedResolvers,
