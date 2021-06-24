@@ -2,7 +2,7 @@ import { Firestore } from 'firebase-admin/firestore'
 import { FindArgs, FirestoreDataSource } from 'apollo-datasource-firestore'
 import { logger } from '../services/logger'
 
-import type { Discipline, TrickType } from '../generated/graphql'
+import type { Discipline } from '../generated/graphql'
 import type { ApolloContext } from '../apollo'
 import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
@@ -11,11 +11,10 @@ import type { QueryFindArgs } from 'apollo-datasource-firestore/dist/datasource'
 const firestore = new Firestore()
 
 export class TrickDataSource extends FirestoreDataSource<TrickDoc, ApolloContext> {
-  async findManyByFilters ({ discipline, trickType }: { discipline?: Discipline | null, trickType?: TrickType | null }, options?: QueryFindArgs) {
+  async findManyByDiscipline (discipline?: Discipline | null, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => {
       let q: Query<TrickDoc> = c
       if (discipline) q = q.where('discipline', '==', discipline)
-      if (trickType) q = q.where('trickType', '==', trickType)
       return q
     }, options)
   }

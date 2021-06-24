@@ -13,5 +13,7 @@ export const {
   GITHUB_REF,
   GCP_PROJECT,
   STRIPE_SK,
+  ALGOLIA_APP_ID,
+  ALGOLIA_API_KEY,
   PORT = 3000
 } = process.env

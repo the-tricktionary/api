@@ -27,6 +27,7 @@
     "@google-cloud/firestore": "^4.12.3",
     "@sentry/node": "^6.7.1",
     "@sentry/tracing": "^6.7.1",
+    "algoliasearch": "^4.10.2",
     "apollo-datasource-firestore": "^3.0.0",
     "apollo-server": "^2.25.1",
     "deepmerge": "^4.2.2",

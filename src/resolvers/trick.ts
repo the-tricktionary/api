@@ -2,12 +2,18 @@ import { isTrick } from '../store/schema'
 
 import type { Resolvers } from '../generated/graphql'
 import type { TrickDoc, UserDoc } from '../store/schema'
+import { searchTricks } from '../services/algolia'
 
 export const trickResolvers: Resolvers = {
   Query: {
-    async tricks (_, { discipline, trickType }, { dataSources, allowUser }) {
+    async tricks (_, { discipline, searchQuery }, { dataSources, allowUser }) {
       allowUser.getTricks.assert()
-      return dataSources.tricks.findManyByFilters({ discipline, trickType }, { ttl: 3600 })
+      if (searchQuery) {
+        const hits = await searchTricks(searchQuery, { discipline: discipline ?? undefined })
+        return dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>
+      } else {
+        return dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
+      }
     },
     async trick (_, { id }, { dataSources, allowUser }) {
       allowUser.getTricks.assert()

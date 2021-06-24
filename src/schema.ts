@@ -26,10 +26,7 @@ const typeDefs = gql`
     trickBySlug (discipline: Discipline!, slug: String!): Trick
     tricks (
       discipline: Discipline,
-      trickType: TrickType,
-      # ttLevel: Int,
-      # limit: Int,
-      # startAt: ID,
+      searchQuery: String
     ): [Trick!]!
 
     products: [Product!]!
