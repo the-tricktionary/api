@@ -30,7 +30,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
     throw new AuthenticationError(err.message)
   }
 
-  logger.debug(decoded, 'Finding user or device')
+  logger.debug({ uid: decoded.uid }, 'Finding user')
   let user = await userDataSource.findOneById(decoded.uid, { ttl: 3600 })
 
   if (!user) {
@@ -38,6 +38,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
       id: decoded.uid,
       ...(decoded.name ? { name: decoded.name } : {}),
       ...(decoded.photo ? { photo: decoded.picture } : {}),
+      ...(decoded.email && decoded.email_verified ? { email: decoded.email } : {}),
       profile: {
         public: false,
         checklist: false,
@@ -52,6 +53,10 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
     }
     if (!user.photo && decoded.picture) {
       user.photo = decoded.picture
+      update = true
+    }
+    if (!user.email && decoded.email && decoded.email_verified) {
+      user.email = decoded.email
       update = true
     }
 

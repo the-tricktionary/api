@@ -18,6 +18,12 @@ const typeDefs = gql`
     impossible
   }
 
+  enum Currency {
+    eur
+    usd
+    sek
+  }
+
   type Query {
     me: User
     # findUser (username: String): User
@@ -30,6 +36,7 @@ const typeDefs = gql`
     ): [Trick!]!
 
     products: [Product!]!
+    shippingRates: [Price!]!
   }
 
   type Mutation {
@@ -41,6 +48,9 @@ const typeDefs = gql`
     createSpeedResult (eventDefinitionId: ID!, data: SpeedResultInput!, name: String): SpeedResult!
     updateSpeedResult (speedResultId: ID!, name: String): SpeedResult!
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
+
+    # Shop
+    createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
   }
 
   type Trick {
@@ -193,8 +203,18 @@ const typeDefs = gql`
 
   type Price {
     id: ID!
-    currency: String!
+    currency: Currency!
     unitAmount: Int
+  }
+
+  type CheckoutSession {
+    id: ID!
+    url: String!
+  }
+
+  input ProductInput {
+    productId: String!
+    quantity: Int!
   }
 `
 
