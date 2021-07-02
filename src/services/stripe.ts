@@ -1,13 +1,11 @@
 import Stripe from 'stripe'
 import { STRIPE_SK } from '../config'
-import { readFileSync } from 'fs'
-import { join as pjoin } from 'path'
+import postCountries from './post.json'
 
 import type { UserDoc } from '../store/schema'
 import type { Currency } from '../generated/graphql'
 
 const stripe = new Stripe(STRIPE_SK as string, { apiVersion: '2020-08-27' })
-const postCountries = JSON.parse(readFileSync(pjoin(__dirname, 'post.json'), { encoding: 'utf-8' }))
 
 // TODO caching
 
@@ -65,7 +63,7 @@ export async function createCheckoutSession ({ products, user, currency }: Check
     tax_id_collection: { enabled: true },
     billing_address_collection: 'auto',
     shipping_address_collection: {
-      allowed_countries: postCountries
+      allowed_countries: postCountries as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[]
     },
     // shipping_rates: [], // TODO add shipping rate
     metadata: { store: 'the-tricktionary' }
