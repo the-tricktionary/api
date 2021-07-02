@@ -5,7 +5,7 @@ import { isDetailedSpeedResult } from '../store/schema'
 import { userResolvers } from './user'
 import { trickResolvers } from './trick'
 import { trickCompletionResolvers } from './trickCompletion'
-import { speedResultResolvers } from './speedResultResolver'
+import { speedResultResolvers } from './speedResult'
 import { productResolvers } from './products'
 
 import type { Resolvers } from '../generated/graphql'
