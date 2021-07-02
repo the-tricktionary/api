@@ -55,7 +55,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
       user.photo = decoded.picture
       update = true
     }
-    if (!user.photo && decoded.email && decoded.email_verified) {
+    if (!user.email && decoded.email && decoded.email_verified) {
       user.email = decoded.email
       update = true
     }
