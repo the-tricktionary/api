@@ -30,7 +30,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
     throw new AuthenticationError(err.message)
   }
 
-  logger.debug(decoded, 'Finding user or device')
+  logger.debug({ uid: decoded.uid }, 'Finding user')
   let user = await userDataSource.findOneById(decoded.uid, { ttl: 3600 })
 
   if (!user) {

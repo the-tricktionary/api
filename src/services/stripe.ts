@@ -16,6 +16,13 @@ export async function getProducts () {
   return products.data.filter(p => p.active && p.metadata.store === 'the-tricktionary')
 }
 
+export async function getShippingRates (currency?: string) {
+  const products = await stripe.products.list()
+  const product = products.data.find(p => p.active && p.metadata['shipping-store'] === 'the-tricktionary')
+  if (!product) throw new Error('No shipping rate found in stripe')
+  return getPrices(product.id, currency)
+}
+
 export async function getPrices (productId: string, currency?: string) {
   const prices = await stripe.prices.list({
     product: productId,
@@ -42,9 +49,13 @@ export async function createCheckoutSession ({ products, user, currency }: Check
       }
     })
   }
+  // TODO: temp fix while waiting for shipping rates to get support for tax rates
+  const shippingRate = await getShippingRates(currency)
+  lineItems.push({ price: shippingRate[0].id, quantity: 1, adjustable_quantity: { enabled: false } })
+
   return stripe.checkout.sessions.create({
-    success_url: 'https://the-tricktionary.com/shop?state=success&session_id={CHECKOUT_SESSION_ID}',
-    cancel_url: 'https://the-tricktionary.com/shop?state=cancel',
+    success_url: 'https://the-tricktionary.com/shop-success?session_id={CHECKOUT_SESSION_ID}',
+    cancel_url: 'https://the-tricktionary.com/shop-cancel',
     mode: 'payment',
     payment_method_types: ['card'],
     // customer: // TODO store stripeCustomerId on UserDoc if they've made a purchase before?
@@ -56,7 +67,7 @@ export async function createCheckoutSession ({ products, user, currency }: Check
     shipping_address_collection: {
       allowed_countries: postCountries
     },
-    shipping_rates: [], // TODO add shipping rate
+    // shipping_rates: [], // TODO add shipping rate
     metadata: { store: 'the-tricktionary' }
   })
 }

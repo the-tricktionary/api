@@ -36,6 +36,7 @@ const typeDefs = gql`
     ): [Trick!]!
 
     products: [Product!]!
+    shippingRates: [Price!]!
   }
 
   type Mutation {
@@ -49,7 +50,7 @@ const typeDefs = gql`
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
 
     # Shop
-    createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession
+    createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
   }
 
   type Trick {
@@ -208,6 +209,7 @@ const typeDefs = gql`
 
   type CheckoutSession {
     id: ID!
+    url: String!
   }
 
   input ProductInput {
