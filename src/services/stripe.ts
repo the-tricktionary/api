@@ -53,7 +53,7 @@ export async function createCheckoutSession ({ products, user, currency }: Check
 
   return stripe.checkout.sessions.create({
     success_url: 'https://the-tricktionary.com/shop-success?session_id={CHECKOUT_SESSION_ID}',
-    cancel_url: 'https://the-tricktionary.com/shop-cancel',
+    cancel_url: 'https://the-tricktionary.com/shop?state=cancelled', // TODO: include products + qty in query parameters?
     mode: 'payment',
     payment_method_types: ['card'],
     // customer: // TODO store stripeCustomerId on UserDoc if they've made a purchase before?
