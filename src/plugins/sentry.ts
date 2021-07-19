@@ -2,11 +2,11 @@ import { ApolloError } from 'apollo-server'
 import * as Sentry from '@sentry/node'
 
 import type { ApolloServerPlugin } from 'apollo-server-plugin-base'
-import type { TrickContext } from '../apollo'
+import type { ApolloContext } from '../apollo'
 
 // from: https://blog.sentry.io/2020/07/22/handling-graphql-errors-using-sentry
 
-const sentryPlugin: ApolloServerPlugin<TrickContext> = {
+const sentryPlugin: ApolloServerPlugin<ApolloContext> = {
   async requestDidStart (_) {
     /* Within this returned object, define functions that respond to
        request-specific lifecycle events. */
@@ -19,7 +19,10 @@ const sentryPlugin: ApolloServerPlugin<TrickContext> = {
         context.logger.trace(operationName ?? '')
         if (operationName !== 'IntrospectionQuery') {
           const transaction = Sentry.startTransaction({ name: operationName ?? 'GraphQL Query', op: 'transaction' })
-          Sentry.configureScope(scope => scope.setSpan(transaction))
+          Sentry.configureScope(scope => {
+            scope.setSpan(transaction)
+            scope.setUser(context.user ? { id: context.user.id } : null)
+          })
         }
       },
       // executionDidStart () {
