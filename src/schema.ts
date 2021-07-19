@@ -1,7 +1,18 @@
 import { gql } from 'apollo-server'
 
 const typeDefs = gql`
+  directive @cacheControl(
+    maxAge: Int
+    scope: CacheControlScope
+    inheritMaxAge: Boolean
+  ) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION
+
   scalar Timestamp
+
+  enum CacheControlScope {
+    PUBLIC
+    PRIVATE
+  }
 
   enum Discipline {
     SingleRope
@@ -53,7 +64,7 @@ const typeDefs = gql`
     createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
   }
 
-  type Trick {
+  type Trick @cacheControl(maxAge: 3600) {
     id: ID!
     slug: String!
     discipline: Discipline!
@@ -74,7 +85,7 @@ const typeDefs = gql`
     updatedAt: Timestamp
   }
 
-  type TrickLocalisation {
+  type TrickLocalisation @cacheControl(maxAge: 3600) {
     id: ID!
     name: String!
     alternativeNames: [String!]
@@ -85,7 +96,7 @@ const typeDefs = gql`
     submitter: User
   }
 
-  type TrickLevel {
+  type TrickLevel @cacheControl(maxAge: 3600, scope: PUBLIC) {
     id: ID!
     trick: Trick!
     organisation: String!

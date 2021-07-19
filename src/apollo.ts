@@ -1,7 +1,9 @@
 import { ApolloServer } from 'apollo-server'
 import * as Sentry from '@sentry/node'
+import responseCachePlugin from 'apollo-server-plugin-response-cache'
 
 import type { DataSources as ApolloDataSources } from 'apollo-server-core/dist/graphqlOptions'
+import type { BaseContext } from 'apollo-server-plugin-base'
 import type { Logger } from 'pino'
 
 import { GCP_PROJECT, GITHUB_SHA, SENTRY_DSN } from './config'
@@ -35,7 +37,7 @@ import type {
 } from './store/firestoreDataSource'
 import type { UserDoc } from './store/schema'
 
-const plugins = [loggingPlugin]
+const plugins = [loggingPlugin, responseCachePlugin()]
 
 if (SENTRY_DSN) {
   logger.info('Sentry enabled')
@@ -65,7 +67,12 @@ export const server = new ApolloServer({
   }),
   plugins,
   cors: {
-    origin: ['https://the-tricktionary.com', /\.the-tricktionary\.com$/, /https?:\/\/localhost(:\d+)?$/]
+    origin: [
+      'https://the-tricktionary.com',
+      /\.the-tricktionary\.com$/,
+      /https?:\/\/localhost(:\d+)?$/,
+      'https://studio.apollographql.com'
+    ]
   },
   context: async (context) => {
     const trace = context.req.get('X-Cloud-Trace-Context')
@@ -97,7 +104,9 @@ interface DataSources {
 
 export type DataSourceContext = ApolloDataSources<DataSources>
 
-export interface ApolloContext {
+export type ApolloContext = BaseContext & TrickContext
+
+export interface TrickContext {
   dataSources: DataSources
   user?: UserDoc
   allowUser: ReturnType<typeof allowUser>
