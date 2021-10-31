@@ -70,7 +70,8 @@ export const server = new ApolloServer({
     origin: [
       'https://the-tricktionary.com',
       /\.the-tricktionary\.com$/,
-      /https?:\/\/localhost(:\d+)?$/,
+      /^https:\/\/tricktionary-v4--.+\.web\.app$/,
+      /^https?:\/\/localhost(:\d+)?$/,
       'https://studio.apollographql.com'
     ]
   },
