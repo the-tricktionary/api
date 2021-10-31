@@ -70,7 +70,7 @@ trickCompletionDataSource.initialize()
 
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc, ApolloContext> {
   async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
-    return this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
+    return this.findManyByQuery(c => c.where('userId', '==', userId).orderBy('createdAt', 'desc'), { ttl })
   }
 }
 export const speedResultDataSource = new SpeedResultDataSource(firestore.collection('speed-results') as CollectionReference<SpeedResultDoc>, { logger: logger.child({ name: 'speed-result-data-source' }) })
