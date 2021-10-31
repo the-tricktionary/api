@@ -1,4 +1,4 @@
-import * as deepmerge from 'deepmerge'
+import { mergeResolvers } from '@graphql-tools/merge'
 import { TimestampScalar } from '../scalars'
 import { isDetailedSpeedResult } from '../store/schema'
 
@@ -7,6 +7,7 @@ import { trickResolvers } from './trick'
 import { trickCompletionResolvers } from './trickCompletion'
 import { speedResultResolvers } from './speedResult'
 import { productResolvers } from './products'
+import { eventDefinitionResolvers } from './eventDefinitions'
 
 import type { Resolvers } from '../generated/graphql'
 
@@ -23,11 +24,12 @@ export const commonResolvers: Resolvers = {
   }
 }
 
-export const rootResolver = deepmerge.all<Resolvers>([
+export const rootResolver = mergeResolvers([
   commonResolvers,
   productResolvers,
   speedResultResolvers,
   trickResolvers,
   trickCompletionResolvers,
-  userResolvers
-])
+  userResolvers,
+  eventDefinitionResolvers
+]) as Resolvers

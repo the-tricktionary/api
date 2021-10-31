@@ -48,6 +48,8 @@ const typeDefs = gql`
 
     products: [Product!]!
     shippingRates: [Price!]!
+
+    eventDefinitions: [EventDefinition!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
@@ -213,7 +215,7 @@ const typeDefs = gql`
     totalDuration: Int!
   }
 
-  type EventDefinition {
+  type EventDefinition @cacheControl(maxAge: 3600) {
     id: ID!
     name: String!
     totalDuration: Int!
