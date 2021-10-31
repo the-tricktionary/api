@@ -2,11 +2,11 @@ import { AuthenticationError } from 'apollo-server'
 import { auth } from 'firebase-admin'
 import { userDataSource } from '../store/firestoreDataSource'
 
-import type { Logger } from 'pino'
+import type Pino from 'pino'
 import type { UserDoc } from '../store/schema'
 
 interface HeaderParserOptions {
-  logger: Logger
+  logger: Pino.Logger
 }
 
 export async function userFromAuthorizationHeader (header: string | undefined, { logger }: HeaderParserOptions): Promise<UserDoc | undefined> {
@@ -27,7 +27,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
   try {
     decoded = await auth().verifyIdToken(split[1])
   } catch (err) {
-    throw new AuthenticationError(err.message)
+    throw new AuthenticationError((err as Error).message)
   }
 
   logger.debug({ uid: decoded.uid }, 'Finding user')

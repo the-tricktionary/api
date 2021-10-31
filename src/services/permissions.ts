@@ -1,9 +1,9 @@
 import { AuthenticationError } from 'apollo-server'
 
 import type { SpeedResultDoc, UserDoc } from '../store/schema'
-import type { Logger } from 'pino'
+import type Pino from 'pino'
 
-interface AllowUserContext { logger: Logger }
+interface AllowUserContext { logger: Pino.Logger }
 
 export function allowUser (user: UserDoc | undefined, { logger }: AllowUserContext) {
   function enrich (checkMethod: () => boolean) {

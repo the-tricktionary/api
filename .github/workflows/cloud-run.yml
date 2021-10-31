@@ -76,10 +76,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
-    - name: Use Node.js 14
+    - name: Use Node.js 16
       uses: actions/setup-node@v1
       with:
-        node-version: 14
+        node-version: 16
     - run: npm ci --prefer-offline
     - run: npm run codegen
     - run: npm run build

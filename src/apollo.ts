@@ -4,7 +4,7 @@ import responseCachePlugin from 'apollo-server-plugin-response-cache'
 
 import type { DataSources as ApolloDataSources } from 'apollo-server-core/dist/graphqlOptions'
 import type { BaseContext } from 'apollo-server-plugin-base'
-import type { Logger } from 'pino'
+import type Pino from 'pino'
 
 import { GCP_PROJECT, GITHUB_SHA, SENTRY_DSN } from './config'
 import typeDefs from './schema'
@@ -74,6 +74,7 @@ export const server = new ApolloServer({
       'https://studio.apollographql.com'
     ]
   },
+  logger: logger.child({ name: 'apollo-server' }),
   context: async (context) => {
     const trace = context.req.get('X-Cloud-Trace-Context')
     const childLogger = logger.child({
@@ -110,5 +111,5 @@ export interface TrickContext {
   dataSources: DataSources
   user?: UserDoc
   allowUser: ReturnType<typeof allowUser>
-  logger: Logger
+  logger: Pino.Logger
 }

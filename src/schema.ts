@@ -96,7 +96,7 @@ const typeDefs = gql`
     submitter: User
   }
 
-  type TrickLevel @cacheControl(maxAge: 3600, scope: PUBLIC) {
+  type TrickLevel @cacheControl(maxAge: 3600) {
     id: ID!
     trick: Trick!
     organisation: String!
