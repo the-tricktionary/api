@@ -90,7 +90,15 @@ export interface SimpleSpeedResultDoc extends DocBase {
   createdAt: Timestamp
 
   count: number
-  eventDefinitionId: EventDefinitionDoc['id']
+
+  // either we link this to an event definition
+  eventDefinitionId?: EventDefinitionDoc['id']
+  // or we have the fields below set for custom stuff
+  // the event definition always takes precedent if present
+  eventDefinition?: {
+    totalDuration: number
+    name: string
+  }
 }
 export function isSimpleSpeedResult (t: any): t is SimpleSpeedResultDoc { return t?.collection === 'speed-results' && !t.clicks }
 
@@ -103,6 +111,5 @@ export interface EventDefinitionDoc extends DocBase {
   collection: 'event-definitions'
   name: string
   totalDuration: number
-  lookupCode?: string
 }
 export function isEventDefinition (t: any): t is EventDefinitionDoc { return t?.collection === 'event-definitions' }

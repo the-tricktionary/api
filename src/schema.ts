@@ -56,8 +56,8 @@ const typeDefs = gql`
     deleteTrickCompletion (trickId: ID!): TrickCompletion
 
     # Speed
-    createSpeedResult (eventDefinitionId: ID!, data: SpeedResultInput!, name: String): SpeedResult!
-    updateSpeedResult (speedResultId: ID!, name: String): SpeedResult!
+    createSpeedResult (data: SpeedResultInput!): SpeedResult!
+    updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult!
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
 
     # Shop
@@ -173,7 +173,7 @@ const typeDefs = gql`
     createdAt: Timestamp!
 
     count: Int!
-    event: EventDefinition!
+    eventDefinition: EventDefinition!
   }
 
   type DetailedSpeedResult {
@@ -183,7 +183,7 @@ const typeDefs = gql`
     createdAt: Timestamp!
 
     count: Int!
-    event: EventDefinition!
+    eventDefinition: EventDefinition!
 
     clicks: [Timestamp!]!
     clicksPerSecond: Float!
@@ -193,8 +193,24 @@ const typeDefs = gql`
   }
 
   input SpeedResultInput {
+    name: String
     count: Int!
     clicks: [Timestamp!]
+
+    eventDefinitionId: ID
+    eventDefinition: EventDefinitionInput
+  }
+
+  input SpeedResultUpdateInput {
+    name: String
+
+    eventDefinitionId: ID
+    eventDefinition: EventDefinitionInput
+  }
+
+  input EventDefinitionInput {
+    name: String!
+    totalDuration: Int!
   }
 
   type EventDefinition {
