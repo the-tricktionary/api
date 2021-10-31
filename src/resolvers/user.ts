@@ -13,10 +13,10 @@ export const userResolvers: Resolvers = {
 
       return dataSources.trickCompletions.findManyByUser(user.id)
     },
-    async speedResults (user, _, { dataSources, allowUser }) {
+    async speedResults (user, { limit, startAfter }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
-      return dataSources.speedResults.findManyByUser(user.id, { ttl: 60 })
+      return dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter })
     },
     async speedResult (user, { speedResultId }, { dataSources, allowUser }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })

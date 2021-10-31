@@ -142,7 +142,7 @@ const typeDefs = gql`
     # friends: [User!]! # maybe in the future?
 
     checklist: [TrickCompletion!]!
-    speedResults: [SpeedResult!]!
+    speedResults (limit: Int, startAfter: Timestamp): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
 
     # store fcm tokens in db? don't expose if so

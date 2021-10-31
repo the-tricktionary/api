@@ -7,6 +7,7 @@ import type { ApolloContext } from '../apollo'
 import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { QueryFindArgs } from 'apollo-datasource-firestore/dist/datasource'
+import { Timestamp } from '@google-cloud/firestore'
 
 const firestore = new Firestore()
 
@@ -69,8 +70,13 @@ export const trickCompletionDataSource = new TrickCompletionDataSource(firestore
 trickCompletionDataSource.initialize()
 
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc, ApolloContext> {
-  async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
-    return this.findManyByQuery(c => c.where('userId', '==', userId).orderBy('createdAt', 'desc'), { ttl })
+  async findManyByUser (userId: string, { ttl, limit, startAfter }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null } = {}) {
+    return this.findManyByQuery(c => {
+      let q = c.where('userId', '==', userId).orderBy('createdAt', 'desc')
+      if (startAfter) q = q.startAfter(startAfter)
+      if (limit) q = q.limit(limit)
+      return q
+    }, { ttl })
   }
 }
 export const speedResultDataSource = new SpeedResultDataSource(firestore.collection('speed-results') as CollectionReference<SpeedResultDoc>, { logger: logger.child({ name: 'speed-result-data-source' }) })
