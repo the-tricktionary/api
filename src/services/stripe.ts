@@ -66,6 +66,7 @@ export async function createCheckoutSession ({ products, user, currency }: Check
       allowed_countries: postCountries as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[]
     },
     // shipping_rates: [], // TODO add shipping rate
-    metadata: { store: 'the-tricktionary' }
+    metadata: { store: 'the-tricktionary' },
+    payment_intent_data: { description: 'Swantzter (Planteringsvägen 48A LGH 1102, 262 51 Ängelholm, SWEDEN, VAT no. SE000718579601) is approved for F-Tax in Sweden.' }
   })
 }
