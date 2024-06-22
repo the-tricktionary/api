@@ -1,14 +1,14 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import { ApolloError } from 'apollo-server'
 import { ApolloContext } from '../apollo'
 
 import type { EventDefinition, Resolvers } from '../generated/graphql'
 import type { DetailedSpeedResultDoc, SpeedResultDoc } from '../store/schema'
+import { NotFoundError, ValidationError } from '../errors'
 
 const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
   async creator (speedResult, _, { dataSources, allowUser }) {
     const creator = await dataSources.users.findOneById(speedResult.userId, { ttl: 60 })
-    if (!creator) throw new ApolloError('User not found')
+    if (!creator) throw new NotFoundError('User not found', { extensions: { entity: 'user', id: speedResult.userId } })
     allowUser.user(creator).speedResult(speedResult).getCreator.assert()
     return creator
   },
@@ -20,7 +20,7 @@ const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
         collection: 'event-definitions',
         id: Buffer.from(`${speedResult.eventDefinition.name}-${speedResult.eventDefinition.totalDuration}`, 'utf-8').toString('base64')
       }
-    } else throw new ApolloError('Missing event definition')
+    } else throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.eventDefinition } })
   }
 }
 
@@ -28,7 +28,7 @@ async function clicksPerSecond ({ clicks, eventDefinitionId, eventDefinition }: 
   const eDef = eventDefinitionId
     ? await dataSources.eventDefinitions.findOneById(eventDefinitionId, { ttl: 3600 })
     : eventDefinition
-  if (!eDef) throw new ApolloError('Missing event definition')
+  if (!eDef) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: eventDefinitionId } })
   return Math.round(clicks.length / eDef.totalDuration * 100) / 100
 }
 
@@ -58,12 +58,12 @@ export const speedResultResolvers: Resolvers = {
       let eObj
       if (data.eventDefinitionId) {
         const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
-        if (!eventDefinition) throw new ApolloError(`Event definition with id ${data.eventDefinitionId} not found`)
+        if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
         eObj = { eventDefinitionId: eventDefinition.id }
       } else if (data.eventDefinition) {
         eObj = { eventDefinition: data.eventDefinition }
       } else {
-        throw new ApolloError('No event definition or event definition id specified')
+        throw new ValidationError('No event definition or event definition id specified', {})
       }
 
       return dataSources.speedResults.createOne({
@@ -77,15 +77,15 @@ export const speedResultResolvers: Resolvers = {
     },
     async updateSpeedResult (_, { speedResultId, data }, { allowUser, dataSources }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId)
-      if (!speedResult) throw new ApolloError(`Speed Result with id ${speedResultId} not found`)
+      if (!speedResult) throw new NotFoundError('Speed result not found', { extensions: { entity: 'speed-result', id: speedResultId } })
       const speedResultUser = await dataSources.users.findOneById(speedResult.userId, { ttl: 3600 })
-      if (!speedResultUser) throw new ApolloError(`Speed Result with id ${speedResultId} does not have an owning user`)
+      if (!speedResultUser) throw new NotFoundError('Speed result user not found', { extensions: { entity: 'speed-result-user', id: speedResult.userId } })
       allowUser.user(speedResultUser).speedResult(speedResult).edit.assert()
 
       let eObj = {}
       if (data.eventDefinitionId) {
         const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
-        if (!eventDefinition) throw new ApolloError(`Event definition with id ${data.eventDefinitionId} not found`)
+        if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
         eObj = {
           eventDefinitionId: eventDefinition.id,
           eventDefinition: FieldValue.delete() as any as undefined
@@ -104,9 +104,9 @@ export const speedResultResolvers: Resolvers = {
     },
     async deleteSpeedResult (_, { speedResultId }, { allowUser, dataSources }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId)
-      if (!speedResult) throw new ApolloError(`Speed Result with id ${speedResultId} not found`)
+      if (!speedResult) throw new NotFoundError('Speed result not found', { extensions: { entity: 'speed-result', id: speedResultId } })
       const speedResultUser = await dataSources.users.findOneById(speedResult.userId, { ttl: 3600 })
-      if (!speedResultUser) throw new ApolloError(`Speed Result with id ${speedResultId} does not have an owning user`)
+      if (!speedResultUser) throw new NotFoundError('Speed result user not found', { extensions: { entity: 'speed-result-user', id: speedResult.userId } })
       allowUser.user(speedResultUser).speedResult(speedResult).delete.assert()
       await dataSources.speedResults.deleteOne(speedResult.id)
       return speedResult

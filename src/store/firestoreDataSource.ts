@@ -3,15 +3,15 @@ import { FindArgs, FirestoreDataSource } from 'apollo-datasource-firestore'
 import { logger } from '../services/logger'
 
 import type { Discipline } from '../generated/graphql'
-import type { ApolloContext } from '../apollo'
 import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { QueryFindArgs } from 'apollo-datasource-firestore/dist/datasource'
 import { Timestamp } from '@google-cloud/firestore'
+import { KeyValueCache } from '@apollo/utils.keyvaluecache'
 
 const firestore = new Firestore()
 
-export class TrickDataSource extends FirestoreDataSource<TrickDoc, ApolloContext> {
+export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
   async findManyByDiscipline (discipline?: Discipline | null, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => {
       let q: Query<TrickDoc> = c
@@ -25,14 +25,12 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc, ApolloContext
     return result[0]
   }
 }
-export const trickDataSource = new TrickDataSource(firestore.collection('tricks') as CollectionReference<TrickDoc>, { logger: logger.child({ name: 'trick-data-source' }) })
-trickDataSource.initialize()
+export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(firestore.collection('tricks') as CollectionReference<TrickDoc>, { logger: logger.child({ name: 'trick-data-source' }), cache })
 
-export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc, ApolloContext> {}
-export const trickLocalisationDataSource = new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }) })
-trickLocalisationDataSource.initialize()
+export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {}
+export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
 
-export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, ApolloContext> {
+export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc> {
   async findManyByFilters ({ trickId, organisation, rulesVersion }: { trickId: string, organisation?: string | null, rulesVersion?: string | null }, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => {
       let q = c.where('trickId', '==', trickId)
@@ -42,10 +40,9 @@ export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc, Apo
     }, options)
   }
 }
-export const trickLevelDataSource = new TrickLevelDataSource(firestore.collection('trick-levels') as CollectionReference<TrickLevelDoc>, { logger: logger.child({ name: 'trick-level-data-source' }) })
-trickLevelDataSource.initialize()
+export const trickLevelDataSource = (cache: KeyValueCache) => new TrickLevelDataSource(firestore.collection('trick-levels') as CollectionReference<TrickLevelDoc>, { logger: logger.child({ name: 'trick-level-data-source' }), cache })
 
-export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereqDoc, ApolloContext> {
+export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereqDoc> {
   async findManyPrerequisitesByTrick (trickId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('parentId', '==', trickId), options)
   }
@@ -54,22 +51,19 @@ export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereq
     return await this.findManyByQuery(c => c.where('childId', '==', trickId), options)
   }
 }
-export const trickPrerequisiteDataSource = new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }) })
-trickPrerequisiteDataSource.initialize()
+export const trickPrerequisiteDataSource = (cache: KeyValueCache) =>  new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }), cache })
 
-export class UserDataSource extends FirestoreDataSource<UserDoc, ApolloContext> {}
-export const userDataSource = new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>, { logger: logger.child({ name: 'user-data-source' }) })
-userDataSource.initialize()
+export class UserDataSource extends FirestoreDataSource<UserDoc> {}
+export const userDataSource = (cache: KeyValueCache) => new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>, { logger: logger.child({ name: 'user-data-source' }), cache })
 
-export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc, ApolloContext> {
+export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc> {
   async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
     return this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
   }
 }
-export const trickCompletionDataSource = new TrickCompletionDataSource(firestore.collection('trick-completions') as CollectionReference<TrickCompletionDoc>, { logger: logger.child({ name: 'trick-completion-source' }) })
-trickCompletionDataSource.initialize()
+export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(firestore.collection('trick-completions') as CollectionReference<TrickCompletionDoc>, { logger: logger.child({ name: 'trick-completion-source' }), cache })
 
-export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc, ApolloContext> {
+export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
   async findManyByUser (userId: string, { ttl, limit, startAfter }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null } = {}) {
     return this.findManyByQuery(c => {
       let q = c.where('userId', '==', userId).orderBy('createdAt', 'desc')
@@ -79,13 +73,11 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc, A
     }, { ttl })
   }
 }
-export const speedResultDataSource = new SpeedResultDataSource(firestore.collection('speed-results') as CollectionReference<SpeedResultDoc>, { logger: logger.child({ name: 'speed-result-data-source' }) })
-speedResultDataSource.initialize()
+export const speedResultDataSource = (cache: KeyValueCache) => new SpeedResultDataSource(firestore.collection('speed-results') as CollectionReference<SpeedResultDoc>, { logger: logger.child({ name: 'speed-result-data-source' }), cache })
 
-export class EventDefinitionDataSource extends FirestoreDataSource<EventDefinitionDoc, ApolloContext> {
+export class EventDefinitionDataSource extends FirestoreDataSource<EventDefinitionDoc> {
   async findOneByLookupCode (lookupCode: string, { ttl }: FindArgs = {}) {
     return (await this.findManyByQuery(c => c.where('lookupCode', '==', lookupCode), { ttl }))[0]
   }
 }
-export const eventDefinitionDataSource = new EventDefinitionDataSource(firestore.collection('event-definitions') as CollectionReference<EventDefinitionDoc>, { logger: logger.child({ name: 'event-definition-data-source' }) })
-eventDefinitionDataSource.initialize()
+export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(firestore.collection('event-definitions') as CollectionReference<EventDefinitionDoc>, { logger: logger.child({ name: 'event-definition-data-source' }), cache })

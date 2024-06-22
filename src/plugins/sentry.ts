@@ -1,41 +1,16 @@
-import { ApolloError } from 'apollo-server'
+import type { ApolloServerPlugin } from '@apollo/server'
 import * as Sentry from '@sentry/node'
-
-import type { ApolloServerPlugin } from 'apollo-server-plugin-base'
-import type { ApolloContext } from '../apollo'
 
 // from: https://blog.sentry.io/2020/07/22/handling-graphql-errors-using-sentry
 
-const sentryPlugin: ApolloServerPlugin<ApolloContext> = {
+const sentryPlugin: ApolloServerPlugin = {
   async requestDidStart (_) {
     /* Within this returned object, define functions that respond to
        request-specific lifecycle events. */
     return {
       async willSendResponse () {
-        Sentry.getCurrentHub().getScope()?.getTransaction()?.finish()
         await Sentry.flush(2000)
       },
-      async didResolveOperation ({ request, document, operationName, context }) {
-        context.logger.trace(operationName ?? '')
-        if (operationName !== 'IntrospectionQuery') {
-          const transaction = Sentry.startTransaction({ name: operationName ?? 'GraphQL Query', op: 'transaction' })
-          Sentry.configureScope(scope => {
-            scope.setSpan(transaction)
-            scope.setUser(context.user ? { id: context.user.id } : null)
-          })
-        }
-      },
-      // executionDidStart () {
-      //   return {
-      //     willResolveField ({ source, args, context, info }) {
-      //       console.log(info)
-      //       return () => {
-      //         console.log('done')
-      //       }
-      //     }
-
-      //   }
-      // },
       async didEncounterErrors (ctx) {
         // If we couldn't parse the operation, don't
         // do anything here
@@ -44,12 +19,6 @@ const sentryPlugin: ApolloServerPlugin<ApolloContext> = {
         }
 
         for (const err of ctx.errors) {
-          // Only report internal server errors,
-          // all errors extending ApolloError should be user-facing
-          if (err instanceof ApolloError) {
-            continue
-          }
-
           // Add scoped report details and send to Sentry
           Sentry.withScope(scope => {
             // Annotate whether failing operation was query/mutation/subscription
@@ -64,7 +33,7 @@ const sentryPlugin: ApolloServerPlugin<ApolloContext> = {
               scope.addBreadcrumb({
                 category: 'query-path',
                 message: err.path.join(' > '),
-                level: Sentry.Severity.Debug
+                level: 'debug'
               })
             }
 

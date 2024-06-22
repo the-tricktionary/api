@@ -5,7 +5,7 @@ import postCountries from './post.json'
 import type { UserDoc } from '../store/schema'
 import type { Currency } from '../generated/graphql'
 
-const stripe = new Stripe(STRIPE_SK as string, { apiVersion: '2020-08-27' })
+const stripe = new Stripe(STRIPE_SK as string, { apiVersion: '2024-04-10' })
 
 // TODO caching
 

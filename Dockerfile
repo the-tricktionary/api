@@ -1,16 +1,17 @@
-FROM node:16-slim as base
+FROM node:20-alpine as base
 
 FROM base as runtime_deps
 WORKDIR /src
 COPY package.json .
 COPY package-lock.json .
-RUN npm ci --production
+RUN npm ci --omit=dev
 
 FROM runtime_deps as dev_deps
 RUN npm ci
 
 FROM dev_deps as builder
-COPY . .
+COPY codegen.yml tsconfig* ./
+COPY src src
 RUN npm run codegen
 RUN npm run build
 
@@ -21,5 +22,5 @@ ENV GITHUB_SHA=${GITHUB_SHA}
 ENV GITHUB_REF=${GITHUB_REF}
 WORKDIR /app
 COPY --from=runtime_deps /src/node_modules /app/node_modules
-COPY --from=builder /src/dist /app/dist
-CMD ["node", "dist/index.js"]
+COPY --from=builder /src/dist /app
+CMD ["node", "src/index.js"]

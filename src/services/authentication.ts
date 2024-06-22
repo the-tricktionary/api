@@ -1,15 +1,17 @@
-import { AuthenticationError } from 'apollo-server'
 import { auth } from 'firebase-admin'
 import { userDataSource } from '../store/firestoreDataSource'
 
 import type Pino from 'pino'
 import type { UserDoc } from '../store/schema'
+import { AuthenticationError } from '../errors'
+import { DataSources } from '../apollo'
 
 interface HeaderParserOptions {
   logger: Pino.Logger
+  dataSources: DataSources
 }
 
-export async function userFromAuthorizationHeader (header: string | undefined, { logger }: HeaderParserOptions): Promise<UserDoc | undefined> {
+export async function userFromAuthorizationHeader (header: string | undefined, { logger, dataSources }: HeaderParserOptions): Promise<UserDoc | undefined> {
   if (!header) {
     logger.debug('Unauthenticated request')
     return
@@ -20,7 +22,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
     split[0] !== 'Bearer' ||
     !split[1].length
   ) {
-    throw new AuthenticationError('Malformed Authorization header')
+    throw new AuthenticationError('Malformed authorization header')
   }
 
   let decoded
@@ -31,10 +33,10 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
   }
 
   logger.debug({ uid: decoded.uid }, 'Finding user')
-  let user = await userDataSource.findOneById(decoded.uid, { ttl: 3600 })
+  let user = await dataSources.users.findOneById(decoded.uid, { ttl: 3600 })
 
   if (!user) {
-    user = await userDataSource.createOne({
+    user = await dataSources.users.createOne({
       id: decoded.uid,
       ...(decoded.name ? { name: decoded.name } : {}),
       ...(decoded.photo ? { photo: decoded.picture } : {}),
@@ -60,7 +62,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
       update = true
     }
 
-    if (update) await userDataSource.updateOne(user)
+    if (update) await dataSources.users.updateOne(user)
   }
 
   return user

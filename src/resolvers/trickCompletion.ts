@@ -1,13 +1,13 @@
 import { Timestamp } from '@google-cloud/firestore'
-import { ApolloError } from 'apollo-server'
 import type { Resolvers } from '../generated/graphql'
 import type { TrickCompletionDoc, TrickDoc } from '../store/schema'
+import { AuthorizationError } from '../errors'
 
 export const trickCompletionResolvers: Resolvers = {
   Mutation: {
     async createTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
       allowUser.editTrickCompletions.assert()
-      if (!user) throw new ApolloError('You need to be logged in to perform this action')
+      if (!user) throw new AuthorizationError()
       const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
 
       if (!existing) return dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>
@@ -15,7 +15,7 @@ export const trickCompletionResolvers: Resolvers = {
     },
     async deleteTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
       allowUser.editTrickCompletions.assert()
-      if (!user) throw new ApolloError('You need to be logged in to perform this action')
+      if (!user) throw new AuthorizationError()
       const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
 
       if (existing) {

@@ -1,8 +1,10 @@
 {
   "extends": "./tsconfig",
   "compilerOptions": {
-    "sourceMap": true,
     "inlineSources": true,
-    "sourceRoot": "/"
-  }
+    "sourceRoot": "/",
+  },
+  "exclude": [
+    "./.*.js"
+  ]
 }

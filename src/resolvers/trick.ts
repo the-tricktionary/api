@@ -36,6 +36,8 @@ export const trickResolvers: Resolvers = {
       if (!user) return null
       const cleaned: UserDoc = {
         id: user.id,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
         collection: user.collection,
         username: user.username,
         profile: user.profile,

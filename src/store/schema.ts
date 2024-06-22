@@ -4,6 +4,8 @@ import type { Timestamp } from '@google-cloud/firestore'
 export interface DocBase {
   readonly id: string
   readonly collection: string
+  readonly createdAt: Timestamp
+  readonly updatedAt: Timestamp
 }
 
 export interface TrickDoc extends DocBase {
@@ -12,8 +14,6 @@ export interface TrickDoc extends DocBase {
   discipline: Discipline
   trickType: TrickType
 
-  createdAt: Timestamp
-  updatedAt: Timestamp
   submittedBy: UserDoc['id']
 
   videos: Array<Omit<Video, '__typename'>>
@@ -27,8 +27,6 @@ export interface TrickLocalisationDoc extends DocBase {
   alternativeNames?: string[]
   description: string
 
-  createdAt: Timestamp
-  updatedAt: Timestamp
   submittedBy: UserDoc['id']
 }
 export function isTrickLocalisation (t: any): t is TrickLocalisationDoc { return t?.collection === 'trick-localisations' }
@@ -40,9 +38,6 @@ export interface UnverifiedTrickLevelDoc extends DocBase {
   organisation: string
   level: string
   rulesVersion?: string
-
-  createdAt: Timestamp
-  updatedAt: Timestamp
 }
 
 export interface VerifiedTrickLevelDoc extends UnverifiedTrickLevelDoc {
@@ -57,7 +52,6 @@ export interface TrickPrereqDoc extends DocBase {
   readonly collection: 'trick-prerequisites'
   parentId: TrickDoc['id']
   childId: TrickDoc['id']
-  createdAt: Timestamp
 }
 export function isTrickPrereq (t: any): t is TrickDoc { return t?.collection === 'trick-prerequisites' }
 
@@ -76,7 +70,6 @@ export interface TrickCompletionDoc extends DocBase {
   readonly collection: 'trick-completions'
   userId: UserDoc['id']
   trickId: TrickDoc['id']
-  createdAt: Timestamp
 }
 export function isTrickCompletion (t: any): t is TrickDoc { return t?.collection === 'trick-completions' }
 
@@ -87,7 +80,6 @@ export interface SimpleSpeedResultDoc extends DocBase {
   readonly collection: 'speed-results'
   name?: string
   userId: UserDoc['id']
-  createdAt: Timestamp
 
   count: number
 

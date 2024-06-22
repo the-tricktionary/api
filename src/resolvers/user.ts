@@ -1,4 +1,4 @@
-import { ApolloError } from 'apollo-server'
+import { NotFoundError } from '../errors'
 import type { Resolvers } from '../generated/graphql'
 
 export const userResolvers: Resolvers = {
@@ -20,7 +20,7 @@ export const userResolvers: Resolvers = {
     },
     async speedResult (user, { speedResultId }, { dataSources, allowUser }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })
-      if (!speedResult) throw new ApolloError(`Speed result with id ${speedResultId} not found`)
+      if (!speedResult) throw new NotFoundError(`Speed result with id ${speedResultId} not found`, {})
       allowUser.user(user).speedResult(speedResult).get.assert()
 
       return speedResult

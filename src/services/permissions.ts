@@ -1,5 +1,4 @@
-import { AuthenticationError } from 'apollo-server'
-
+import { AuthorizationError } from '../errors'
 import type { SpeedResultDoc, UserDoc } from '../store/schema'
 import type Pino from 'pino'
 
@@ -12,7 +11,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         logger.trace({ user: user?.id, assertion: checkMethod.name }, 'Trying Assertion')
         if (!checkMethod()) {
           logger.info({ user: user?.id, assertion: checkMethod.name }, `Assertion failed failed ${message ? `message: ${message}` : ''}`)
-          throw new AuthenticationError(`Permission denied ${message ? ': ' + message : ''}`)
+          throw new AuthorizationError(`Permission denied ${message ? ': ' + message : ''}`)
         }
         return true
       }

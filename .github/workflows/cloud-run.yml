@@ -55,7 +55,7 @@ jobs:
         region: ${{ env.REGION }}
         env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ secrets.GCP_PROJECT }},APOLLO_KEY=${{ secrets.APOLLO_KEY }},APOLLO_GRAPH_ID=${{ secrets.APOLLO_GRAPH_ID }},APOLLO_GRAPH_VARIANT=current,APOLLO_SCHEMA_REPORTING=true,ALGOLIA_APP_ID=${{ secrets.ALGOLIA_APP_ID }},ALGOLIA_API_KEY=${{ secrets.ALGOLIA_API_KEY }}
         secrets: STRIPE_SK=${{ secrets.STRIPE_SK_SECRET }}
-        flags: --max-instances=1
+        flags: --max-instances=default --service-account=${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
 
     - name: Show Output
       run: echo ${{ steps.deploy.outputs.url }}
