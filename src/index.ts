@@ -26,7 +26,7 @@ app.use(cors({
 
 initApollo(httpServer)
   .then(async middleware => {
-    app.use('/graphql', bodyParser.json(), middleware)
+    app.use(['/graphql', /^\/$/], bodyParser.json(), middleware)
 
     await new Promise<void>(resolve => httpServer.listen({ port: PORT }, resolve))
     logger.info(`Server ready at http://localhost:${PORT}/graphql`)
