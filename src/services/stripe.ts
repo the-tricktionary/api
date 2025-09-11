@@ -67,6 +67,6 @@ export async function createCheckoutSession ({ products, user, currency }: Check
     },
     // shipping_rates: [], // TODO add shipping rate
     metadata: { store: 'the-tricktionary' },
-    payment_intent_data: { description: 'Swantzter (Planteringsvägen 48A LGH 1102, 262 51 Ängelholm, SWEDEN, VAT no. SE000718579601) is approved for F-Tax in Sweden.' }
+    payment_intent_data: { description: 'Swantzter (Planteringsvägen 46C LGH 1202, 262 51 Ängelholm, SWEDEN, VAT no. SE000718579601) is approved for F-Tax in Sweden.' }
   })
 }
