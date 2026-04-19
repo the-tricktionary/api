@@ -25,7 +25,7 @@ jobs:
 
     - uses: 'google-github-actions/auth@v2'
       with:
-workload_identity_provider: workload_identity_provider/projects/1048157266079/locations/global/workloadIdentityPools/github/providers/github
+        workload_identity_provider: workload_identity_provider/projects/1048157266079/locations/global/workloadIdentityPools/github/providers/github
         service_account: ${{ secrets.ACTIONS_SERVICE_ACCOUNT }}
         project_id: ${{ secrets.GCP_PROJECT }}
 
