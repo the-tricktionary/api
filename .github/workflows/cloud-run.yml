@@ -18,14 +18,17 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v6
+
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+        project_id: ${{ secrets.GCP_PROJECT }}
 
     # Setup gcloud CLI
-    - uses: google-github-actions/setup-gcloud@v0.2.0
+    - uses: google-github-actions/setup-gcloud@v3
       with:
-        service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT }}
         project_id: ${{ secrets.GCP_PROJECT }}
-        export_default_credentials: true
 
     # Configure Docker to use the gcloud command-line tool as a credential
     # helper for authentication
@@ -48,7 +51,7 @@ jobs:
 
     - name: Deploy to Cloud Run
       id: deploy
-      uses: google-github-actions/deploy-cloudrun@v0.6.0
+      uses: google-github-actions/deploy-cloudrun@v3
       with:
         service: ${{ env.SERVICE }}
         image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
@@ -68,24 +71,19 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-    - uses: actions/cache@v2
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      uses: actions/checkout@v6
 
-    - name: Use Node.js 16
-      uses: actions/setup-node@v1
+    - name: Use Node.js 20
+      uses: actions/setup-node@v6
       with:
-        node-version: 16
+        node-version: 20
+        cache: npm
     - run: npm ci --prefer-offline
     - run: npm run codegen
     - run: npm run build
 
     - name: Create Sentry release
-      uses: getsentry/action-release@v1
+      uses: getsentry/action-release@v3
       env:
         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
