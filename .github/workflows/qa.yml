@@ -7,17 +7,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v6
+      - name: Use Node.js 20
+        uses: actions/setup-node@v6
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-      - name: Use Node.js 16
-        uses: actions/setup-node@v1
-        with:
-          node-version: 16
+          node-version: 20
+          cache: npm
       - run: npm ci --prefer-offline
       - run: npm run codegen
       - run: npm run lint
