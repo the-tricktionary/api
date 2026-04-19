@@ -25,7 +25,7 @@ jobs:
 
     - uses: 'google-github-actions/auth@v2'
       with:
-        workload_identity_provider: workload_identity_provider/projects/1048157266079/locations/global/workloadIdentityPools/github/providers/github
+        workload_identity_provider: projects/1048157266079/locations/global/workloadIdentityPools/github/providers/github
         service_account: ${{ secrets.ACTIONS_SERVICE_ACCOUNT }}
         project_id: ${{ secrets.GCP_PROJECT }}
 
@@ -43,7 +43,7 @@ jobs:
     - name: Build
       run: |-
         docker build \
-          --tag "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
+          --tag "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
           --build-arg GITHUB_SHA="$GITHUB_SHA" \
           --build-arg GITHUB_REF="$GITHUB_REF" \
           .
@@ -51,14 +51,14 @@ jobs:
     # Push the Docker image to Google Container Registry
     - name: Publish
       run: |-
-        docker push "us-central1-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA"
+        docker push "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA"
 
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v3
       with:
         service: ${{ env.SERVICE }}
-        image: us-central1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
+        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
         region: ${{ env.REGION }}
         env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ secrets.GCP_PROJECT }},APOLLO_KEY=${{ secrets.APOLLO_KEY }},APOLLO_GRAPH_ID=${{ secrets.APOLLO_GRAPH_ID }},APOLLO_GRAPH_VARIANT=current,APOLLO_SCHEMA_REPORTING=true,ALGOLIA_APP_ID=${{ secrets.ALGOLIA_APP_ID }},ALGOLIA_API_KEY=${{ secrets.ALGOLIA_API_KEY }}
         secrets: STRIPE_SK=${{ secrets.STRIPE_SK_SECRET }}
