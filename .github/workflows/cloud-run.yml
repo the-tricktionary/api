@@ -24,6 +24,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
 
+    - name: Debug OIDC Claims
+      uses: steve-todorov/oidc-debugger-action@v1
+      with:
+        audience: https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NO }}/locations/global/workloadIdentityPools/github/providers/github
+
     - uses: google-github-actions/auth@v3
       with:
         workload_identity_provider: projects/${{ vars.GCP_PROJECT_NO }}/locations/global/workloadIdentityPools/github/providers/github
