@@ -6,7 +6,8 @@ on:
       - main
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  PROJECT_NO: ${{ vars.GCP_PROJECT_NO }}
   SERVICE: tricktionary-api
   REGION: us-central1
 
@@ -25,14 +26,14 @@ jobs:
 
     - uses: google-github-actions/auth@v3
       with:
-        workload_identity_provider: projects/${{ secrets.GCP_PROJECT }}/locations/global/workloadIdentityPools/github/providers/github
-        service_account: ${{ secrets.ACTIONS_SERVICE_ACCOUNT }}
-        project_id: ${{ secrets.GCP_PROJECT }}
+        workload_identity_provider: projects/${{ vars.GCP_PROJECT_NO }}/locations/global/workloadIdentityPools/github/providers/github
+        service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+        project_id: ${{ vars.GCP_PROJECT_ID }}
 
     # Setup gcloud CLI
     - uses: google-github-actions/setup-gcloud@v3
       with:
-        project_id: ${{ secrets.GCP_PROJECT }}
+        project_id: ${{ vars.GCP_PROJECT_ID }}
 
     # Configure Docker to use the gcloud command-line tool as a credential
     # helper for authentication
@@ -43,7 +44,7 @@ jobs:
     - name: Build
       run: |-
         docker build \
-          --tag "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
+          --tag "$REGION-docker.pkg.dev/$PROJECT_NO/$SERVICE/$SERVICE:$GITHUB_SHA" \
           --build-arg GITHUB_SHA="$GITHUB_SHA" \
           --build-arg GITHUB_REF="$GITHUB_REF" \
           .
@@ -51,18 +52,18 @@ jobs:
     # Push the Docker image to Google Container Registry
     - name: Publish
       run: |-
-        docker push "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA"
+        docker push "$REGION-docker.pkg.dev/$PROJECT_NO/$SERVICE/$SERVICE:$GITHUB_SHA"
 
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v3
       with:
         service: ${{ env.SERVICE }}
-        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
+        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_NO }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
         region: ${{ env.REGION }}
-        env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ secrets.GCP_PROJECT }},APOLLO_KEY=${{ secrets.APOLLO_KEY }},APOLLO_GRAPH_ID=${{ secrets.APOLLO_GRAPH_ID }},APOLLO_GRAPH_VARIANT=current,APOLLO_SCHEMA_REPORTING=true,ALGOLIA_APP_ID=${{ secrets.ALGOLIA_APP_ID }},ALGOLIA_API_KEY=${{ secrets.ALGOLIA_API_KEY }}
+        env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ vars.GCP_PROJECT_ID }},ALGOLIA_APP_ID=${{ secrets.ALGOLIA_APP_ID }},ALGOLIA_API_KEY=${{ secrets.ALGOLIA_API_KEY }}
         secrets: STRIPE_SK=${{ secrets.STRIPE_SK_SECRET }}
-        flags: --max-instances=default --service-account=${{ secrets.CLOUD_RUN_SERVICE_ACCOUNT }}
+        flags: --max-instances=default --service-account=${{ vars.GCP_RUN_SERVICE_ACCOUNT }}
 
     - name: Show Output
       run: echo ${{ steps.deploy.outputs.url }}
