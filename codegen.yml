@@ -22,8 +22,8 @@ generates:
         Language: ../store/schema.js#LanguageDoc
         TrickCompletion: ../store/schema.js#TrickCompletionDoc
         SpeedResult: ../store/schema.js#SpeedResultDoc
-        SimpleSpeedResult: ../store/schema.js#SimpleSpeedResultDoc
-        DetailedSpeedResult: ../store/schema.js#DetailedSpeedResultDoc
+        SpeedMark: ../store/schema.js#SpeedMark as SpeedMarkModel
+        EventDefinition: ../store/schema.js#EventDefinitionDoc
     plugins:
       - typescript
       - typescript-resolvers

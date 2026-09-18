@@ -34,6 +34,7 @@
     "@graphql-tools/merge": "^9.2.4",
     "@graphql-tools/schema": "^10.1.1",
     "@mux/mux-node": "^15.2.0",
+    "@ropescore/rulesets": "^0.19.0",
     "@sentry/node": "^10.75.0",
     "@sentry/node-native": "^10.75.0",
     "algoliasearch": "^5.59.0",

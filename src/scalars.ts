@@ -5,6 +5,8 @@ export const TimestampScalar = new GraphQLScalarType<Timestamp | null, number>({
   name: 'Timestamp',
   description: 'The `Timestamp` scalar represents a UNIX epoch timestamp in milliseconds',
   serialize (value) {
+    // Mark streams store their timestamps as plain millisecond numbers
+    if (typeof value === 'number') return value
     return Timestamp.prototype.toMillis.call(value)
   },
   parseValue (value) {

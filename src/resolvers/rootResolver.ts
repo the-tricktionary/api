@@ -1,6 +1,5 @@
 import { mergeResolvers } from '@graphql-tools/merge'
 import { TimestampScalar } from '../scalars.js'
-import { isDetailedSpeedResult } from '../store/schema.js'
 
 import { userResolvers } from './user.js'
 import { trickResolvers } from './trick.js'
@@ -16,16 +15,7 @@ import { trickLevelResolvers } from './trickLevel.js'
 import type { Resolvers } from '../generated/graphql.js'
 
 export const commonResolvers: Resolvers = {
-  Timestamp: TimestampScalar,
-  SpeedResult: {
-    __resolveType (obj) {
-      if (isDetailedSpeedResult(obj)) {
-        return 'DetailedSpeedResult'
-      } else {
-        return 'SimpleSpeedResult'
-      }
-    }
-  }
+  Timestamp: TimestampScalar
 }
 
 export const rootResolver = mergeResolvers([

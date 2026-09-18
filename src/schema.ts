@@ -329,45 +329,93 @@ const typeDefs = gql`
     createdAt: Timestamp!
   }
 
-  union SpeedResult = SimpleSpeedResult | DetailedSpeedResult
-
-  type SimpleSpeedResult {
+  """
+  A recorded speed score. Results entered as a plain count have an empty mark
+  stream and no analysis, results recorded live carry the marks they were
+  counted from and an analysis derived from those marks.
+  """
+  type SpeedResult {
     id: ID!
     name: String
     creator: User!
     createdAt: Timestamp!
 
+    """The number of steps counted, derived from the marks when there are any"""
     count: Int!
     eventDefinition: EventDefinition!
+
+    """
+    The mark stream this result was counted from, in the same format as
+    @ropescore/rulesets uses so it can be fed straight into its mark reducers.
+    Each step is a mark with schema 'step' (value defaults to 1), an optional
+    mark with schema 'start' pins the start of the event, 'undo' and
+    'clear' marks behave as in the rulesets library. Empty for results
+    that were entered as a plain count.
+    """
+    marks: [SpeedMark!]!
+    """Derived from the marks, null for results without any step marks"""
+    analysis: SpeedAnalysis
   }
 
-  type DetailedSpeedResult {
-    id: ID!
-    name: String
-    creator: User!
-    createdAt: Timestamp!
+  type SpeedMark {
+    """Zero-based position in the stream, increments by one per mark"""
+    sequence: Int!
+    timestamp: Timestamp!
+    schema: String!
+    """Model dependent, for step marks it is the number of steps the mark is worth (default 1)"""
+    value: Float
+    """For undo marks: the sequence of the mark being undone"""
+    target: Int
+  }
 
-    count: Int!
-    eventDefinition: EventDefinition!
-
-    clicks: [Timestamp!]!
-    clicksPerSecond: Float!
-    maxClicksPerSecond: Float!
+  type SpeedAnalysis {
+    """
+    Seconds the analysis is based on: the event's total duration when it has
+    one, otherwise the time between the start (or first step) and the last step
+    """
+    duration: Float!
+    """count / duration"""
+    stepsPerSecond: Float!
+    """The fastest rate observed between two consecutive step marks"""
+    maxStepsPerSecond: Float!
+    """
+    Number of gaps between steps that were more than 1.5 times longer than the
+    average gap, i.e. likely rope catches
+    """
     misses: Int!
-    jumpsLost: Int!
+    """Steps that would have fit in the miss gaps had the athlete kept the average pace"""
+    stepsLost: Int!
+    """
+    Steps counted in each whole second of the event, index 0 is the first
+    second after the start. Handy for plotting the whole duration.
+    """
+    stepsPerSecondSeries: [Int!]!
+  }
+
+  input SpeedMarkInput {
+    sequence: Int!
+    timestamp: Timestamp!
+    schema: String!
+    value: Float
+    target: Int
   }
 
   input SpeedResultInput {
     name: String
-    count: Int!
-    clicks: [Timestamp!]
+    """Required when no marks are provided, ignored (derived from the marks) otherwise"""
+    count: Int
+    """Rulesets-compatible mark stream, see SpeedResult.marks"""
+    marks: [SpeedMarkInput!]
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput
   }
 
   input SpeedResultUpdateInput {
+    """Omit to keep the current name, pass null or an empty string to clear it"""
     name: String
+    """Only allowed for results that were entered as a plain count"""
+    count: Int
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput
@@ -381,7 +429,9 @@ const typeDefs = gql`
   type EventDefinition @cacheControl(maxAge: 3600) {
     id: ID!
     name: String!
+    """Duration of the event in seconds, 0 for events without a time limit"""
     totalDuration: Int!
+    """The rulesets competition event lookup code (without version) when this is a known competition event"""
     eventDefinitionLookupCode: String
   }
 
