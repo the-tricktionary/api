@@ -13,8 +13,8 @@ export const userResolvers: Resolvers = {
     async findUsers (_, { query }, { dataSources, allowUser }) {
       allowUser.findUsers.assert()
 
-      const q = query.trim()
-      if (!q) return []
+      const q = query?.trim()
+      if (!q) return await dataSources.users.findManyWithGrants()
 
       const [byEmail, byUsername, byId] = await Promise.all([
         dataSources.users.findManyByQuery(c => c.where('email', '==', q)),
@@ -44,6 +44,12 @@ export const userResolvers: Resolvers = {
       await Promise.all([...rulesIds].map(async rulesId => {
         const ruleset = await dataSources.rulesets.findOneById(rulesId)
         if (!ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
+      }))
+
+      const langs = new Set(parsedGrants.flatMap(grant => grant.type === GrantType.Translator ? [grant.lang] : []))
+      await Promise.all([...langs].map(async lang => {
+        const language = await dataSources.languages.findOneById(lang)
+        if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
       }))
 
       return await (dataSources.users.updateOnePartial(userId, { grants: parsedGrants }) as Promise<UserDoc>)

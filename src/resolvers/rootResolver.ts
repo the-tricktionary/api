@@ -10,6 +10,7 @@ import { speedResultResolvers } from './speedResult.js'
 import { productResolvers } from './products.js'
 import { eventDefinitionResolvers } from './eventDefinitions.js'
 import { rulesetResolvers } from './ruleset.js'
+import { languageResolvers } from './language.js'
 import { trickLevelResolvers } from './trickLevel.js'
 
 import type { Resolvers } from '../generated/graphql.js'
@@ -37,5 +38,6 @@ export const rootResolver = mergeResolvers([
   userResolvers,
   eventDefinitionResolvers,
   rulesetResolvers,
+  languageResolvers,
   trickLevelResolvers
 ]) as Resolvers

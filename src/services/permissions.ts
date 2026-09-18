@@ -58,6 +58,9 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editTrickVideos: editTricks,
     getTrickVideoUploads: editTricks,
 
+    createLanguage: isSuperAdmin,
+    setLanguageEnabled: isSuperAdmin,
+
     createRuleset: isSuperAdmin,
     editRuleset: isSuperAdmin,
     setPrimaryRuleset: isSuperAdmin,

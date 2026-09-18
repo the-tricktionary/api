@@ -19,6 +19,7 @@ generates:
         TrickLevel: ../store/schema.js#TrickLevelDoc
         TrickVideoUpload: ../store/schema.js#TrickVideoUploadDoc
         Ruleset: ../store/schema.js#RulesetDoc
+        Language: ../store/schema.js#LanguageDoc
         TrickCompletion: ../store/schema.js#TrickCompletionDoc
         SpeedResult: ../store/schema.js#SpeedResultDoc
         SimpleSpeedResult: ../store/schema.js#SimpleSpeedResultDoc

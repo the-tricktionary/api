@@ -8,6 +8,16 @@ there — they live in Google Secret Manager and are read through `getSecret()`
 in `src/services/secrets.ts`. Set `GSM_<secret-name>` in the environment, most
 easily in `.env`, to override one locally; `.env.example` lists them.
 
+## Languages
+
+`npx tsx src/migrations/languages.ts` creates a `languages` document for english
+and for every language a trick localisation, a ruleset name or a `Translator`
+grant already uses. Existing documents are left alone, so it is safe to re-run.
+
+```sh
+npx tsx src/migrations/languages.ts --dry-run   # only log what would be created
+```
+
 ## Trick levels
 
 ### Migrating trick levels to rulesets
