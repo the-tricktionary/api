@@ -1,5 +1,5 @@
 import { AuthorizationError } from '../errors'
-import { VerificationLevel } from '../generated/graphql'
+import { GrantType, VerificationLevel } from '../generated/graphql'
 import type { Grant, SpeedResultDoc, UserDoc } from '../store/schema'
 import type Pino from 'pino'
 
@@ -40,8 +40,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const everyone = enrich(function everyone () { return true })
 
   const grants: Grant[] = user?.grants ?? []
-  const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === 'super-admin') })
-  const isTrickEditor = enrich(function isTrickEditor () { return grants.some(grant => grant.type === 'trick-editor') })
+  const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === GrantType.SuperAdmin) })
+  const isTrickEditor = enrich(function isTrickEditor () { return grants.some(grant => grant.type === GrantType.TrickEditor) })
   const editTricks = enrich(function editTricks () { return isSuperAdmin() || isTrickEditor() })
 
   return {
@@ -50,8 +50,11 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     createSpeedResult: isAuthenticated,
     makePurchase: everyone,
 
-    isSuperAdmin,
     editTricks,
+
+    createRuleset: isSuperAdmin,
+    editRuleset: isSuperAdmin,
+    setPrimaryRuleset: isSuperAdmin,
 
     localisation (lang: string) {
       // english is the source language of the Tricktionary, trick editors are
@@ -59,7 +62,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       const edit = enrich(function editLocalisation () {
         return isSuperAdmin() ||
           (lang === 'en' && isTrickEditor()) ||
-          grants.some(grant => grant.type === 'translator' && grant.lang === lang)
+          grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
       })
 
       return { edit }
@@ -67,14 +70,14 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
 
     ruleset (rulesId: string) {
       const editLevels = enrich(function editLevels () {
-        return isSuperAdmin() || grants.some(grant => grant.type === 'level-editor' && grant.rulesId === rulesId)
+        return isSuperAdmin() || grants.some(grant => grant.type === GrantType.LevelEditor && grant.rulesId === rulesId)
       })
 
       function verificationRank (): 0 | 1 | 2 {
         if (isSuperAdmin()) return 2
         let rank: 0 | 1 | 2 = 0
         for (const grant of grants) {
-          if (grant.type !== 'level-editor' || grant.rulesId !== rulesId) continue
+          if (grant.type !== GrantType.LevelEditor || grant.rulesId !== rulesId) continue
           const grantRank = verificationLevelRank(grant.verificationLevel)
           if (grantRank > rank) rank = grantRank
         }

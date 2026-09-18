@@ -8,18 +8,18 @@ Administrative privileges live on the user document as an optional `grants`
 array. Each grant is one of:
 
 ```ts
-{ type: 'super-admin' }
-{ type: 'trick-editor' }
-{ type: 'translator', lang: string }          // BCP-47 tag, never 'en'
-{ type: 'level-editor', rulesId: string, verificationLevel: VerificationLevel | null }
+{ type: 'SuperAdmin' }
+{ type: 'TrickEditor' }
+{ type: 'Translator', lang: string }          // BCP-47 tag, never 'en'
+{ type: 'LevelEditor', rulesId: string, verificationLevel: VerificationLevel | null }
 ```
 
-- `super-admin` implies every other grant, for every language and every ruleset.
-- `trick-editor` may edit tricks and implies `translator` for `en` – english is
+- `SuperAdmin` implies every other grant, for every language and every ruleset.
+- `TrickEditor` may edit tricks and implies `Translator` for `en` – english is
   the source language of the Tricktionary, so it's hard-coded rather than
-  granted with a `translator` grant.
-- `translator` may edit trick localisations in a single language.
-- `level-editor` may edit trick levels for a single ruleset. Verification
+  granted with a `Translator` grant.
+- `Translator` may edit trick localisations in a single language.
+- `LevelEditor` may edit trick levels for a single ruleset. Verification
   levels are ranked `null` (0) < `JUDGE` (1) < `OFFICIAL` (2), a grant with a
   `null` verification level may edit levels but not verify them.
 
@@ -54,7 +54,7 @@ A trick has at most one level per ruleset, so the document ID is deterministic:
 
 ### Migrating trick levels to rulesets
 
-`npm run migrate:rulesets` creates the `rulesets` documents and rewrites the
+`npx tsx src/migrations/rulesets.ts` creates the `rulesets` documents and rewrites the
 old `organisation` + `rulesVersion` trick levels to the new shape and document
 IDs. `organisation: 'tricktionary'` becomes `tricktionary`, `organisation:
 'ijru'` becomes `ijru@<rulesVersion>` (defaulting to `ijru@2.0.0`), any other
@@ -62,8 +62,8 @@ organisation aborts the migration before anything is written. Levels that
 already have a `rulesId` are skipped, so it is safe to re-run.
 
 ```sh
-npm run migrate:rulesets -- --dry-run              # only log what would change
-npm run migrate:rulesets -- --primary ijru@5.0.0   # pick the primary ruleset
+npx tsx src/migrations/rulesets.ts --dry-run              # only log what would change
+npx tsx src/migrations/rulesets.ts --primary ijru@5.0.0   # pick the primary ruleset
 ```
 
 Without `--primary` the newest IJRU ruleset becomes the primary one. The

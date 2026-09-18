@@ -24,7 +24,7 @@ export const rulesetResolvers: Resolvers = {
   },
   Mutation: {
     async createRuleset (_, { rulesId, names }, { dataSources, allowUser }) {
-      allowUser.isSuperAdmin.assert()
+      allowUser.createRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
       const parsedNames = namesSchema.parse(names)
 
@@ -41,7 +41,7 @@ export const rulesetResolvers: Resolvers = {
       return ruleset
     },
     async updateRuleset (_, { rulesId, names }, { dataSources, allowUser }) {
-      allowUser.isSuperAdmin.assert()
+      allowUser.editRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
       const parsedNames = namesSchema.parse(names)
 
@@ -58,7 +58,7 @@ export const rulesetResolvers: Resolvers = {
       return ruleset
     },
     async setPrimaryRuleset (_, { rulesId }, { dataSources, allowUser }) {
-      allowUser.isSuperAdmin.assert()
+      allowUser.setPrimaryRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
 
       const collection = dataSources.rulesets.collection

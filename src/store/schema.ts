@@ -1,4 +1,4 @@
-import type { Discipline, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql'
+import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -100,23 +100,23 @@ export function isTrickPrereq (t: any): t is TrickDoc { return t?.collection ===
 /**
  * An administrative privilege granted to a user.
  *
- * - `super-admin` implies every other grant, for every language and every
+ * - `SuperAdmin` implies every other grant, for every language and every
  *   ruleset, including verifying levels at the highest verification level.
- * - `trick-editor` may edit tricks and implies `translator` for `en`
+ * - `TrickEditor` may edit tricks and implies `Translator` for `en`
  *   (english is the source language of the Tricktionary, so it's hard-coded
- *   and never granted as a `translator` grant).
- * - `translator` may edit trick localisations in a single language, the
+ *   and never granted as a `Translator` grant).
+ * - `Translator` may edit trick localisations in a single language, the
  *   `lang` is a BCP-47 tag and is never `en`.
- * - `level-editor` may edit trick levels for a single ruleset. The
+ * - `LevelEditor` may edit trick levels for a single ruleset. The
  *   `verificationLevel` is the highest level the user may verify a level at,
  *   ranked `null` (0) < `JUDGE` (1) < `OFFICIAL` (2), meaning a `null`
  *   verification level allows editing levels but not verifying them.
  */
 export type Grant =
-  | { type: 'super-admin' }
-  | { type: 'trick-editor' }
-  | { type: 'translator', lang: string }
-  | { type: 'level-editor', rulesId: string, verificationLevel: VerificationLevel | null }
+  | { type: GrantType.SuperAdmin }
+  | { type: GrantType.TrickEditor }
+  | { type: GrantType.Translator, lang: string }
+  | { type: GrantType.LevelEditor, rulesId: string, verificationLevel: VerificationLevel | null }
 
 export interface UserDoc extends DocBase {
   readonly collection: 'users'

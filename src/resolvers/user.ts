@@ -1,15 +1,5 @@
 import { NotFoundError } from '../errors'
-import { GrantType } from '../generated/graphql'
-
 import type { Resolvers } from '../generated/graphql'
-import type { Grant } from '../store/schema'
-
-const grantTypes: Record<Grant['type'], GrantType> = {
-  'super-admin': GrantType.SuperAdmin,
-  'trick-editor': GrantType.TrickEditor,
-  translator: GrantType.Translator,
-  'level-editor': GrantType.LevelEditor
-}
 
 export const userResolvers: Resolvers = {
   Query: {
@@ -22,12 +12,7 @@ export const userResolvers: Resolvers = {
       // We don't throw here, a user simply can't see anyone else's grants
       if (!allowUser.user(user).getGrants()) return []
 
-      return (user.grants ?? []).map(grant => ({
-        type: grantTypes[grant.type],
-        lang: grant.type === 'translator' ? grant.lang : null,
-        rulesId: grant.type === 'level-editor' ? grant.rulesId : null,
-        verificationLevel: grant.type === 'level-editor' ? grant.verificationLevel : null
-      }))
+      return user.grants ?? []
     },
     async checklist (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getChecklist.assert()

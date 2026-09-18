@@ -26,7 +26,7 @@
  *     access to the `trick-levels` and `rulesets` collections
  *
  * Usage:
- *   npm run migrate:rulesets -- [--dry-run] [--primary <rulesId>]
+ *   npx tsx src/migrations/rulesets.ts [--dry-run] [--primary <rulesId>]
  *
  * Note: the API caches trick levels for up to an hour, so the migrated levels
  * show up in the API at most an hour after the migration ran.
