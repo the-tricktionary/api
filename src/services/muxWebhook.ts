@@ -10,7 +10,7 @@ import type Mux from '@mux/mux-node'
 import type { RequestHandler } from 'express'
 import type Pino from 'pino'
 import type { DataSources } from '../store/firestoreDataSource'
-import type { MuxVideo, TrickDoc, TrickVideoUploadDoc } from '../store/schema'
+import type { MuxVideo, TrickVideoUploadDoc } from '../store/schema'
 
 type MuxWebhookEvent = Mux.Webhooks.UnwrapWebhookEvent
 
@@ -19,11 +19,21 @@ interface MuxWebhookContext {
   logger: Pino.Logger
 }
 
-async function setUploadStatus (upload: TrickVideoUploadDoc, changes: Partial<TrickVideoUploadDoc>, { dataSources }: MuxWebhookContext) {
-  await dataSources.trickVideoUploads.updateOnePartial(upload.id, changes)
+/**
+ * The upload an event belongs to. Events for uploads we don't know about are
+ * ignored, they're for assets created outside of the API (the migration
+ * script, the Mux dashboard, ...).
+ */
+async function findUpload (uploadId: string | undefined, type: MuxWebhookEvent['type'], { dataSources, logger }: MuxWebhookContext) {
+  if (uploadId == null) {
+    logger.info({ type }, 'Ignoring a Mux asset that did not come from a direct upload')
+    return undefined
+  }
+  const upload = await dataSources.trickVideoUploads.findOneById(uploadId)
+  if (!upload) logger.info({ uploadId, type }, 'Ignoring a Mux event for an unknown upload')
+  return upload
 }
 
-/** Adds the finished asset to the trick the upload was started for */
 async function addAssetToTrick (upload: TrickVideoUploadDoc, asset: { id: string, playbackId: string }, { dataSources, logger }: MuxWebhookContext) {
   const video: MuxVideo = {
     host: VideoHost.Mux,
@@ -43,79 +53,60 @@ async function addAssetToTrick (upload: TrickVideoUploadDoc, asset: { id: string
     return
   }
 
-  await dataSources.tricks.updateOnePartial(upload.trickId, { videos: FieldValue.arrayUnion(video) as any as TrickDoc['videos'] })
+  await dataSources.tricks.updateOnePartial(upload.trickId, { videos: FieldValue.arrayUnion(video) })
 }
 
-/**
- * Applies a Mux event to the upload it belongs to. Events for uploads we don't
- * know about are ignored, they're for assets created outside of the API (the
- * migration script, the Mux dashboard, ...).
- */
-export async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhookContext) {
+async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhookContext) {
   const { dataSources, logger } = context
 
   switch (event.type) {
     case 'video.upload.asset_created': {
-      const upload = await dataSources.trickVideoUploads.findOneById(event.data.id)
-      if (!upload) {
-        logger.info({ uploadId: event.data.id, type: event.type }, 'Ignoring a Mux event for an unknown upload')
-        break
-      }
+      const upload = await findUpload(event.data.id, event.type, context)
+      // webhooks aren't delivered in order, a late asset_created must not
+      // undo a status the asset events already set
+      if (upload?.status !== VideoUploadStatus.Waiting) break
 
-      await setUploadStatus(upload, {
+      await dataSources.trickVideoUploads.updateOnePartial(upload.id, {
         status: VideoUploadStatus.Processing,
         ...(event.data.asset_id != null ? { assetId: event.data.asset_id } : {})
-      }, context)
+      })
       break
     }
     case 'video.asset.ready': {
-      const uploadId = event.data.upload_id
-      if (uploadId == null) {
-        logger.info({ assetId: event.data.id, type: event.type }, 'Ignoring a Mux asset that did not come from a direct upload')
-        break
-      }
-
-      const upload = await dataSources.trickVideoUploads.findOneById(uploadId)
-      if (!upload) {
-        logger.info({ uploadId, type: event.type }, 'Ignoring a Mux event for an unknown upload')
-        break
-      }
+      const upload = await findUpload(event.data.upload_id, event.type, context)
+      if (!upload) break
 
       const playbackId = event.data.playback_ids?.find(p => p.policy === 'public')?.id
       if (playbackId == null) throw new Error(`Mux asset ${event.data.id} of upload ${upload.id} has no public playback ID`)
 
       await addAssetToTrick(upload, { id: event.data.id, playbackId }, context)
-      await setUploadStatus(upload, { status: VideoUploadStatus.Ready, assetId: event.data.id }, context)
-      logger.info({ uploadId, trickId: upload.trickId, assetId: event.data.id, playbackId }, 'Added a Mux video to a trick')
+      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Ready, assetId: event.data.id })
+      logger.info({ uploadId: upload.id, trickId: upload.trickId, assetId: event.data.id, playbackId }, 'Added a Mux video to a trick')
       break
     }
     case 'video.asset.errored': {
-      const uploadId = event.data.upload_id
-      if (uploadId == null) {
-        logger.info({ assetId: event.data.id, type: event.type }, 'Ignoring a Mux asset that did not come from a direct upload')
-        break
-      }
-
-      const upload = await dataSources.trickVideoUploads.findOneById(uploadId)
-      if (!upload) {
-        logger.info({ uploadId, type: event.type }, 'Ignoring a Mux event for an unknown upload')
-        break
-      }
+      const upload = await findUpload(event.data.upload_id, event.type, context)
+      if (!upload) break
 
       const errors = event.data.errors
       const error = [errors?.type, ...(errors?.messages ?? [])].filter(part => part != null && part !== '').join(': ')
-      await setUploadStatus(upload, { status: VideoUploadStatus.Errored, error: error === '' ? 'Mux could not process the video' : error }, context)
-      logger.warn({ uploadId, trickId: upload.trickId, assetId: event.data.id, error }, 'A Mux asset errored')
+      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Errored, error: error === '' ? 'Mux could not process the video' : error })
+      logger.warn({ uploadId: upload.id, trickId: upload.trickId, assetId: event.data.id, error }, 'A Mux asset errored')
+      break
+    }
+    case 'video.upload.errored': {
+      const upload = await findUpload(event.data.id, event.type, context)
+      if (!upload) break
+
+      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Errored, error: 'The upload timed out or failed before Mux received the file' })
+      logger.warn({ uploadId: upload.id, trickId: upload.trickId }, 'A Mux upload errored')
       break
     }
     case 'video.upload.cancelled': {
-      const upload = await dataSources.trickVideoUploads.findOneById(event.data.id)
-      if (!upload) {
-        logger.info({ uploadId: event.data.id, type: event.type }, 'Ignoring a Mux event for an unknown upload')
-        break
-      }
+      const upload = await findUpload(event.data.id, event.type, context)
+      if (!upload) break
 
-      await setUploadStatus(upload, { status: VideoUploadStatus.Cancelled }, context)
+      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Cancelled })
       break
     }
     default:
@@ -147,11 +138,12 @@ export const muxWebhookHandler: RequestHandler = async (req, res) => {
   try {
     await handleMuxWebhookEvent(event, { dataSources: createDataSources(), logger: logger.child({ event: event.id }) })
   } catch (err) {
-    // Mux retries events we don't acknowledge, and a retry of an event we
-    // can't handle at all is just noise, so failures are reported rather than
-    // handed back to Mux
+    // the handlers are idempotent, so a failure is handed back to Mux, which
+    // retries the event with a backoff rather than losing the upload
     logger.error(err, `Failed to handle the Mux event ${event.type}`)
     Sentry.captureException(err)
+    res.status(500).send()
+    return
   }
 
   res.status(200).send()

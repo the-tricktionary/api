@@ -79,13 +79,7 @@ export const trickResolvers: Resolvers = {
         return dRef.id
       })
 
-      await dataSources.tricks.deleteFromCacheById(trickId)
-      await dataSources.trickLocalisations.deleteFromCacheById(trickLocalisationId(trickId, 'en'))
-      const [trick] = await Promise.all([
-        dataSources.tricks.findOneById(trickId),
-        dataSources.trickLocalisations.findOneById(trickLocalisationId(trickId, 'en'))
-      ])
-      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      const trick = await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
 
       await tryIndexTrick(trickId, { dataSources, logger })
 
@@ -138,10 +132,10 @@ export const trickResolvers: Resolvers = {
       } else {
         await dataSources.tricks.updateOnePartial(trickId, changes)
       }
+      // priming never replaces the trick already loaded above, and tryIndexTrick reads it through the loader
       await dataSources.tricks.deleteFromCacheById(trickId)
 
-      const updated = await dataSources.tricks.findOneById(trickId)
-      if (!updated) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      const updated = await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
 
       await tryIndexTrick(trickId, { dataSources, logger })
 
@@ -169,7 +163,6 @@ export const trickResolvers: Resolvers = {
         submittedBy: existing?.submittedBy ?? user.id,
         updatedBy: user.id
       }) as Promise<TrickLocalisationDoc>)
-      await dataSources.trickLocalisations.deleteFromCacheById(localisationId)
 
       await tryIndexTrick(trickId, { dataSources, logger })
 

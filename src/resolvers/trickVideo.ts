@@ -10,7 +10,6 @@ import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation'
 
 import type { Resolvers } from '../generated/graphql'
 import type { TrickDoc, TrickVideoUploadDoc, YouTubeVideo } from '../store/schema'
-import type { DataSources } from '../store/firestoreDataSource'
 
 const youTubeVideoSchema = z.object({
   videoId: youTubeVideoIdSchema,
@@ -27,16 +26,8 @@ const videoUploadSchema = z.object({
  * Mux hands out the URL of a direct upload exactly once, so it's returned with
  * the upload it was created for rather than stored on the document.
  */
-export interface TrickVideoUploadWithUrl extends TrickVideoUploadDoc {
+interface TrickVideoUploadWithUrl extends TrickVideoUploadDoc {
   url: string
-}
-
-/** Re-reads a trick after a transaction changed it, bypassing the cache */
-async function reloadTrick (trickId: string, dataSources: DataSources): Promise<TrickDoc> {
-  await dataSources.tricks.deleteFromCacheById(trickId)
-  const trick = await dataSources.tricks.findOneById(trickId)
-  if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
-  return trick
 }
 
 export const trickVideoResolvers: Resolvers = {
@@ -59,7 +50,7 @@ export const trickVideoResolvers: Resolvers = {
       if (trick.videos.some(v => v.host === VideoHost.YouTube && v.videoId === videoId)) return trick
 
       return await (dataSources.tricks.updateOnePartial(trickId, {
-        videos: FieldValue.arrayUnion(video) as any as TrickDoc['videos'],
+        videos: FieldValue.arrayUnion(video),
         updatedBy: user.id
       }) as Promise<TrickDoc>)
     },
@@ -100,23 +91,21 @@ export const trickVideoResolvers: Resolvers = {
       allowUser.editTrickVideos.assert()
       if (!user) throw new AuthorizationError()
 
-      const collection = dataSources.tricks.collection
-      const removed = await collection.firestore.runTransaction(async t => {
-        const ref = collection.doc(trickId)
-        const trick = (await t.get(ref)).data()
-        if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      const trick = await dataSources.tricks.findOneById(trickId)
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
 
-        const videos = trick.videos ?? []
-        const idx = videos.findIndex(v => v.videoId === videoId)
-        if (idx === -1) return undefined
+      const idx = trick.videos.findIndex(v => v.videoId === videoId)
+      if (idx === -1) return trick
+      const removed = trick.videos[idx]
 
-        t.update(ref.withConverter(null), { videos: videos.toSpliced(idx, 1), updatedBy: user.id })
-        return videos[idx]
-      })
+      const updated = await (dataSources.tricks.updateOnePartial(trickId, {
+        videos: FieldValue.arrayRemove(removed),
+        updatedBy: user.id
+      }) as Promise<TrickDoc>)
 
       // the trick no longer references the asset either way, so a failed
       // deletion leaves an orphan in Mux rather than failing the mutation
-      if (removed?.host === VideoHost.Mux) {
+      if (removed.host === VideoHost.Mux) {
         try {
           await mux.video.assets.delete(removed.assetId)
         } catch (err) {
@@ -125,7 +114,7 @@ export const trickVideoResolvers: Resolvers = {
         }
       }
 
-      return await reloadTrick(trickId, dataSources)
+      return updated
     }
   },
   Trick: {
@@ -136,7 +125,7 @@ export const trickVideoResolvers: Resolvers = {
   },
   TrickVideoUpload: {
     url (upload) {
-      return (upload as Partial<TrickVideoUploadWithUrl>).url ?? ''
+      return (upload as Partial<TrickVideoUploadWithUrl>).url ?? null
     }
   }
 }

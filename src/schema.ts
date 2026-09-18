@@ -239,10 +239,10 @@ const typeDefs = gql`
     id: ID!
     """
     Upload the file with a single PUT to this URL. Mux only hands it out once,
-    so it's only set on the \`createTrickVideoUpload\` response and empty
+    so it's only set on the \`createTrickVideoUpload\` response and null
     everywhere else.
     """
-    url: String!
+    url: String
     type: VideoType!
     slowMoStart: Float
     status: VideoUploadStatus!
@@ -259,7 +259,7 @@ const typeDefs = gql`
     lang: String
     photo: String
     """Only visible to the user themselves and to super admins"""
-    email: String
+    email: String @cacheControl(maxAge: 0, scope: PRIVATE)
 
     profile: ProfileOptions!
 
@@ -272,7 +272,8 @@ const typeDefs = gql`
 
     # store fcm tokens in db? don't expose if so
 
-    grants: [Grant!]!
+    """Only visible to the user themselves and to super admins, empty for everyone else"""
+    grants: [Grant!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
   enum GrantType {

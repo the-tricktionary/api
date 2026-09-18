@@ -23,35 +23,32 @@ export const trickLevelResolvers: Resolvers = {
       allowUser.ruleset(rulesId).setLevel(existing).assert()
       if (!user) throw new AuthorizationError()
 
+      let trickLevel: TrickLevelDoc | null = null
       if ((level?.trim() ?? '') === '') {
         if (!existing) return null
         await dataSources.trickLevels.deleteOne(id)
-        // the tricktionary level feeds Algolia's custom ranking
-        if (rulesId === TRICKTIONARY_RULES_ID) await tryIndexTrick(trickId, { dataSources, logger })
-        return null
+      } else {
+        const parsedLevel = (rulesId === TRICKTIONARY_RULES_ID ? tricktionaryLevelSchema : levelSchema).parse(level)
+
+        // editing a level resets its verification to the editor's own rank
+        const rank = allowUser.ruleset(rulesId).verificationRank()
+        const verification = rank === 0
+          ? {}
+          : {
+              verificationLevel: rank === 2 ? VerificationLevel.Official : VerificationLevel.Judge,
+              verifiedBy: user.id,
+              verifiedAt: Timestamp.now()
+            }
+
+        trickLevel = await (dataSources.trickLevels.createOne({
+          id,
+          trickId,
+          rulesId,
+          level: parsedLevel,
+          updatedBy: user.id,
+          ...verification
+        }) as Promise<TrickLevelDoc>)
       }
-
-      const parsedLevel = (rulesId === TRICKTIONARY_RULES_ID ? tricktionaryLevelSchema : levelSchema).parse(level)
-
-      // editing a level resets its verification to the editor's own rank
-      const rank = allowUser.ruleset(rulesId).verificationRank()
-      const verification = rank === 0
-        ? {}
-        : {
-            verificationLevel: rank === 2 ? VerificationLevel.Official : VerificationLevel.Judge,
-            verifiedBy: user.id,
-            verifiedAt: Timestamp.now()
-          }
-
-      const trickLevel = await (dataSources.trickLevels.createOne({
-        id,
-        trickId,
-        rulesId,
-        level: parsedLevel,
-        updatedBy: user.id,
-        ...verification
-      }) as Promise<TrickLevelDoc>)
-      await dataSources.trickLevels.deleteFromCacheById(id)
 
       // the tricktionary level feeds Algolia's custom ranking
       if (rulesId === TRICKTIONARY_RULES_ID) await tryIndexTrick(trickId, { dataSources, logger })
@@ -66,18 +63,15 @@ export const trickLevelResolvers: Resolvers = {
       allowUser.ruleset(rulesId).setVerification(existing, verificationLevel ?? null).assert()
       if (!user) throw new AuthorizationError()
 
-      const trickLevel = await (dataSources.trickLevels.updateOnePartial(id, verificationLevel != null
+      return await (dataSources.trickLevels.updateOnePartial(id, verificationLevel != null
         ? { verificationLevel, verifiedBy: user.id, verifiedAt: Timestamp.now(), updatedBy: user.id }
         : {
-            verificationLevel: FieldValue.delete() as any as undefined,
-            verifiedBy: FieldValue.delete() as any as undefined,
-            verifiedAt: FieldValue.delete() as any as undefined,
+            verificationLevel: FieldValue.delete(),
+            verifiedBy: FieldValue.delete(),
+            verifiedAt: FieldValue.delete(),
             updatedBy: user.id
           }
       ) as Promise<TrickLevelDoc>)
-      await dataSources.trickLevels.deleteFromCacheById(id)
-
-      return trickLevel
     }
   },
   TrickLevel: {

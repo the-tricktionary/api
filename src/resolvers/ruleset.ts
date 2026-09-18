@@ -19,14 +19,11 @@ export const rulesetResolvers: Resolvers = {
       const existing = await dataSources.rulesets.findOneById(id)
       if (existing) throw new CollisionError(`A ruleset with the id ${id} already exists`, { extensions: { entity: 'ruleset', id } })
 
-      const ruleset = await (dataSources.rulesets.createOne({
+      return await (dataSources.rulesets.createOne({
         id,
         names: parsedNames,
         isPrimary: false
       }) as Promise<RulesetDoc>)
-      await dataSources.rulesets.deleteFromCacheById(id)
-
-      return ruleset
     },
     async updateRuleset (_, { rulesId, names }, { dataSources, allowUser }) {
       allowUser.editRuleset.assert()
@@ -36,14 +33,11 @@ export const rulesetResolvers: Resolvers = {
       const existing = await dataSources.rulesets.findOneById(id)
       if (!existing) throw new NotFoundError(`Ruleset ${id} not found`, { extensions: { entity: 'ruleset', id } })
 
-      const ruleset = await (dataSources.rulesets.updateOne({
+      return await (dataSources.rulesets.updateOne({
         id,
         names: parsedNames,
         isPrimary: existing.isPrimary
       }) as Promise<RulesetDoc>)
-      await dataSources.rulesets.deleteFromCacheById(id)
-
-      return ruleset
     },
     async setPrimaryRuleset (_, { rulesId }, { dataSources, allowUser }) {
       allowUser.setPrimaryRuleset.assert()
