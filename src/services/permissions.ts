@@ -66,6 +66,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     setPrimaryRuleset: isSuperAdmin,
 
     findUsers: isSuperAdmin,
+    getUsersWithGrants: isSuperAdmin,
     setUserGrants: isSuperAdmin,
 
     localisation (lang: string) {

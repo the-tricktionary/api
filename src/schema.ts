@@ -37,11 +37,10 @@ const typeDefs = gql`
 
   type Query {
     me: User
-    """
-    Exact match on email, username or user id, or, without a query, every user
-    that has at least one grant. Super admins only.
-    """
-    findUsers (query: String): [User!]!
+    """Exact match on email, username or user id. Super admins only."""
+    findUsers (query: String!): [User!]!
+    """Every user that holds at least one grant. Super admins only."""
+    usersWithGrants: [User!]!
 
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick

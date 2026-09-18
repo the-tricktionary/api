@@ -13,8 +13,8 @@ export const userResolvers: Resolvers = {
     async findUsers (_, { query }, { dataSources, allowUser }) {
       allowUser.findUsers.assert()
 
-      const q = query?.trim()
-      if (!q) return await dataSources.users.findManyWithGrants()
+      const q = query.trim()
+      if (!q) return []
 
       const [byEmail, byUsername, byId] = await Promise.all([
         dataSources.users.findManyByQuery(c => c.where('email', '==', q)),
@@ -26,6 +26,10 @@ export const userResolvers: Resolvers = {
       for (const found of [...byEmail, ...byUsername, ...(byId ? [byId] : [])]) users.set(found.id, found)
 
       return [...users.values()]
+    },
+    async usersWithGrants (_, args, { dataSources, allowUser }) {
+      allowUser.getUsersWithGrants.assert()
+      return await dataSources.users.findManyWithGrants()
     }
   },
   Mutation: {
