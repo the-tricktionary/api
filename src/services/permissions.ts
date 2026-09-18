@@ -51,6 +51,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     getTricks: everyone,
     editTrickCompletions: isAuthenticated,
     createSpeedResult: isAuthenticated,
+    setUserLang: isAuthenticated,
     makePurchase: everyone,
 
     createTrick: editTricks,
