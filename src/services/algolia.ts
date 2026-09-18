@@ -11,7 +11,7 @@ import type { Discipline } from '../generated/graphql.js'
 import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
 
-const client = algoliasearch(ALGOLIA_APP_ID, await getSecret('ALGOLIA_API_KEY'))
+const client = algoliasearch(ALGOLIA_APP_ID, await getSecret('tricktionary-api-algolia-api-key'))
 
 /** How long the list of indices fetched from Algolia is trusted */
 const INDEX_LIST_TTL = 60 * 60 * 1000

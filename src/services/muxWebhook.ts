@@ -14,7 +14,7 @@ import type { MuxVideo, TrickVideoUploadDoc } from '../store/schema.js'
 
 type MuxWebhookEvent = Mux.Webhooks.UnwrapWebhookEvent
 
-const webhookSecret = await getSecret('MUX_WEBHOOK_SECRET')
+const webhookSecret = await getSecret('tricktionary-api-mux-webhook-secret')
 
 interface MuxWebhookContext {
   dataSources: DataSources

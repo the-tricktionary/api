@@ -25,10 +25,6 @@ const envSchema = z.object({
   GITHUB_SHA: z.string().optional(),
   GITHUB_REF: z.string().optional(),
   GCP_PROJECT: z.string().optional(),
-  // The region to read regional secrets from. Unset means the secrets are
-  // global ones, which is what they should be unless they have to be stored in
-  // a particular region.
-  GSM_LOCATION: z.string().optional(),
   // Not a secret either, it is handed out to search clients
   ALGOLIA_APP_ID: z.string(),
   PORT: z.coerce.number().default(3000),
@@ -42,7 +38,6 @@ export const {
   GITHUB_SHA,
   GITHUB_REF,
   GCP_PROJECT,
-  GSM_LOCATION,
   ALGOLIA_APP_ID,
   PORT,
   MUX_UPLOAD_CORS_ORIGIN

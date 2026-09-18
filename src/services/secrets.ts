@@ -1,19 +1,20 @@
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager'
-import { GCP_PROJECT, GSM_LOCATION } from '../config.js'
+import { GCP_PROJECT } from '../config.js'
 
 /**
- * The secrets the API reads at runtime.
+ * The secrets the API reads at runtime, named as they are in Secret Manager.
+ * The `tricktionary-api-` prefix keeps them apart from any other service's.
  *
  * A name is both the Secret Manager secret ID and, prefixed with `GSM_`, the
  * environment variable that overrides it, so there is no mapping table that can
  * drift out of sync with either side.
  */
 export const SECRET_NAMES = [
-  'STRIPE_SK',
-  'ALGOLIA_API_KEY',
-  'MUX_TOKEN_ID',
-  'MUX_TOKEN_SECRET',
-  'MUX_WEBHOOK_SECRET'
+  'tricktionary-api-stripe-sk',
+  'tricktionary-api-algolia-api-key',
+  'tricktionary-api-mux-token-id',
+  'tricktionary-api-mux-token-secret',
+  'tricktionary-api-mux-webhook-secret'
 ] as const
 
 export type SecretName = typeof SECRET_NAMES[number]
@@ -25,21 +26,17 @@ function overrideVariable (name: SecretName) { return `GSM_${name}` }
 // to talk to Secret Manager, or have credentials that are allowed to
 let client: SecretManagerServiceClient | undefined
 function secretManager () {
-  // A global secret is readable from every region, only a secret that has to be
-  // *stored* in one (data residency) is addressed through a regional endpoint.
-  client ??= new SecretManagerServiceClient(GSM_LOCATION != null
-    ? { apiEndpoint: `secretmanager.${GSM_LOCATION}.rep.googleapis.com` }
-    : {})
+  client ??= new SecretManagerServiceClient()
   return client
 }
 
+// These are global secrets, which are readable from whichever region the
+// service runs in, so no location appears here
 async function secretVersionName (name: SecretName) {
   // getProjectId falls back to the application default credentials and the
   // metadata server, which is how this resolves on Cloud Run
   const project = GCP_PROJECT ?? await secretManager().getProjectId()
-  return GSM_LOCATION != null
-    ? `projects/${project}/locations/${GSM_LOCATION}/secrets/${name}/versions/latest`
-    : `projects/${project}/secrets/${name}/versions/latest`
+  return `projects/${project}/secrets/${name}/versions/latest`
 }
 
 // Both sources are trimmed: a trailing newline is easy to get into a `.env`

@@ -6,7 +6,7 @@ import type { UserDoc } from '../store/schema.js'
 import type { Currency } from '../generated/graphql.js'
 
 // Uses the API version the installed SDK is pinned to
-const stripe = new Stripe(await getSecret('STRIPE_SK'))
+const stripe = new Stripe(await getSecret('tricktionary-api-stripe-sk'))
 
 // TODO caching
 

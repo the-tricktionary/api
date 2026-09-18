@@ -16,8 +16,8 @@
  *
  * Requirements:
  *   - `yt-dlp` and `ffmpeg` on PATH (ffmpeg is needed to merge video+audio)
- *   - MUX_TOKEN_ID and MUX_TOKEN_SECRET in Secret Manager, or GSM_MUX_TOKEN_ID
- *     and GSM_MUX_TOKEN_SECRET in the environment
+ *   - the tricktionary-api-mux-token-id and tricktionary-api-mux-token-secret
+ *     secrets, or GSM_<name> for each of them in the environment
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with
  *     write access to the `tricks` collection
  *

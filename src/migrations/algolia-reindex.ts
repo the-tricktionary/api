@@ -20,8 +20,8 @@
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
  *     access to the `trick-localisations` collection
- *   - ALGOLIA_APP_ID in the environment, and an ALGOLIA_API_KEY with write
- *     access in Secret Manager or GSM_ALGOLIA_API_KEY in the environment
+ *   - ALGOLIA_APP_ID in the environment, and a tricktionary-api-algolia-api-key
+ *     secret with write access, or GSM_<name> for it in the environment
  *
  * Usage:
  *   npx tsx src/migrations/algolia-reindex.ts [--dry-run]

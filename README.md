@@ -4,48 +4,54 @@
 
 Plain configuration is read from the environment, and a `.env` file in the
 project root is loaded automatically. `src/config.ts` is the whole list:
-`PORT`, `SENTRY_DSN`, `ALGOLIA_APP_ID`, `GCP_PROJECT`, `MUX_UPLOAD_CORS_ORIGIN`,
-`GSM_LOCATION`. None of them are secret — a Sentry DSN and an Algolia app ID are
-both handed out to browsers.
+`PORT`, `SENTRY_DSN`, `ALGOLIA_APP_ID`, `GCP_PROJECT`, `MUX_UPLOAD_CORS_ORIGIN`.
+None of them are secret — a Sentry DSN and an Algolia app ID are both handed
+out to browsers.
 
 Secrets are read from [Google Secret Manager](https://cloud.google.com/secret-manager)
 through `getSecret()` in `src/services/secrets.ts`, one Secret Manager secret
-per value:
+per value. They are prefixed with the service name so a shared project can hold
+another service's secrets alongside them:
 
 | Secret | Used for |
 | --- | --- |
-| `STRIPE_SK` | the Stripe API key the shop uses |
-| `ALGOLIA_API_KEY` | writing to and searching the Algolia indices |
-| `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` | the Mux API |
-| `MUX_WEBHOOK_SECRET` | verifying the signature on `POST /webhooks/mux` |
+| `tricktionary-api-stripe-sk` | the Stripe API key the shop uses |
+| `tricktionary-api-algolia-api-key` | writing to and searching the Algolia indices |
+| `tricktionary-api-mux-token-id`, `tricktionary-api-mux-token-secret` | the Mux API |
+| `tricktionary-api-mux-webhook-secret` | verifying the signature on `POST /webhooks/mux` |
 
-The name is the Secret Manager secret ID, so `STRIPE_SK` is read from
-`projects/<project>/secrets/STRIPE_SK/versions/latest`. The project is
-`GCP_PROJECT`, falling back to the project of the application default
-credentials and, on Cloud Run, to the metadata server. The service account
-needs `roles/secretmanager.secretAccessor` on each secret:
+The name is the Secret Manager secret ID, so `tricktionary-api-stripe-sk` is
+read from
+`projects/<project>/secrets/tricktionary-api-stripe-sk/versions/latest`. These
+are global secrets, readable from whichever region the service runs in, so no
+location is involved and moving the service between regions needs no change
+here.
+
+The project is `GCP_PROJECT`, falling back to the project of the application
+default credentials and, on Cloud Run, to the metadata server. The service
+account needs `roles/secretmanager.secretAccessor` on each secret:
 
 ```sh
-printf %s "$VALUE" | gcloud secrets create STRIPE_SK --data-file=-
-gcloud secrets add-iam-policy-binding STRIPE_SK \
+printf %s "$VALUE" | gcloud secrets create tricktionary-api-stripe-sk --data-file=-
+gcloud secrets add-iam-policy-binding tricktionary-api-stripe-sk \
   --member="serviceAccount:<the Cloud Run service account>" \
   --role="roles/secretmanager.secretAccessor"
 ```
-
-Use global secrets, which are readable from every region — a region never
-appears in a secret's name, and moving the service between regions needs no
-change here. `GSM_LOCATION` switches to
-[regional secrets](https://cloud.google.com/secret-manager/docs/locations),
-which exist for data residency and are addressed through a regional endpoint.
 
 ### Overriding a secret locally
 
 Setting `GSM_<name>` in the environment (or in `.env`) returns that value
 instead of asking Secret Manager, so local development and the migration
-scripts don't need access to the real secrets:
+scripts don't need access to the real secrets. `.env` is the easy way, since
+the names contain dashes and so can't be used with the `NAME=value command`
+shell prefix:
 
 ```sh
-GSM_STRIPE_SK=sk_test_... npm run dev
+echo 'GSM_tricktionary-api-stripe-sk=sk_test_...' >> .env
+npm run dev
+
+# or, for a one-off
+env 'GSM_tricktionary-api-stripe-sk=sk_test_...' npm run dev
 ```
 
 If every secret is overridden this way, Secret Manager is never contacted at
@@ -83,7 +89,8 @@ Trick videos are stored inline on the trick document as an array of
 - `Mux` – `videoId` is the public [Mux](https://www.mux.com) playback ID, the
   Mux asset ID is stored alongside it as `assetId`
 
-Mux needs the `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` and `MUX_WEBHOOK_SECRET`
+Mux needs the `tricktionary-api-mux-token-id`,
+`tricktionary-api-mux-token-secret` and `tricktionary-api-mux-webhook-secret`
 secrets.
 
 ### Migrating YouTube videos to Mux
@@ -93,9 +100,10 @@ secrets.
 as additional `Mux` videos on the trick. It is safe to re-run; tricks that
 already have a Mux video of the same type are skipped.
 
-Requirements: `yt-dlp` and `ffmpeg` on `PATH`, the `MUX_TOKEN_ID` and
-`MUX_TOKEN_SECRET` secrets, and Firestore credentials with write access to the
-`tricks` collection.
+Requirements: `yt-dlp` and `ffmpeg` on `PATH`, the
+`tricktionary-api-mux-token-id` and `tricktionary-api-mux-token-secret`
+secrets, and Firestore credentials with write access to the `tricks`
+collection.
 
 ```sh
 npx tsx src/migrations/mux-videos.ts --dry-run          # only list what would be migrated
@@ -106,8 +114,8 @@ npx tsx src/migrations/mux-videos.ts --limit 5          # migrate at most 5 vide
 ## Search (Algolia)
 
 Tricks are indexed once per language in `tricktionary_<lang>`, the index
-settings live in `src/services/algolia.ts`. The `ALGOLIA_API_KEY` secret needs write
-access to the indices.
+settings live in `src/services/algolia.ts`. The `tricktionary-api-algolia-api-key` secret
+needs write access to the indices.
 
 ### Reindexing
 

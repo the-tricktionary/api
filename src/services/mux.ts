@@ -2,7 +2,7 @@ import Mux from '@mux/mux-node'
 import { getSecret } from './secrets.js'
 import { VideoUploadStatus } from '../generated/graphql.js'
 
-const [tokenId, tokenSecret] = await Promise.all([getSecret('MUX_TOKEN_ID'), getSecret('MUX_TOKEN_SECRET')])
+const [tokenId, tokenSecret] = await Promise.all([getSecret('tricktionary-api-mux-token-id'), getSecret('tricktionary-api-mux-token-secret')])
 
 export const mux = new Mux({ tokenId, tokenSecret })
 
