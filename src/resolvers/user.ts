@@ -11,12 +11,12 @@ export const userResolvers: Resolvers = {
     async checklist (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getChecklist.assert()
 
-      return dataSources.trickCompletions.findManyByUser(user.id)
+      return await dataSources.trickCompletions.findManyByUser(user.id)
     },
     async speedResults (user, { limit, startAfter }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
-      return dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter })
+      return await dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter })
     },
     async speedResult (user, { speedResultId }, { dataSources, allowUser }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })

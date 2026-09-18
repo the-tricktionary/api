@@ -1,10 +1,9 @@
 import { auth } from 'firebase-admin'
-import { userDataSource } from '../store/firestoreDataSource'
 
 import type Pino from 'pino'
 import type { UserDoc } from '../store/schema'
 import { AuthenticationError } from '../errors'
-import { DataSources } from '../apollo'
+import type { DataSources } from '../apollo'
 
 interface HeaderParserOptions {
   logger: Pino.Logger

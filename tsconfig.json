@@ -1,17 +1,19 @@
 {
-  "extends": "@tsconfig/node20/tsconfig.json",
+  "extends": "@tsconfig/node24/tsconfig.json",
   "compilerOptions": {
     "declaration": true,
     "sourceMap": true,
-    // "module": "commonjs",
-    // "moduleResolution": "node"
     "outDir": "dist",
     "rootDir": ".",
     "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "**/*.ts",
     "./*.mjs"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

@@ -1,5 +1,5 @@
 import { GraphQLError, type GraphQLErrorExtensions } from 'graphql'
-import type { ZodIssue } from 'zod'
+import type { core } from 'zod'
 
 interface CustomErrorOptions<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> {
   /** Should be the same as the extended error type */
@@ -7,7 +7,7 @@ interface CustomErrorOptions<Extensions extends Record<string, any> | undefined,
   /**
    * let's you provide the original error that caused this error to be thrown
    */
-  cause?: Error | any
+  cause?: unknown
   /**
    * an error code using ALL_CAPS_SNAKE_CASE, this might be used for i18n on
    * the client's end
@@ -55,8 +55,8 @@ export class CustomError<Extensions extends Record<string, any> | undefined, Pri
 // ----------
 
 /** Failed to validate input data */
-export class ValidationError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions & { issues?: ZodIssue[] }, Private> {
-  constructor (errorOrMsg: string | Error, options: ExtendedErrorOptions<Extensions & { issues?: ZodIssue[] }, Private> = {}) {
+export class ValidationError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions & { issues?: core.$ZodIssue[] }, Private> {
+  constructor (errorOrMsg: string | Error, options: ExtendedErrorOptions<Extensions & { issues?: core.$ZodIssue[] }, Private> = {}) {
     super(errorOrMsg, {
       name: 'ValidationError',
       code: 'BAD_USER_INPUT',

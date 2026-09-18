@@ -1,13 +1,13 @@
 import { Firestore } from 'firebase-admin/firestore'
-import { FindArgs, FirestoreDataSource } from 'apollo-datasource-firestore'
+import { FirestoreDataSource } from 'apollo-datasource-firestore'
 import { logger } from '../services/logger'
 
 import type { Discipline } from '../generated/graphql'
 import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
-import type { QueryFindArgs } from 'apollo-datasource-firestore/dist/datasource'
-import { Timestamp } from '@google-cloud/firestore'
-import { KeyValueCache } from '@apollo/utils.keyvaluecache'
+import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
+import type { Timestamp } from '@google-cloud/firestore'
+import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
 
 const firestore = new Firestore()
 
@@ -51,21 +51,21 @@ export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereq
     return await this.findManyByQuery(c => c.where('childId', '==', trickId), options)
   }
 }
-export const trickPrerequisiteDataSource = (cache: KeyValueCache) =>  new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }), cache })
+export const trickPrerequisiteDataSource = (cache: KeyValueCache) => new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }), cache })
 
 export class UserDataSource extends FirestoreDataSource<UserDoc> {}
 export const userDataSource = (cache: KeyValueCache) => new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>, { logger: logger.child({ name: 'user-data-source' }), cache })
 
 export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc> {
   async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
-    return this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
+    return await this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
   }
 }
 export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(firestore.collection('trick-completions') as CollectionReference<TrickCompletionDoc>, { logger: logger.child({ name: 'trick-completion-source' }), cache })
 
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
   async findManyByUser (userId: string, { ttl, limit, startAfter }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null } = {}) {
-    return this.findManyByQuery(c => {
+    return await this.findManyByQuery(c => {
       let q = c.where('userId', '==', userId).orderBy('createdAt', 'desc')
       if (startAfter) q = q.startAfter(startAfter)
       if (limit) q = q.limit(limit)

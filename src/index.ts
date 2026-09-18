@@ -6,7 +6,6 @@ import { logger } from './services/logger'
 import express from 'express'
 import cors from 'cors'
 import http from 'node:http'
-import bodyParser from 'body-parser'
 
 const app = express()
 const httpServer = http.createServer(app)
@@ -26,7 +25,7 @@ app.use(cors({
 
 initApollo(httpServer)
   .then(async middleware => {
-    app.use(['/graphql', /^\/$/], bodyParser.json(), middleware)
+    app.use(['/graphql', /^\/$/], express.json(), middleware)
 
     await new Promise<void>(resolve => httpServer.listen({ port: PORT }, resolve))
     logger.info(`Server ready at http://localhost:${PORT}/graphql`)

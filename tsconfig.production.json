@@ -2,9 +2,11 @@
   "extends": "./tsconfig",
   "compilerOptions": {
     "inlineSources": true,
-    "sourceRoot": "/",
+    "sourceRoot": "/"
   },
   "exclude": [
-    "./.*.js"
+    "node_modules",
+    "dist",
+    "./*.mjs"
   ]
 }

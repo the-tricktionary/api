@@ -1,7 +1,7 @@
 import { ApolloServer, type BaseContext } from '@apollo/server'
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'
-import { ApolloServerPluginCacheControl } from '@apollo/server/plugin/cacheControl';
-import { expressMiddleware, type ExpressContextFunctionArgument } from '@apollo/server/express4'
+import { ApolloServerPluginCacheControl } from '@apollo/server/plugin/cacheControl'
+import { expressMiddleware, type ExpressContextFunctionArgument } from '@as-integrations/express5'
 import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import { fromZodError } from 'zod-validation-error'
@@ -9,7 +9,7 @@ import { unwrapResolverError } from '@apollo/server/errors'
 import z from 'zod'
 import { GraphQLError } from 'graphql'
 import type Pino from 'pino'
-import type { Server } from 'http'
+import type { Server } from 'node:http'
 
 import { GCP_PROJECT, SENTRY_DSN } from './config'
 import typeDefs from './schema'
@@ -64,8 +64,6 @@ export async function initApollo (httpServer: Server) {
     cache,
     logger: logger.child({ name: 'apollo-server' }),
     introspection: true,
-    // https://www.apollographql.com/docs/apollo-server/migration/#appropriate-400-status-codes
-    status400ForVariableCoercionErrors: true,
     formatError (formattedError, wrappedOriginal) {
       const error = unwrapResolverError(wrappedOriginal)
       let err: GraphQLError
@@ -83,7 +81,7 @@ export async function initApollo (httpServer: Server) {
   await server.start()
 
   return expressMiddleware(server, {
-    async context (context) {
+    async context (context: ExpressContextFunctionArgument): Promise<ApolloContext> {
       const dataSources = {
         eventDefinitions: eventDefinitionDataSource(cache),
         speedResults: speedResultDataSource(cache),
@@ -95,20 +93,20 @@ export async function initApollo (httpServer: Server) {
         users: userDataSource(cache)
       }
 
-     const trace = context.req.get('X-Cloud-Trace-Context')
-    const childLogger = logger.child({
-      ...(GCP_PROJECT && trace ? { 'logging.googleapis.com/trace': `project/${GCP_PROJECT ?? ''}/traces/${trace ?? ''}` } : {})
-    })
-    const authHeader = context.req.get('authorization')
-    const user = await userFromAuthorizationHeader(authHeader, { logger: childLogger, dataSources })
+      const trace = context.req.get('X-Cloud-Trace-Context')
+      const childLogger = logger.child({
+        ...(GCP_PROJECT && trace ? { 'logging.googleapis.com/trace': `project/${GCP_PROJECT}/traces/${trace}` } : {})
+      })
+      const authHeader = context.req.get('authorization')
+      const user = await userFromAuthorizationHeader(authHeader, { logger: childLogger, dataSources })
 
-    return {
-      ...context,
-      dataSources,
-      user,
-      allowUser: allowUser(user, { logger: childLogger }),
-      logger: childLogger
-    }
+      return {
+        ...context,
+        dataSources,
+        user,
+        allowUser: allowUser(user, { logger: childLogger }),
+        logger: childLogger
+      }
     }
   })
 }
