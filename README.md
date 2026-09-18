@@ -1,19 +1,5 @@
 # the Tricktionary API
 
-## Development
-
-Requires Node.js 24 (the current LTS, also what the Docker image runs on).
-Copy `.env.example` to `.env` and fill it in, it is loaded automatically on
-startup.
-
-```sh
-npm ci
-npm run codegen   # generate resolver types from the GraphQL schema
-npm run dev       # start the API with live reload on http://localhost:3000/graphql
-npm run lint      # eslint (neostandard + typescript-eslint)
-npm run typecheck
-```
-
 ## Videos
 
 Trick videos are stored inline on the trick document as an array of
