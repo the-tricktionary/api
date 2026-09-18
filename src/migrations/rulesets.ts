@@ -79,6 +79,10 @@ function rulesIdFor ({ organisation, rulesVersion }: OldTrickLevelDoc) {
       return 'tricktionary'
     case 'ijru':
       return `ijru@${rulesVersion?.length ? rulesVersion : DEFAULT_IJRU_VERSION}`
+    case 'wjrf':
+      return 'wjrf@2019'
+    case 'fisac-irsf':
+      return 'fisac-irsf@2017-2018'
     default:
       return undefined
   }
