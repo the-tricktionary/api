@@ -1,20 +1,8 @@
-import z from 'zod'
 import { CollisionError, NotFoundError } from '../errors'
+import { localisedStringsSchema, rulesIdSchema } from '../validation'
 
 import type { Resolvers } from '../generated/graphql'
 import type { RulesetDoc } from '../store/schema'
-
-/** e.g. `tricktionary`, `ijru@5.0.0` */
-const rulesIdSchema = z.string().regex(/^[a-z0-9-]+(@[0-9]+(\.[0-9]+)*)?$/, 'A rules ID may only contain lowercase letters, numbers and dashes, optionally followed by a version (e.g. `ijru@5.0.0`)')
-
-const namesSchema = z.array(z.object({
-  lang: z.string().trim().min(1, 'A language tag is required'),
-  value: z.string().trim().min(1, 'A name is required')
-}))
-  .min(1, 'At least one name is required')
-  .refine(names => new Set(names.map(name => name.lang)).size === names.length, 'Each language may only be specified once')
-  .refine(names => names.some(name => name.lang === 'en'), 'An english (`en`) name is required')
-  .transform(names => Object.fromEntries(names.map(name => [name.lang, name.value])))
 
 export const rulesetResolvers: Resolvers = {
   Query: {
@@ -26,7 +14,7 @@ export const rulesetResolvers: Resolvers = {
     async createRuleset (_, { rulesId, names }, { dataSources, allowUser }) {
       allowUser.createRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
-      const parsedNames = namesSchema.parse(names)
+      const parsedNames = localisedStringsSchema.parse(names)
 
       const existing = await dataSources.rulesets.findOneById(id)
       if (existing) throw new CollisionError(`A ruleset with the id ${id} already exists`, { extensions: { entity: 'ruleset', id } })
@@ -43,7 +31,7 @@ export const rulesetResolvers: Resolvers = {
     async updateRuleset (_, { rulesId, names }, { dataSources, allowUser }) {
       allowUser.editRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
-      const parsedNames = namesSchema.parse(names)
+      const parsedNames = localisedStringsSchema.parse(names)
 
       const existing = await dataSources.rulesets.findOneById(id)
       if (!existing) throw new NotFoundError(`Ruleset ${id} not found`, { extensions: { entity: 'ruleset', id } })

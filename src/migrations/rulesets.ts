@@ -148,9 +148,9 @@ async function main () {
       trickId: level.trickId,
       rulesId,
       level: level.level,
-      verificationLevel: level.verificationLevel ?? null,
-      verifiedBy: level.verifiedBy ?? null,
-      verifiedAt: level.verificationLevel ? updatedAt : null,
+      ...(level.verificationLevel
+        ? { verificationLevel: level.verificationLevel, verifiedBy: level.verifiedBy, verifiedAt: updatedAt }
+        : {}),
       updatedBy: level.verifiedBy ?? 'migration',
       createdAt,
       updatedAt

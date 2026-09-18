@@ -1,21 +1,12 @@
-import { Timestamp } from '@google-cloud/firestore'
-import z from 'zod'
+import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError } from '../errors'
 import { VerificationLevel } from '../generated/graphql'
 import { TRICKTIONARY_RULES_ID, trickLevelId } from '../store/schema'
 import { tryIndexTrick } from '../services/algolia'
+import { levelSchema, tricktionaryLevelSchema } from '../validation'
 
 import type { Resolvers } from '../generated/graphql'
 import type { TrickLevelDoc } from '../store/schema'
-
-/** e.g. `5` or `2-5` */
-const levelSchema = z.string()
-  .trim()
-  .regex(/^\d+(-\d+)?$/, 'A level must be a whole number or a range of whole numbers, e.g. `5` or `2-5`')
-
-/** the tricktionary's own levels are a single number from 1 to 5 */
-const tricktionaryLevelSchema = levelSchema
-  .regex(/^[1-5]$/, 'A tricktionary level must be a whole number between 1 and 5')
 
 export const trickLevelResolvers: Resolvers = {
   Mutation: {
@@ -45,7 +36,7 @@ export const trickLevelResolvers: Resolvers = {
       // editing a level resets its verification to the editor's own rank
       const rank = allowUser.ruleset(rulesId).verificationRank()
       const verification = rank === 0
-        ? { verificationLevel: null, verifiedBy: null, verifiedAt: null }
+        ? {}
         : {
             verificationLevel: rank === 2 ? VerificationLevel.Official : VerificationLevel.Judge,
             verifiedBy: user.id,
@@ -77,7 +68,12 @@ export const trickLevelResolvers: Resolvers = {
 
       const trickLevel = await (dataSources.trickLevels.updateOnePartial(id, verificationLevel != null
         ? { verificationLevel, verifiedBy: user.id, verifiedAt: Timestamp.now(), updatedBy: user.id }
-        : { verificationLevel: null, verifiedBy: null, verifiedAt: null, updatedBy: user.id }
+        : {
+            verificationLevel: FieldValue.delete() as any as undefined,
+            verifiedBy: FieldValue.delete() as any as undefined,
+            verifiedAt: FieldValue.delete() as any as undefined,
+            updatedBy: user.id
+          }
       ) as Promise<TrickLevelDoc>)
       await dataSources.trickLevels.deleteFromCacheById(id)
 

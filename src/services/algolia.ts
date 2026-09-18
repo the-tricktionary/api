@@ -1,7 +1,6 @@
-import { liteClient } from 'algoliasearch/lite'
 import { algoliasearch } from 'algoliasearch'
 import * as Sentry from '@sentry/node'
-import { ALGOLIA_API_KEY, ALGOLIA_APP_ID, ALGOLIA_WRITE_API_KEY } from '../config'
+import { ALGOLIA_API_KEY, ALGOLIA_APP_ID } from '../config'
 import { logger as baseLogger } from './logger'
 import { TRICKTIONARY_RULES_ID, trickLocalisationLang } from '../store/schema'
 
@@ -11,8 +10,7 @@ import type { Discipline } from '../generated/graphql'
 import type { TrickDoc, TrickLocalisationDoc } from '../store/schema'
 import type { TrickDataSource, TrickLevelDataSource, TrickLocalisationDataSource } from '../store/firestoreDataSource'
 
-const searchClient = liteClient(ALGOLIA_APP_ID, ALGOLIA_API_KEY)
-const writeClient = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_WRITE_API_KEY)
+const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_API_KEY)
 
 /** How long the list of indices fetched from Algolia is trusted */
 const INDEX_LIST_TTL = 60 * 60 * 1000
@@ -37,7 +35,7 @@ async function refreshKnownIndices ({ logger = baseLogger }: { logger?: Pino.Log
   if (Date.now() - indicesFetchedAt < INDEX_LIST_TTL) return
   indicesFetch ??= (async () => {
     try {
-      const { items } = await writeClient.listIndices()
+      const { items } = await client.listIndices()
       for (const index of items) knownIndices.add(index.name)
     } catch (err) {
       logger.error(err, 'Could not list the Algolia indices')
@@ -77,7 +75,7 @@ export function trickIndexSettings (lang: string): IndexSettings {
 /** Applies {@link trickIndexSettings}, creating the index if it doesn't exist */
 export async function setTrickIndexSettings (lang: string) {
   const indexName = trickIndexName(lang)
-  await writeClient.setSettings({ indexName, indexSettings: trickIndexSettings(lang) })
+  await client.setSettings({ indexName, indexSettings: trickIndexSettings(lang) })
   knownIndices.add(indexName)
   return indexName
 }
@@ -129,7 +127,7 @@ export function trickRecord ({ trick, lang, localisation, enLocalisation, level 
 export async function saveTrickRecords (lang: string, records: Array<Record<string, unknown>>, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
   if (records.length === 0) return
   const indexName = await ensureIndex(lang, { logger })
-  await writeClient.saveObjects({ indexName, objects: records })
+  await client.saveObjects({ indexName, objects: records })
   logger.debug({ indexName, records: records.length }, 'Saved trick records to Algolia')
 }
 
@@ -140,13 +138,7 @@ export interface IndexTrickDataSources {
   trickLevels: TrickLevelDataSource
 }
 
-/**
- * Reindexes a single trick in every language it has a localisation for.
- *
- * Localisations are found through their `trickId`, documents that predate
- * `src/migrations/algolia-reindex.ts` don't have it and are only picked up once
- * that migration has backfilled them.
- */
+/** Reindexes a single trick in every language it has a localisation for */
 export async function indexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: IndexTrickDataSources, logger?: Pino.Logger }) {
   const [trick, localisations, levels] = await Promise.all([
     dataSources.tricks.findOneById(trickId),
@@ -207,7 +199,7 @@ export async function searchTricks (query: string, { discipline, lang, userId }:
       if (knownIndices.has(langIndexName)) indexName = langIndexName
     }
 
-    const { results } = await searchClient.searchForHits<{ objectID: string }>({
+    const { results } = await client.searchForHits<{ objectID: string }>({
       requests: [{
         indexName,
         query,

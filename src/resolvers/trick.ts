@@ -3,30 +3,16 @@ import { isTrick, trickLocalisationId } from '../store/schema'
 import { Discipline, TrickType } from '../generated/graphql'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors'
 import { tryIndexTrick, searchTricks } from '../services/algolia'
+import { langSchema, slugSchema, trickLocalisationSchema } from '../validation'
 
 import type { Resolvers } from '../generated/graphql'
 import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema'
-
-/** e.g. `frog`, `toad-crossover` */
-const slugSchema = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'A slug may only contain lowercase letters and numbers, separated by single dashes')
-
-/** A BCP-47-ish language tag, e.g. `en`, `sv` or `pt-br` */
-const langSchema = z.string().trim()
-  .regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, 'A language tag must be a BCP-47 tag such as `en` or `pt-br`')
-  .transform(lang => lang.toLowerCase())
-
-const localisationSchema = z.object({
-  name: z.string().trim().min(1, 'A name is required'),
-  alternativeNames: z.array(z.string())
-    .transform(names => names.map(name => name.trim()).filter(name => name.length > 0)),
-  description: z.string().trim()
-})
 
 const createTrickSchema = z.object({
   discipline: z.enum(Discipline),
   trickType: z.enum(TrickType),
   slug: slugSchema,
-  localisation: localisationSchema
+  localisation: trickLocalisationSchema
 })
 
 const updateTrickDetailsSchema = z.object({
@@ -165,7 +151,7 @@ export const trickResolvers: Resolvers = {
       const parsedLang = langSchema.parse(lang)
       allowUser.localisation(parsedLang).edit.assert()
       if (!user) throw new AuthorizationError()
-      const parsed = localisationSchema.parse(data)
+      const parsed = trickLocalisationSchema.parse(data)
 
       const trick = await dataSources.tricks.findOneById(trickId)
       if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
