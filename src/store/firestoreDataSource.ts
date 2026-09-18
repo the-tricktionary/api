@@ -1,9 +1,11 @@
 import { Firestore } from 'firebase-admin/firestore'
 import { FirestoreDataSource } from 'apollo-datasource-firestore'
+import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { logger } from '../services/logger'
+import { FINAL_UPLOAD_STATUSES } from '../services/mux'
 
 import type { Discipline } from '../generated/graphql'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, RulesetDoc, TrickVideoUploadDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
@@ -30,12 +32,27 @@ export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(fir
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {}
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
 
+export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUploadDoc> {
+  async findPendingByTrick (trickId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c
+      .where('trickId', '==', trickId)
+      .where('status', 'not-in', FINAL_UPLOAD_STATUSES), options)
+  }
+}
+export const trickVideoUploadDataSource = (cache: KeyValueCache) => new TrickVideoUploadDataSource(firestore.collection('trick-video-uploads') as CollectionReference<TrickVideoUploadDoc>, { logger: logger.child({ name: 'trick-video-upload-data-source' }), cache })
+
+export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+}
+export const rulesetDataSource = (cache: KeyValueCache) => new RulesetDataSource(firestore.collection('rulesets') as CollectionReference<RulesetDoc>, { logger: logger.child({ name: 'ruleset-data-source' }), cache })
+
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc> {
-  async findManyByFilters ({ trickId, organisation, rulesVersion }: { trickId: string, organisation?: string | null, rulesVersion?: string | null }, options?: QueryFindArgs) {
+  async findManyByTrick ({ trickId, rulesId }: { trickId: string, rulesId?: string | null }, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => {
       let q = c.where('trickId', '==', trickId)
-      if (organisation) q = q.where('organisation', '==', organisation)
-      if (rulesVersion) q = q.where('rulesVersion', '==', rulesVersion)
+      if (rulesId) q = q.where('rulesId', '==', rulesId)
       return q
     }, options)
   }
@@ -81,3 +98,22 @@ export class EventDefinitionDataSource extends FirestoreDataSource<EventDefiniti
   }
 }
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(firestore.collection('event-definitions') as CollectionReference<EventDefinitionDoc>, { logger: logger.child({ name: 'event-definition-data-source' }), cache })
+
+export const dataSourceCache = new InMemoryLRUCache()
+
+export function createDataSources () {
+  return {
+    eventDefinitions: eventDefinitionDataSource(dataSourceCache),
+    rulesets: rulesetDataSource(dataSourceCache),
+    speedResults: speedResultDataSource(dataSourceCache),
+    tricks: trickDataSource(dataSourceCache),
+    trickLocalisations: trickLocalisationDataSource(dataSourceCache),
+    trickPrerequisites: trickPrerequisiteDataSource(dataSourceCache),
+    trickLevels: trickLevelDataSource(dataSourceCache),
+    trickCompletions: trickCompletionDataSource(dataSourceCache),
+    trickVideoUploads: trickVideoUploadDataSource(dataSourceCache),
+    users: userDataSource(dataSourceCache)
+  }
+}
+
+export type DataSources = ReturnType<typeof createDataSources>
