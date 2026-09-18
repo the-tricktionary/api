@@ -43,6 +43,8 @@ export interface TrickDoc extends DocBase {
   trickType: TrickType
 
   submittedBy: UserDoc['id']
+  /** optional, documents predating trick mutations don't have it */
+  updatedBy?: UserDoc['id']
 
   videos: Video[]
 }
@@ -51,13 +53,39 @@ export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tric
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'
 
+  /**
+   * The trick this localisation belongs to. It's also part of the document ID,
+   * but Firestore can't query on a document ID prefix, so it's duplicated here.
+   *
+   * Optional because documents predating `src/migrations/algolia-reindex.ts`
+   * don't have it, use {@link trickLocalisationLang} to recover the language
+   * (and with it the trick) from the document ID for those.
+   */
+  trickId?: TrickDoc['id']
+
   name: string
   alternativeNames?: string[]
   description: string
 
   submittedBy: UserDoc['id']
+  /** optional, documents predating trick mutations don't have it */
+  updatedBy?: UserDoc['id']
 }
 export function isTrickLocalisation (t: any): t is TrickLocalisationDoc { return t?.collection === 'trick-localisations' }
+
+/**
+ * Trick localisations are unique per trick and language, so their document ID
+ * is deterministic rather than random.
+ */
+export function trickLocalisationId (trickId: TrickDoc['id'], lang: string) { return `${trickId}-${lang}` }
+
+/**
+ * The language of a trick localisation is the document ID's suffix, this
+ * recovers it for documents that don't have a `trickId` yet.
+ */
+export function trickLocalisationLang (id: TrickLocalisationDoc['id'], trickId: TrickDoc['id']) {
+  return id.startsWith(`${trickId}-`) ? id.slice(trickId.length + 1) : undefined
+}
 
 export interface RulesetDoc extends DocBase {
   readonly collection: 'rulesets'
@@ -68,6 +96,12 @@ export interface RulesetDoc extends DocBase {
   isPrimary: boolean
 }
 export function isRuleset (t: any): t is RulesetDoc { return t?.collection === 'rulesets' }
+
+/**
+ * The Tricktionary's own ruleset, its levels are the 1-5 levels shown on the
+ * trick itself and are maintained by trick editors rather than level editors.
+ */
+export const TRICKTIONARY_RULES_ID = 'tricktionary'
 
 export interface TrickLevelDoc extends DocBase {
   readonly collection: 'trick-levels'

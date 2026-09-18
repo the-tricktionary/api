@@ -55,6 +55,13 @@ const typeDefs = gql`
   }
 
   type Mutation {
+    # Tricks
+    createTrick (data: CreateTrickInput!): Trick!
+    updateTrickDetails (trickId: ID!, data: UpdateTrickDetailsInput!): Trick!
+    setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation!
+    addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
+    removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
+
     # Checklist
     createTrickCompletion (trickId: ID!): TrickCompletion!
     deleteTrickCompletion (trickId: ID!): TrickCompletion
@@ -71,6 +78,12 @@ const typeDefs = gql`
     createRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
     updateRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
     setPrimaryRuleset (rulesId: ID!): Ruleset!
+
+    # Trick levels
+    """Sets the level of a trick under a ruleset. A null or empty level deletes it."""
+    setTrickLevel (trickId: ID!, rulesId: ID!, level: String): TrickLevel
+    """Verifies the level at the given verification level, or recalls the verification when null."""
+    setTrickLevelVerification (trickId: ID!, rulesId: ID!, verificationLevel: VerificationLevel): TrickLevel!
   }
 
   type Trick @cacheControl(maxAge: 3600) {
@@ -103,6 +116,26 @@ const typeDefs = gql`
     createdAt: Timestamp
     updatedAt: Timestamp
     submitter: User
+  }
+
+  input CreateTrickInput {
+    discipline: Discipline!
+    trickType: TrickType!
+    slug: String!
+    """The english localisation of the new trick"""
+    localisation: TrickLocalisationInput!
+  }
+
+  input UpdateTrickDetailsInput {
+    discipline: Discipline
+    trickType: TrickType
+    slug: String
+  }
+
+  input TrickLocalisationInput {
+    name: String!
+    alternativeNames: [String!]!
+    description: String!
   }
 
   type Ruleset @cacheControl(maxAge: 3600) {

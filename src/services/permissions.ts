@@ -1,6 +1,7 @@
 import { AuthorizationError } from '../errors'
 import { GrantType, VerificationLevel } from '../generated/graphql'
-import type { Grant, SpeedResultDoc, UserDoc } from '../store/schema'
+import { TRICKTIONARY_RULES_ID } from '../store/schema'
+import type { Grant, SpeedResultDoc, TrickLevelDoc, UserDoc } from '../store/schema'
 import type Pino from 'pino'
 
 interface AllowUserContext { logger: Pino.Logger }
@@ -22,13 +23,18 @@ export function verificationLevelRank (level: VerificationLevel | null | undefin
 }
 
 export function allowUser (user: UserDoc | undefined, { logger }: AllowUserContext) {
-  function enrich (checkMethod: () => boolean) {
+  /**
+   * `reason` explains which rule a failing check breaks, it's only evaluated
+   * when the check fails and is overridden by an explicit `assert` message.
+   */
+  function enrich (checkMethod: () => boolean, reason?: () => string) {
     const annotations = {
       assert: (message?: string) => {
         logger.trace({ user: user?.id, assertion: checkMethod.name }, 'Trying Assertion')
         if (!checkMethod()) {
-          logger.info({ user: user?.id, assertion: checkMethod.name }, `Assertion failed failed ${message ? `message: ${message}` : ''}`)
-          throw new AuthorizationError(`Permission denied ${message ? ': ' + message : ''}`)
+          const detail = message ?? reason?.()
+          logger.info({ user: user?.id, assertion: checkMethod.name }, `Assertion failed failed ${detail ? `message: ${detail}` : ''}`)
+          throw new AuthorizationError(`Permission denied ${detail ? ': ' + detail : ''}`)
         }
         return true
       }
@@ -42,7 +48,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const grants: Grant[] = user?.grants ?? []
   const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === GrantType.SuperAdmin) })
   const isTrickEditor = enrich(function isTrickEditor () { return grants.some(grant => grant.type === GrantType.TrickEditor) })
-  const editTricks = enrich(function editTricks () { return isSuperAdmin() || isTrickEditor() })
+  const createTrick = enrich(function createTrick () { return isSuperAdmin() || isTrickEditor() })
+  const editTrick = enrich(function editTrick () { return isSuperAdmin() || isTrickEditor() })
 
   return {
     getTricks: everyone,
@@ -50,7 +57,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     createSpeedResult: isAuthenticated,
     makePurchase: everyone,
 
-    editTricks,
+    createTrick,
+    editTrick,
 
     createRuleset: isSuperAdmin,
     editRuleset: isSuperAdmin,
@@ -84,7 +92,54 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         return rank
       }
 
-      return { editLevels, verificationRank }
+      // the tricktionary's own levels are part of the trick rather than of a
+      // separate ruleset, so they're maintained by trick editors
+      function canEditLevels () { return rulesId === TRICKTIONARY_RULES_ID ? editTrick() : editLevels() }
+
+      /**
+       * Setting a level resets its verification, so a user may only overwrite
+       * a level that isn't verified above their own verification rank.
+       * `existing` is the current level document, if there is one.
+       */
+      function setLevel (existing?: TrickLevelDoc) {
+        const currentRank = verificationLevelRank(existing?.verificationLevel)
+        return enrich(
+          function setLevel () { return canEditLevels() && verificationRank() >= currentRank },
+          () => !canEditLevels()
+            ? `you may not edit the levels of the ruleset ${rulesId}`
+            : `the level is verified at ${existing?.verificationLevel} and you may not overwrite it`
+        )
+      }
+
+      /**
+       * Verifying at a verification level requires the user to rank at least
+       * as high and to actually raise the verification, recalling a
+       * verification requires the user to rank at least as high as the
+       * verification they recall.
+       */
+      function setVerification (existing: TrickLevelDoc, target: VerificationLevel | null) {
+        const targetRank = verificationLevelRank(target)
+        const currentRank = verificationLevelRank(existing.verificationLevel)
+        return enrich(
+          function setVerification () {
+            if (!canEditLevels()) return false
+            return targetRank > 0
+              ? verificationRank() >= targetRank && targetRank > currentRank
+              : currentRank > 0 && verificationRank() >= currentRank
+          },
+          () => {
+            if (!canEditLevels()) return `you may not edit the levels of the ruleset ${rulesId}`
+            if (targetRank > 0) {
+              if (verificationRank() < targetRank) return `verifying a level at ${target} requires a higher verification level than you have`
+              return `the level is already verified at ${existing.verificationLevel}`
+            }
+            if (currentRank === 0) return 'the level is not verified'
+            return `recalling a ${existing.verificationLevel} verification requires a higher verification level than you have`
+          }
+        )
+      }
+
+      return { editLevels, verificationRank, setLevel, setVerification }
     },
 
     user (subUser: UserDoc) {

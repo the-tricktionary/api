@@ -1,15 +1,46 @@
-import { isTrick } from '../store/schema'
+import z from 'zod'
+import { isTrick, trickLocalisationId } from '../store/schema'
+import { Discipline, TrickType } from '../generated/graphql'
+import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors'
+import { tryIndexTrick, searchTricks } from '../services/algolia'
 
 import type { Resolvers } from '../generated/graphql'
-import type { TrickDoc, UserDoc } from '../store/schema'
-import { searchTricks } from '../services/algolia'
+import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema'
+
+/** e.g. `frog`, `toad-crossover` */
+const slugSchema = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'A slug may only contain lowercase letters and numbers, separated by single dashes')
+
+/** A BCP-47-ish language tag, e.g. `en`, `sv` or `pt-br` */
+const langSchema = z.string().trim()
+  .regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, 'A language tag must be a BCP-47 tag such as `en` or `pt-br`')
+  .transform(lang => lang.toLowerCase())
+
+const localisationSchema = z.object({
+  name: z.string().trim().min(1, 'A name is required'),
+  alternativeNames: z.array(z.string())
+    .transform(names => names.map(name => name.trim()).filter(name => name.length > 0)),
+  description: z.string().trim()
+})
+
+const createTrickSchema = z.object({
+  discipline: z.enum(Discipline),
+  trickType: z.enum(TrickType),
+  slug: slugSchema,
+  localisation: localisationSchema
+})
+
+const updateTrickDetailsSchema = z.object({
+  discipline: z.enum(Discipline).nullish(),
+  trickType: z.enum(TrickType).nullish(),
+  slug: slugSchema.nullish()
+})
 
 export const trickResolvers: Resolvers = {
   Query: {
-    async tricks (_, { discipline, searchQuery }, { dataSources, allowUser }) {
+    async tricks (_, { discipline, searchQuery }, { dataSources, allowUser, user }) {
       allowUser.getTricks.assert()
       if (searchQuery) {
-        const hits = await searchTricks(searchQuery, { discipline: discipline ?? undefined })
+        const hits = await searchTricks(searchQuery, { discipline: discipline ?? undefined, lang: user?.lang, userId: user?.id })
         return await (dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>)
       } else {
         return await dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
@@ -24,12 +55,179 @@ export const trickResolvers: Resolvers = {
       return (await dataSources.tricks.findOneBySlug({ slug, discipline }, { ttl: 3600 })) ?? null
     }
   },
+  Mutation: {
+    async createTrick (_, { data }, { dataSources, allowUser, user, logger }) {
+      allowUser.createTrick.assert()
+      if (!user) throw new AuthorizationError()
+      const { discipline, trickType, slug, localisation } = createTrickSchema.parse(data)
+
+      const collection = dataSources.tricks.collection
+      const localisationCollection = dataSources.trickLocalisations.collection
+
+      // the slug is only unique within a discipline, and there's no way to
+      // express that as a document ID, so a transaction guards it instead
+      const trickId = await collection.firestore.runTransaction(async t => {
+        const qSnap = await t.get(collection.where('discipline', '==', discipline).where('slug', '==', slug))
+        if (!qSnap.empty) {
+          throw new CollisionError(`A ${discipline} trick with the slug ${slug} already exists`, { extensions: { entity: 'trick', id: qSnap.docs[0]?.id } })
+        }
+
+        const dRef = collection.doc()
+        t.create(dRef.withConverter(null), {
+          slug,
+          discipline,
+          trickType,
+          submittedBy: user.id,
+          updatedBy: user.id,
+          videos: []
+        })
+        t.create(localisationCollection.doc(trickLocalisationId(dRef.id, 'en')).withConverter(null), {
+          trickId: dRef.id,
+          name: localisation.name,
+          alternativeNames: localisation.alternativeNames,
+          description: localisation.description,
+          submittedBy: user.id,
+          updatedBy: user.id
+        })
+
+        return dRef.id
+      })
+
+      await dataSources.tricks.deleteFromCacheById(trickId)
+      await dataSources.trickLocalisations.deleteFromCacheById(trickLocalisationId(trickId, 'en'))
+      const [trick] = await Promise.all([
+        dataSources.tricks.findOneById(trickId),
+        dataSources.trickLocalisations.findOneById(trickLocalisationId(trickId, 'en'))
+      ])
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      await tryIndexTrick(trickId, { dataSources, logger })
+
+      return trick
+    },
+    async updateTrickDetails (_, { trickId, data }, { dataSources, allowUser, user, logger }) {
+      allowUser.editTrick.assert()
+      if (!user) throw new AuthorizationError()
+      const parsed = updateTrickDetailsSchema.parse(data)
+
+      const trick = await dataSources.tricks.findOneById(trickId)
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      const discipline = parsed.discipline ?? undefined
+      const trickType = parsed.trickType ?? undefined
+      const slug = parsed.slug ?? undefined
+
+      // prerequisites only ever link tricks of the same discipline, moving a
+      // trick would break that, so its edges have to go first
+      if (discipline != null && discipline !== trick.discipline) {
+        const [prerequisites, prerequisiteFor] = await Promise.all([
+          dataSources.trickPrerequisites.findManyPrerequisitesByTrick(trickId),
+          dataSources.trickPrerequisites.findManyRequisitesByTrick(trickId)
+        ])
+        if (prerequisites.length > 0 || prerequisiteFor.length > 0) {
+          throw new ValidationError('The discipline of a trick with prerequisites cannot be changed, remove its prerequisites first')
+        }
+      }
+
+      const changes = {
+        updatedBy: user.id,
+        ...(discipline != null ? { discipline } : {}),
+        ...(trickType != null ? { trickType } : {}),
+        ...(slug != null ? { slug } : {})
+      }
+
+      const nextDiscipline = discipline ?? trick.discipline
+      const nextSlug = slug ?? trick.slug
+
+      if (nextDiscipline !== trick.discipline || nextSlug !== trick.slug) {
+        const collection = dataSources.tricks.collection
+        await collection.firestore.runTransaction(async t => {
+          const qSnap = await t.get(collection.where('discipline', '==', nextDiscipline).where('slug', '==', nextSlug))
+          const conflict = qSnap.docs.find(dSnap => dSnap.id !== trickId)
+          if (conflict) {
+            throw new CollisionError(`A ${nextDiscipline} trick with the slug ${nextSlug} already exists`, { extensions: { entity: 'trick', id: conflict.id } })
+          }
+          t.set(collection.doc(trickId).withConverter(null), changes, { merge: true })
+        })
+      } else {
+        await dataSources.tricks.updateOnePartial(trickId, changes)
+      }
+      await dataSources.tricks.deleteFromCacheById(trickId)
+
+      const updated = await dataSources.tricks.findOneById(trickId)
+      if (!updated) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      await tryIndexTrick(trickId, { dataSources, logger })
+
+      return updated
+    },
+    async setTrickLocalisation (_, { trickId, lang, data }, { dataSources, allowUser, user, logger }) {
+      const parsedLang = langSchema.parse(lang)
+      allowUser.localisation(parsedLang).edit.assert()
+      if (!user) throw new AuthorizationError()
+      const parsed = localisationSchema.parse(data)
+
+      const trick = await dataSources.tricks.findOneById(trickId)
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      const localisationId = trickLocalisationId(trickId, parsedLang)
+      const existing = await dataSources.trickLocalisations.findOneById(localisationId)
+
+      const localisation = await (dataSources.trickLocalisations.updateOne({
+        id: localisationId,
+        trickId,
+        name: parsed.name,
+        alternativeNames: parsed.alternativeNames,
+        description: parsed.description,
+        // whoever wrote the first version of a localisation stays its submitter
+        submittedBy: existing?.submittedBy ?? user.id,
+        updatedBy: user.id
+      }) as Promise<TrickLocalisationDoc>)
+      await dataSources.trickLocalisations.deleteFromCacheById(localisationId)
+
+      await tryIndexTrick(trickId, { dataSources, logger })
+
+      return localisation
+    },
+    async addTrickPrerequisite (_, { trickId, prerequisiteId }, { dataSources, allowUser, user }) {
+      allowUser.editTrick.assert()
+      if (!user) throw new AuthorizationError()
+
+      const [trick, prerequisite] = await Promise.all([
+        dataSources.tricks.findOneById(trickId),
+        dataSources.tricks.findOneById(prerequisiteId)
+      ])
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      if (!prerequisite) throw new NotFoundError(`Trick ${prerequisiteId} not found`, { extensions: { entity: 'trick', id: prerequisiteId } })
+      if (trickId === prerequisiteId) throw new ValidationError('A trick cannot be its own prerequisite')
+      if (trick.discipline !== prerequisite.discipline) throw new ValidationError('A prerequisite must be a trick of the same discipline')
+
+      const existing = await dataSources.trickPrerequisites.findManyByQuery(c => c.where('parentId', '==', trickId).where('childId', '==', prerequisiteId))
+      if (existing.length > 0) return trick
+
+      await dataSources.trickPrerequisites.createOne({ parentId: trickId, childId: prerequisiteId })
+
+      return trick
+    },
+    async removeTrickPrerequisite (_, { trickId, prerequisiteId }, { dataSources, allowUser, user }) {
+      allowUser.editTrick.assert()
+      if (!user) throw new AuthorizationError()
+
+      const trick = await dataSources.tricks.findOneById(trickId)
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      const existing = await dataSources.trickPrerequisites.findManyByQuery(c => c.where('parentId', '==', trickId).where('childId', '==', prerequisiteId))
+      for (const edge of existing) await dataSources.trickPrerequisites.deleteOne(edge.id)
+
+      return trick
+    }
+  },
   Trick: {
     async videos (trick) {
       return trick.videos ?? []
     },
     async localisation (trick, { lang }, { dataSources }) {
-      return (await dataSources.trickLocalisations.findOneById(`${trick.id}-${lang ?? 'en'}`, { ttl: 3600 })) ?? null
+      return (await dataSources.trickLocalisations.findOneById(trickLocalisationId(trick.id, lang ?? 'en'), { ttl: 3600 })) ?? null
     },
     async submitter (trick, _, { dataSources }) {
       const user = await dataSources.users.findOneById(trick.submittedBy, { ttl: 60 })
