@@ -50,6 +50,10 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const isTrickEditor = enrich(function isTrickEditor () { return grants.some(grant => grant.type === GrantType.TrickEditor) })
   const createTrick = enrich(function createTrick () { return isSuperAdmin() || isTrickEditor() })
   const editTrick = enrich(function editTrick () { return isSuperAdmin() || isTrickEditor() })
+  const editTrickVideos = enrich(function editTrickVideos () { return isSuperAdmin() || isTrickEditor() })
+  // the same check as editTrickVideos, but it's used to hide a field rather
+  // than to reject a mutation, so it's never asserted
+  const getTrickVideoUploads = enrich(function getTrickVideoUploads () { return editTrickVideos() })
 
   return {
     getTricks: everyone,
@@ -59,10 +63,15 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
 
     createTrick,
     editTrick,
+    editTrickVideos,
+    getTrickVideoUploads,
 
     createRuleset: isSuperAdmin,
     editRuleset: isSuperAdmin,
     setPrimaryRuleset: isSuperAdmin,
+
+    findUsers: isSuperAdmin,
+    setUserGrants: isSuperAdmin,
 
     localisation (lang: string) {
       // english is the source language of the Tricktionary, trick editors are
@@ -155,6 +164,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         getChecklist: isMeOrHasPublicChecklist,
         getSpeedResults: isMeOrHasPublicSpeed,
         getGrants: isMeOrIsSuperAdmin,
+        getEmail: isMeOrIsSuperAdmin,
 
         speedResult (speedResult: SpeedResultDoc) {
           const isMine = enrich(function isMine () { return !!user && speedResult.userId === user.id })

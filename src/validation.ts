@@ -1,4 +1,7 @@
 import z from 'zod'
+import { GrantType, VerificationLevel } from './generated/graphql'
+
+import type { Grant } from './store/schema'
 
 /** A BCP-47-ish language tag, normalised to lowercase, e.g. `en`, `sv` or `pt-br` */
 export const langSchema = z.string().trim()
@@ -46,3 +49,62 @@ export const levelSchema = z.string().trim()
 /** the tricktionary's own levels are a single number from 1 to 5 */
 export const tricktionaryLevelSchema = z.string().trim()
   .regex(/^[1-5]$/, 'A tricktionary level must be a whole number between 1 and 5')
+
+/** The 11 character ID YouTube identifies a video by, e.g. `dQw4w9WgXcQ` */
+export const youTubeVideoIdSchema = z.string().trim()
+  .regex(/^[A-Za-z0-9_-]{11}$/, 'A YouTube video ID is 11 letters, digits, dashes or underscores')
+
+/**
+ * How many seconds into the video the slow motion part starts. `z.number()`
+ * already rejects `NaN` and infinities in zod 4.
+ */
+export const slowMoStartSchema = z.number()
+  .min(0, 'A slow motion start cannot be negative')
+  .nullish()
+
+const superAdminGrantSchema = z.strictObject({ type: z.literal(GrantType.SuperAdmin) })
+const trickEditorGrantSchema = z.strictObject({ type: z.literal(GrantType.TrickEditor) })
+const translatorGrantSchema = z.strictObject({
+  type: z.literal(GrantType.Translator),
+  lang: langSchema.refine(lang => lang !== 'en', 'A Translator grant may not be for english, english is edited by a TrickEditor')
+})
+const levelEditorGrantSchema = z.strictObject({
+  type: z.literal(GrantType.LevelEditor),
+  rulesId: rulesIdSchema,
+  verificationLevel: z.enum(VerificationLevel).nullish()
+})
+
+const grantInputSchema = z.discriminatedUnion('type', [
+  superAdminGrantSchema,
+  trickEditorGrantSchema,
+  translatorGrantSchema,
+  levelEditorGrantSchema
+])
+
+/** A list of grants, validated per `GrantType` and transformed into the stored `Grant` shape */
+export const grantsSchema = z.array(grantInputSchema)
+  .refine(grants => {
+    const keys = grants.map(grant => {
+      if (grant.type === GrantType.Translator) return `${grant.type}:${grant.lang}`
+      if (grant.type === GrantType.LevelEditor) return `${grant.type}:${grant.rulesId}`
+      return grant.type
+    })
+    return new Set(keys).size === keys.length
+  }, 'Each grant may only be specified once')
+  .transform((grants): Grant[] => grants.map((grant): Grant => {
+    switch (grant.type) {
+      case GrantType.SuperAdmin:
+      case GrantType.TrickEditor:
+        return { type: grant.type }
+      case GrantType.Translator:
+        return { type: grant.type, lang: grant.lang }
+      case GrantType.LevelEditor:
+        return {
+          type: grant.type,
+          rulesId: grant.rulesId,
+          ...(grant.verificationLevel != null ? { verificationLevel: grant.verificationLevel } : {})
+        }
+      default:
+        throw new Error(`Unhandled grant type ${(grant as { type: string }).type}`)
+    }
+  }))

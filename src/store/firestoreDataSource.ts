@@ -1,9 +1,11 @@
 import { Firestore } from 'firebase-admin/firestore'
 import { FirestoreDataSource } from 'apollo-datasource-firestore'
+import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
+import { VideoUploadStatus } from '../generated/graphql'
 import { logger } from '../services/logger'
 
 import type { Discipline } from '../generated/graphql'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, RulesetDoc } from './schema'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, RulesetDoc, TrickVideoUploadDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
@@ -29,6 +31,19 @@ export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(fir
 
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {}
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
+
+/** The statuses an upload never leaves again */
+const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
+
+export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUploadDoc> {
+  /** The uploads of a trick that haven't reached a final status yet */
+  async findPendingByTrick (trickId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c
+      .where('trickId', '==', trickId)
+      .where('status', 'not-in', FINAL_UPLOAD_STATUSES), options)
+  }
+}
+export const trickVideoUploadDataSource = (cache: KeyValueCache) => new TrickVideoUploadDataSource(firestore.collection('trick-video-uploads') as CollectionReference<TrickVideoUploadDoc>, { logger: logger.child({ name: 'trick-video-upload-data-source' }), cache })
 
 export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   async findAll (options?: QueryFindArgs) {
@@ -92,3 +107,42 @@ export class EventDefinitionDataSource extends FirestoreDataSource<EventDefiniti
   }
 }
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(firestore.collection('event-definitions') as CollectionReference<EventDefinitionDoc>, { logger: logger.child({ name: 'event-definition-data-source' }), cache })
+
+export interface DataSources {
+  eventDefinitions: EventDefinitionDataSource
+  rulesets: RulesetDataSource
+  speedResults: SpeedResultDataSource
+  tricks: TrickDataSource
+  trickLocalisations: TrickLocalisationDataSource
+  trickPrerequisites: TrickPrerequisiteDataSource
+  trickLevels: TrickLevelDataSource
+  trickCompletions: TrickCompletionDataSource
+  trickVideoUploads: TrickVideoUploadDataSource
+  users: UserDataSource
+}
+
+/**
+ * The document cache shared by every data source in this process, including
+ * the ones the Mux webhook builds outside of a GraphQL request, so that
+ * evicting a document there is visible to the API too.
+ */
+export const dataSourceCache = new InMemoryLRUCache()
+
+/**
+ * A fresh set of data sources, one per request: the documents they load are
+ * shared through `cache`, the per-request data loaders are not.
+ */
+export function createDataSources (cache: KeyValueCache = dataSourceCache): DataSources {
+  return {
+    eventDefinitions: eventDefinitionDataSource(cache),
+    rulesets: rulesetDataSource(cache),
+    speedResults: speedResultDataSource(cache),
+    tricks: trickDataSource(cache),
+    trickLocalisations: trickLocalisationDataSource(cache),
+    trickPrerequisites: trickPrerequisiteDataSource(cache),
+    trickLevels: trickLevelDataSource(cache),
+    trickCompletions: trickCompletionDataSource(cache),
+    trickVideoUploads: trickVideoUploadDataSource(cache),
+    users: userDataSource(cache)
+  }
+}

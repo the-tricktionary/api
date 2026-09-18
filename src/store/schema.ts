@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql'
+import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -48,6 +48,29 @@ export interface TrickDoc extends DocBase {
   videos: Video[]
 }
 export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tricks' }
+
+/**
+ * A direct upload of a trick video to Mux. The document ID is the Mux upload
+ * ID, which is also what identifies the upload in Mux's webhooks.
+ */
+export interface TrickVideoUploadDoc extends DocBase {
+  readonly collection: 'trick-video-uploads'
+
+  /** the trick the video is added to once the upload is ready */
+  trickId: TrickDoc['id']
+  /** who started the upload */
+  userId: UserDoc['id']
+
+  type: VideoType
+  slowMoStart?: number
+
+  status: VideoUploadStatus
+  /** the Mux asset created from the upload, absent until Mux created it */
+  assetId?: string
+  /** why the upload failed, only set while the status is `Errored` */
+  error?: string
+}
+export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t?.collection === 'trick-video-uploads' }
 
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'

@@ -37,7 +37,8 @@ const typeDefs = gql`
 
   type Query {
     me: User
-    # findUser (username: String): User
+    """Exact match on email, username or user id. Super admins only."""
+    findUsers (query: String!): [User!]!
 
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick
@@ -84,6 +85,18 @@ const typeDefs = gql`
     setTrickLevel (trickId: ID!, rulesId: ID!, level: String): TrickLevel
     """Verifies the level at the given verification level, or recalls the verification when null."""
     setTrickLevelVerification (trickId: ID!, rulesId: ID!, verificationLevel: VerificationLevel): TrickLevel!
+
+    # Trick videos
+    addTrickVideo (trickId: ID!, data: YouTubeVideoInput!): Trick!
+    """
+    Starts a direct upload to Mux. Upload the file to the returned \`url\`, the
+    video is added to the trick once Mux has processed it.
+    """
+    createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload!
+    removeTrickVideo (trickId: ID!, videoId: String!): Trick!
+
+    # Users
+    setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
   }
 
   type Trick @cacheControl(maxAge: 3600) {
@@ -96,6 +109,11 @@ const typeDefs = gql`
     localisation (lang: String): TrickLocalisation
 
     videos: [Video!]!
+    """
+    The video uploads of this trick that haven't finished processing yet.
+    Empty for users who may not edit trick videos.
+    """
+    pendingVideoUploads: [TrickVideoUpload!]! @cacheControl(maxAge: 0, scope: PRIVATE)
     levels (rulesId: String): [TrickLevel!]!
 
     prerequisites: [Trick!]!
@@ -196,12 +214,52 @@ const typeDefs = gql`
     Explainer
   }
 
+  input YouTubeVideoInput {
+    videoId: String!
+    type: VideoType!
+    slowMoStart: Float
+  }
+
+  input VideoUploadInput {
+    type: VideoType!
+    slowMoStart: Float
+  }
+
+  enum VideoUploadStatus {
+    Waiting
+    Processing
+    Ready
+    Errored
+    Cancelled
+  }
+
+  """A direct upload of a trick video to Mux"""
+  type TrickVideoUpload {
+    """The Mux upload ID"""
+    id: ID!
+    """
+    Upload the file with a single PUT to this URL. Mux only hands it out once,
+    so it's only set on the \`createTrickVideoUpload\` response and empty
+    everywhere else.
+    """
+    url: String!
+    type: VideoType!
+    slowMoStart: Float
+    status: VideoUploadStatus!
+    """Why the upload failed, only set when the status is \`Errored\`"""
+    error: String
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
   type User {
     id: ID!
     username: String
     name: String
     lang: String
     photo: String
+    """Only visible to the user themselves and to super admins"""
+    email: String
 
     profile: ProfileOptions!
 
@@ -231,6 +289,16 @@ const typeDefs = gql`
     """LevelEditor only"""
     rulesId: String
     """LevelEditor only, null means the user may edit but not verify"""
+    verificationLevel: VerificationLevel
+  }
+
+  input GrantInput {
+    type: GrantType!
+    """Translator only"""
+    lang: String
+    """LevelEditor only"""
+    rulesId: String
+    """LevelEditor only"""
     verificationLevel: VerificationLevel
   }
 

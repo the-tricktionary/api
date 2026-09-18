@@ -3,7 +3,7 @@ import { auth } from 'firebase-admin'
 import type Pino from 'pino'
 import type { UserDoc } from '../store/schema'
 import { AuthenticationError } from '../errors'
-import type { DataSources } from '../apollo'
+import type { DataSources } from '../store/firestoreDataSource'
 
 interface HeaderParserOptions {
   logger: Pino.Logger

@@ -26,6 +26,9 @@ array. Each grant is one of:
 Grants are exposed as `User.grants`, but only to the user themselves and to
 super admins – for everyone else the field is an empty list.
 
+Grants are managed by super admins, who look up a user with `findUsers` and
+then set their full list of grants with `setUserGrants`.
+
 ### Rulesets (`rulesets`)
 
 A ruleset is a set of rules levels are assigned under. The document ID is the
@@ -81,6 +84,17 @@ Trick videos are stored inline on the trick document as an array of
 - `YouTube` – `videoId` is the YouTube video ID
 - `Mux` – `videoId` is the public [Mux](https://www.mux.com) playback ID, the
   Mux asset ID is stored alongside it as `assetId`
+
+Mux needs `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` and `MUX_WEBHOOK_SECRET`.
+
+### Uploading a video
+
+`createTrickVideoUpload` creates a Mux direct upload and a `trick-video-uploads`
+document (its ID is the Mux upload ID) tracking it; the client PUTs the file to
+the returned `url`. Mux then reports progress to `POST /webhooks/mux`, which
+verifies the signature with `MUX_WEBHOOK_SECRET` and adds the video to the trick
+once the asset is ready. Point the Mux webhook at that path and subscribe to the
+`video.upload.*` and `video.asset.*` events.
 
 ### Migrating YouTube videos to Mux
 

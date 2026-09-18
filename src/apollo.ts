@@ -2,7 +2,6 @@ import { ApolloServer, type BaseContext } from '@apollo/server'
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'
 import { ApolloServerPluginCacheControl } from '@apollo/server/plugin/cacheControl'
 import { expressMiddleware, type ExpressContextFunctionArgument } from '@as-integrations/express5'
-import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import { fromZodError } from 'zod-validation-error'
 import { unwrapResolverError } from '@apollo/server/errors'
@@ -20,29 +19,9 @@ import { userFromAuthorizationHeader } from './services/authentication'
 import { allowUser } from './services/permissions'
 import { UnexpectedError, ValidationError } from './errors'
 import { logger } from './services/logger'
-import {
-  eventDefinitionDataSource,
-  rulesetDataSource,
-  speedResultDataSource,
-  trickPrerequisiteDataSource,
-  trickDataSource,
-  trickCompletionDataSource,
-  trickLevelDataSource,
-  trickLocalisationDataSource,
-  userDataSource
-} from './store/firestoreDataSource'
+import { createDataSources, dataSourceCache } from './store/firestoreDataSource'
 
-import type {
-  EventDefinitionDataSource,
-  RulesetDataSource,
-  SpeedResultDataSource,
-  TrickPrerequisiteDataSource,
-  TrickDataSource,
-  TrickCompletionDataSource,
-  TrickLevelDataSource,
-  TrickLocalisationDataSource,
-  UserDataSource
-} from './store/firestoreDataSource'
+import type { DataSources } from './store/firestoreDataSource'
 import type { UserDoc } from './store/schema'
 
 export async function initApollo (httpServer: Server) {
@@ -58,12 +37,10 @@ export async function initApollo (httpServer: Server) {
 
   const schema = makeExecutableSchema({ typeDefs, resolvers })
 
-  const cache = new InMemoryLRUCache()
-
   const server = new ApolloServer({
     schema,
     plugins,
-    cache,
+    cache: dataSourceCache,
     logger: logger.child({ name: 'apollo-server' }),
     introspection: true,
     formatError (formattedError, wrappedOriginal) {
@@ -84,17 +61,7 @@ export async function initApollo (httpServer: Server) {
 
   return expressMiddleware(server, {
     async context (context: ExpressContextFunctionArgument): Promise<ApolloContext> {
-      const dataSources = {
-        eventDefinitions: eventDefinitionDataSource(cache),
-        rulesets: rulesetDataSource(cache),
-        speedResults: speedResultDataSource(cache),
-        tricks: trickDataSource(cache),
-        trickLocalisations: trickLocalisationDataSource(cache),
-        trickPrerequisites: trickPrerequisiteDataSource(cache),
-        trickLevels: trickLevelDataSource(cache),
-        trickCompletions: trickCompletionDataSource(cache),
-        users: userDataSource(cache)
-      }
+      const dataSources = createDataSources(dataSourceCache)
 
       const trace = context.req.get('X-Cloud-Trace-Context')
       const childLogger = logger.child({
@@ -112,18 +79,6 @@ export async function initApollo (httpServer: Server) {
       }
     }
   })
-}
-
-export interface DataSources {
-  eventDefinitions: EventDefinitionDataSource
-  rulesets: RulesetDataSource
-  speedResults: SpeedResultDataSource
-  tricks: TrickDataSource
-  trickLocalisations: TrickLocalisationDataSource
-  trickPrerequisites: TrickPrerequisiteDataSource
-  trickLevels: TrickLevelDataSource
-  trickCompletions: TrickCompletionDataSource
-  users: UserDataSource
 }
 
 export interface TrickContext {
