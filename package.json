@@ -9,8 +9,7 @@
     "lint:fix": "npm run lint -- --fix",
     "typecheck": "tsc --noEmit",
     "codegen": "graphql-codegen --config codegen.yml",
-    "codegen:watch": "npm run codegen -- --watch",
-    "migrate:mux-videos": "tsx src/migrations/mux-videos.ts"
+    "codegen:watch": "npm run codegen -- --watch"
   },
   "engines": {
     "node": ">=24"
