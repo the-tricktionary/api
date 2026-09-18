@@ -165,26 +165,27 @@ export async function searchTricks (query: string, { discipline, lang, userId }:
     op: 'search',
     name: 'AlgoliaSearchTricks'
   }, async () => {
-    // tricks that aren't translated yet are missing from a language index, so
-    // we only use one we know exists and fall back to the source language
-    let indexName = trickIndexName('en')
+    // a language index only holds the tricks translated into it, so the
+    // english index is searched alongside it to cover the rest
+    const indexNames = [trickIndexName('en')]
     if (lang) {
       const langIndexName = trickIndexName(lang.toLowerCase())
       await refreshKnownIndices({ logger })
-      if (knownIndices.has(langIndexName)) indexName = langIndexName
+      if (langIndexName !== indexNames[0] && knownIndices.has(langIndexName)) indexNames.unshift(langIndexName)
     }
 
     const { results } = await client.searchForHits<{ objectID: string }>({
-      requests: [{
+      requests: indexNames.map(indexName => ({
         indexName,
         query,
         facetFilters: discipline ? [`discipline:${discipline}`] : undefined,
         hitsPerPage: 500,
         attributesToRetrieve: ['objectID'],
         userToken: userId
-      }]
+      }))
     })
 
-    return results[0]?.hits ?? []
+    // language hits first, the english index fills in the rest
+    return [...new Map(results.flatMap(result => result.hits).map(hit => [hit.objectID, hit])).values()]
   })
 }
