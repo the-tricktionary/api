@@ -294,7 +294,8 @@ const typeDefs = gql`
     # friends: [User!]! # maybe in the future?
 
     checklist: [TrickCompletion!]!
-    speedResults (limit: Int, startAfter: Timestamp): [SpeedResult!]!
+    """Newest first. eventDefinitionId narrows the list to one event."""
+    speedResults (limit: Int, startAfter: Timestamp, eventDefinitionId: ID): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
 
     # store fcm tokens in db? don't expose if so

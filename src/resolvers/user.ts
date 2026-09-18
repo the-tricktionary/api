@@ -74,10 +74,10 @@ export const userResolvers: Resolvers = {
 
       return await dataSources.trickCompletions.findManyByUser(user.id)
     },
-    async speedResults (user, { limit, startAfter }, { dataSources, allowUser }) {
+    async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
-      return await dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter })
+      return await dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter, eventDefinitionId })
     },
     async speedResult (user, { speedResultId }, { dataSources, allowUser }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })

@@ -92,9 +92,11 @@ export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompleti
 export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(firestore.collection('trick-completions') as CollectionReference<TrickCompletionDoc>, { logger: logger.child({ name: 'trick-completion-source' }), cache })
 
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
-  async findManyByUser (userId: string, { ttl, limit, startAfter }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null } = {}) {
+  async findManyByUser (userId: string, { ttl, limit, startAfter, eventDefinitionId }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null, eventDefinitionId?: string | null } = {}) {
     return await this.findManyByQuery(c => {
-      let q = c.where('userId', '==', userId).orderBy('createdAt', 'desc')
+      let q = c.where('userId', '==', userId)
+      if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
+      q = q.orderBy('createdAt', 'desc')
       if (startAfter) q = q.startAfter(startAfter)
       if (limit) q = q.limit(limit)
       return q
