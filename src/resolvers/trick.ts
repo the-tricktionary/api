@@ -147,8 +147,12 @@ export const trickResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const parsed = trickLocalisationSchema.parse(data)
 
-      const trick = await dataSources.tricks.findOneById(trickId)
+      const [trick, language] = await Promise.all([
+        dataSources.tricks.findOneById(trickId),
+        dataSources.languages.findOneById(parsedLang)
+      ])
       if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      if (!language) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
 
       const localisationId = trickLocalisationId(trickId, parsedLang)
       const existing = await dataSources.trickLocalisations.findOneById(localisationId)

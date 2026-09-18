@@ -5,7 +5,7 @@ import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, RulesetDoc, TrickVideoUploadDoc } from './schema.js'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc } from './schema.js'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
@@ -41,6 +41,13 @@ export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUp
 }
 export const trickVideoUploadDataSource = (cache: KeyValueCache) => new TrickVideoUploadDataSource(firestore.collection('trick-video-uploads') as CollectionReference<TrickVideoUploadDoc>, { logger: logger.child({ name: 'trick-video-upload-data-source' }), cache })
 
+export class LanguageDataSource extends FirestoreDataSource<LanguageDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+}
+export const languageDataSource = (cache: KeyValueCache) => new LanguageDataSource(firestore.collection('languages') as CollectionReference<LanguageDoc>, { logger: logger.child({ name: 'language-data-source' }), cache })
+
 export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   async findAll (options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c, options)
@@ -70,7 +77,11 @@ export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereq
 }
 export const trickPrerequisiteDataSource = (cache: KeyValueCache) => new TrickPrerequisiteDataSource(firestore.collection('trick-prerequisites') as CollectionReference<TrickPrereqDoc>, { logger: logger.child({ name: 'trick-prerequisite-data-source' }), cache })
 
-export class UserDataSource extends FirestoreDataSource<UserDoc> {}
+export class UserDataSource extends FirestoreDataSource<UserDoc> {
+  async findManyWithGrants (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('grants', '!=', []), options)
+  }
+}
 export const userDataSource = (cache: KeyValueCache) => new UserDataSource(firestore.collection('users') as CollectionReference<UserDoc>, { logger: logger.child({ name: 'user-data-source' }), cache })
 
 export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc> {
@@ -104,6 +115,7 @@ export const dataSourceCache = new InMemoryLRUCache()
 export function createDataSources () {
   return {
     eventDefinitions: eventDefinitionDataSource(dataSourceCache),
+    languages: languageDataSource(dataSourceCache),
     rulesets: rulesetDataSource(dataSourceCache),
     speedResults: speedResultDataSource(dataSourceCache),
     tricks: trickDataSource(dataSourceCache),
