@@ -83,6 +83,14 @@ export const speedResultResolvers: Resolvers = {
       const data = speedResultCreateSchema.parse(rawData)
       const eventFields = await eventDefinitionFields(data, { dataSources }, { required: true })
 
+      let timingTrack = {}
+      if (data.withTimingTrack) {
+        if (!data.eventDefinitionId) throw new ValidationError('Only a known event definition can have a timing track')
+        const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
+        if (!eventDefinition?.timingTrack) throw new ValidationError('The event definition has no timing track')
+        timingTrack = { timingTrack: eventDefinition.timingTrack }
+      }
+
       let count: number
       let marks: SpeedMark[] | undefined
       if (data.marks?.length) {
@@ -105,7 +113,8 @@ export const speedResultResolvers: Resolvers = {
         createdAt: Timestamp.now(),
         count,
         ...eventFields,
-        ...(marks ? { marks } : {})
+        ...(marks ? { marks } : {}),
+        ...timingTrack
       }, { ttl: 60 }) as Promise<SpeedResultDoc>)
     },
     async updateSpeedResult (_, { speedResultId, data: rawData }, context) {
@@ -151,11 +160,14 @@ export const speedResultResolvers: Resolvers = {
     marks (speedResult) {
       return marksOf(speedResult)
     },
+    timingTrack (speedResult) {
+      return speedResult.timingTrack ?? null
+    },
     async analysis (speedResult, _, context) {
       const marks = marksOf(speedResult)
       if (!marks.length) return null
       const eventDefinition = await eventDefinitionOf(speedResult, context)
-      return analyseMarks(marks, eventDefinition.totalDuration)
+      return analyseMarks(marks, eventDefinition.totalDuration, speedResult.timingTrack)
     }
   }
 }

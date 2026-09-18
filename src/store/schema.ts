@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import type { Discipline, GrantType, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -157,6 +157,7 @@ export type Grant =
   | { type: GrantType.TrickEditor }
   | { type: GrantType.Translator, lang: string }
   | { type: GrantType.LevelEditor, rulesId: string, verificationLevel?: VerificationLevel }
+  | { type: GrantType.SpeedEditor }
 
 export interface UserDoc extends DocBase {
   readonly collection: 'users'
@@ -208,6 +209,8 @@ export interface SpeedResultDoc extends DocBase {
 
   /** The mark stream the result was counted from, absent for plain counts */
   marks?: SpeedMark[]
+  /** The event's timing track as it was when the result was recorded with it */
+  timingTrack?: TimingTrack
 
   /**
    * Legacy: absolute click timestamps recorded by the first v4 API, see
@@ -224,11 +227,27 @@ export interface SpeedResultDoc extends DocBase {
 }
 export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed-results' }
 
+export interface TimingCue {
+  type: TimingCueType
+  /** Milliseconds from the start of the audio */
+  offset: number
+  label?: string
+}
+
+/** Stored inline on an event definition, and snapshotted onto results recorded with it */
+export interface TimingTrack {
+  /** Public URL of the audio object, see services/storage.ts */
+  audioUrl: string
+  cues: TimingCue[]
+}
+
 export interface EventDefinitionDoc extends DocBase {
   collection: 'event-definitions'
   name: string
   totalDuration: number
   /** Rulesets competition event lookup code (without version), if this is a known competition event */
   lookupCode?: string
+  timingTrack?: TimingTrack
+  updatedBy?: UserDoc['id']
 }
 export function isEventDefinition (t: any): t is EventDefinitionDoc { return t?.collection === 'event-definitions' }
