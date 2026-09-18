@@ -32,7 +32,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
   }
 
   logger.debug({ uid: decoded.uid }, 'Finding user')
-  let user = await dataSources.users.findOneById(decoded.uid, { ttl: 3600 })
+  let user = await dataSources.users.findOneById(decoded.uid, { ttl: 30 })
 
   if (!user) {
     user = await dataSources.users.createOne({
