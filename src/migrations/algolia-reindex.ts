@@ -20,7 +20,7 @@
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
  *     access to the `trick-localisations` collection
- *   - ALGOLIA_APP_ID and ALGOLIA_WRITE_API_KEY in the environment
+ *   - ALGOLIA_APP_ID and an ALGOLIA_API_KEY with write access in the environment
  *
  * Usage:
  *   npx tsx src/migrations/algolia-reindex.ts [--dry-run]
@@ -146,7 +146,7 @@ async function main () {
   }
 
   /** lang -> records */
-  const records = new Map<string, Array<Record<string, unknown>>>()
+  const records = new Map<string, Array<ReturnType<typeof trickRecord>>>()
   for (const [trickId, byLang] of localisations) {
     const trick = tricks.get(trickId)
     if (!trick) continue

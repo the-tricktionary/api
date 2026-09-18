@@ -61,7 +61,7 @@ export async function initApollo (httpServer: Server) {
 
   return expressMiddleware(server, {
     async context (context: ExpressContextFunctionArgument): Promise<ApolloContext> {
-      const dataSources = createDataSources(dataSourceCache)
+      const dataSources = createDataSources()
 
       const trace = context.req.get('X-Cloud-Trace-Context')
       const childLogger = logger.child({

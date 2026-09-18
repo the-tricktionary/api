@@ -54,10 +54,7 @@ export const tricktionaryLevelSchema = z.string().trim()
 export const youTubeVideoIdSchema = z.string().trim()
   .regex(/^[A-Za-z0-9_-]{11}$/, 'A YouTube video ID is 11 letters, digits, dashes or underscores')
 
-/**
- * How many seconds into the video the slow motion part starts. `z.number()`
- * already rejects `NaN` and infinities in zod 4.
- */
+// z.number() already rejects NaN and infinities in zod 4
 export const slowMoStartSchema = z.number()
   .min(0, 'A slow motion start cannot be negative')
   .nullish()
@@ -81,7 +78,6 @@ const grantInputSchema = z.discriminatedUnion('type', [
   levelEditorGrantSchema
 ])
 
-/** A list of grants, validated per `GrantType` and transformed into the stored `Grant` shape */
 export const grantsSchema = z.array(grantInputSchema)
   .refine(grants => {
     const keys = grants.map(grant => {
@@ -91,20 +87,11 @@ export const grantsSchema = z.array(grantInputSchema)
     })
     return new Set(keys).size === keys.length
   }, 'Each grant may only be specified once')
-  .transform((grants): Grant[] => grants.map((grant): Grant => {
-    switch (grant.type) {
-      case GrantType.SuperAdmin:
-      case GrantType.TrickEditor:
-        return { type: grant.type }
-      case GrantType.Translator:
-        return { type: grant.type, lang: grant.lang }
-      case GrantType.LevelEditor:
-        return {
-          type: grant.type,
-          rulesId: grant.rulesId,
-          ...(grant.verificationLevel != null ? { verificationLevel: grant.verificationLevel } : {})
-        }
-      default:
-        throw new Error(`Unhandled grant type ${(grant as { type: string }).type}`)
-    }
-  }))
+  .transform((grants): Grant[] => grants.map(grant => grant.type === GrantType.LevelEditor
+    ? {
+        type: grant.type,
+        rulesId: grant.rulesId,
+        ...(grant.verificationLevel != null ? { verificationLevel: grant.verificationLevel } : {})
+      }
+    : grant
+  ))

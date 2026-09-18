@@ -23,10 +23,8 @@ export function verificationLevelRank (level: VerificationLevel | null | undefin
 }
 
 export function allowUser (user: UserDoc | undefined, { logger }: AllowUserContext) {
-  /**
-   * `reason` explains which rule a failing check breaks, it's only evaluated
-   * when the check fails and is overridden by an explicit `assert` message.
-   */
+  // `reason` explains which rule a failing check breaks, an explicit `assert`
+  // message overrides it
   function enrich (checkMethod: () => boolean, reason?: () => string) {
     const annotations = {
       assert: (message?: string) => {
@@ -47,13 +45,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
 
   const grants: Grant[] = user?.grants ?? []
   const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === GrantType.SuperAdmin) })
-  const isTrickEditor = enrich(function isTrickEditor () { return grants.some(grant => grant.type === GrantType.TrickEditor) })
-  const createTrick = enrich(function createTrick () { return isSuperAdmin() || isTrickEditor() })
-  const editTrick = enrich(function editTrick () { return isSuperAdmin() || isTrickEditor() })
-  const editTrickVideos = enrich(function editTrickVideos () { return isSuperAdmin() || isTrickEditor() })
-  // the same check as editTrickVideos, but it's used to hide a field rather
-  // than to reject a mutation, so it's never asserted
-  const getTrickVideoUploads = enrich(function getTrickVideoUploads () { return editTrickVideos() })
+  const editTricks = enrich(function editTricks () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.TrickEditor) })
 
   return {
     getTricks: everyone,
@@ -61,10 +53,10 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     createSpeedResult: isAuthenticated,
     makePurchase: everyone,
 
-    createTrick,
-    editTrick,
-    editTrickVideos,
-    getTrickVideoUploads,
+    createTrick: editTricks,
+    editTrick: editTricks,
+    editTrickVideos: editTricks,
+    getTrickVideoUploads: editTricks,
 
     createRuleset: isSuperAdmin,
     editRuleset: isSuperAdmin,
@@ -78,7 +70,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       // its translators rather than anyone with a translator grant
       const edit = enrich(function editLocalisation () {
         return isSuperAdmin() ||
-          (lang === 'en' && isTrickEditor()) ||
+          (lang === 'en' && editTricks()) ||
           grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
       })
 
@@ -103,13 +95,10 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
 
       // the tricktionary's own levels are part of the trick rather than of a
       // separate ruleset, so they're maintained by trick editors
-      function canEditLevels () { return rulesId === TRICKTIONARY_RULES_ID ? editTrick() : editLevels() }
+      function canEditLevels () { return rulesId === TRICKTIONARY_RULES_ID ? editTricks() : editLevels() }
 
-      /**
-       * Setting a level resets its verification, so a user may only overwrite
-       * a level that isn't verified above their own verification rank.
-       * `existing` is the current level document, if there is one.
-       */
+      // setting a level resets its verification, so a user may only overwrite
+      // a level that isn't verified above their own verification rank
       function setLevel (existing?: TrickLevelDoc) {
         const currentRank = verificationLevelRank(existing?.verificationLevel)
         return enrich(
@@ -120,12 +109,9 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         )
       }
 
-      /**
-       * Verifying at a verification level requires the user to rank at least
-       * as high and to actually raise the verification, recalling a
-       * verification requires the user to rank at least as high as the
-       * verification they recall.
-       */
+      // verifying requires the user to rank at least as high as the target
+      // and to actually raise the verification, recalling requires the user to
+      // rank at least as high as the verification they recall
       function setVerification (existing: TrickLevelDoc, target: VerificationLevel | null) {
         const targetRank = verificationLevelRank(target)
         const currentRank = verificationLevelRank(existing.verificationLevel)
@@ -148,7 +134,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         )
       }
 
-      return { editLevels, verificationRank, setLevel, setVerification }
+      return { verificationRank, setLevel, setVerification }
     },
 
     user (subUser: UserDoc) {

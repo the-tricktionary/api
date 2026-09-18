@@ -8,7 +8,7 @@ import type Pino from 'pino'
 import type { IndexSettings, SupportedLanguage } from 'algoliasearch'
 import type { Discipline } from '../generated/graphql'
 import type { TrickDoc, TrickLocalisationDoc } from '../store/schema'
-import type { TrickDataSource, TrickLevelDataSource, TrickLocalisationDataSource } from '../store/firestoreDataSource'
+import type { DataSources } from '../store/firestoreDataSource'
 
 const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_API_KEY)
 
@@ -18,19 +18,14 @@ const INDEX_LIST_TTL = 60 * 60 * 1000
 /** Tricks are indexed once per language, `tricktionary_en` is the source one */
 export function trickIndexName (lang: string) { return `tricktionary_${lang}` }
 
-/**
- * The names of every index we know exists: the ones Algolia told us about the
- * last time we asked, plus the ones this process has created since.
- */
+// the indices Algolia told us about the last time we asked, plus the ones this
+// process has created since
 const knownIndices = new Set<string>()
 let indicesFetchedAt = 0
 let indicesFetch: Promise<void> | undefined
 
-/**
- * Refreshes {@link knownIndices} from Algolia, at most once an hour. Failures
- * are logged rather than thrown, an index we don't know about is simply treated
- * as one that doesn't exist yet.
- */
+// failures are logged rather than thrown, an index we don't know about is
+// simply treated as one that doesn't exist yet
 async function refreshKnownIndices ({ logger = baseLogger }: { logger?: Pino.Logger } = {}) {
   if (Date.now() - indicesFetchedAt < INDEX_LIST_TTL) return
   indicesFetch ??= (async () => {
@@ -49,11 +44,9 @@ async function refreshKnownIndices ({ logger = baseLogger }: { logger?: Pino.Log
   await indicesFetch
 }
 
-/**
- * The settings every language index gets. They're managed here rather than in
- * the Algolia dashboard so a new language only needs a localisation.
- */
-export function trickIndexSettings (lang: string): IndexSettings {
+// managed here rather than in the Algolia dashboard so a new language only
+// needs a localisation
+function trickIndexSettings (lang: string): IndexSettings {
   // Algolia only knows about a fixed list of languages, a tag it doesn't know
   // (or a region subtag) is passed through and ignored by the engine
   const languages = [lang as SupportedLanguage]
@@ -72,7 +65,7 @@ export function trickIndexSettings (lang: string): IndexSettings {
   }
 }
 
-/** Applies {@link trickIndexSettings}, creating the index if it doesn't exist */
+/** Applies the settings, creating the index if it doesn't exist */
 export async function setTrickIndexSettings (lang: string) {
   const indexName = trickIndexName(lang)
   await client.setSettings({ indexName, indexSettings: trickIndexSettings(lang) })
@@ -80,18 +73,7 @@ export async function setTrickIndexSettings (lang: string) {
   return indexName
 }
 
-/**
- * Makes sure the index for `lang` exists and has the current settings. This is
- * idempotent and only talks to Algolia for indices we haven't seen yet.
- */
-export async function ensureIndex (lang: string, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
-  const indexName = trickIndexName(lang)
-  await refreshKnownIndices({ logger })
-  if (knownIndices.has(indexName)) return indexName
-  return await setTrickIndexSettings(lang)
-}
-
-export interface TrickRecordInput {
+interface TrickRecordInput {
   trick: Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'trickType'>
   lang: string
   localisation: Pick<TrickLocalisationDoc, 'name' | 'alternativeNames' | 'description'>
@@ -101,7 +83,6 @@ export interface TrickRecordInput {
   level?: string | null
 }
 
-/** Builds the Algolia record for a single trick in a single language */
 export function trickRecord ({ trick, lang, localisation, enLocalisation, level }: TrickRecordInput) {
   const ttLevel = level != null ? parseInt(level, 10) : NaN
   return {
@@ -124,22 +105,16 @@ export function trickRecord ({ trick, lang, localisation, enLocalisation, level 
 }
 
 /** Writes records to a language index, creating and configuring it if needed */
-export async function saveTrickRecords (lang: string, records: Array<Record<string, unknown>>, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
+export async function saveTrickRecords (lang: string, records: Array<ReturnType<typeof trickRecord>>, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
   if (records.length === 0) return
-  const indexName = await ensureIndex(lang, { logger })
+  await refreshKnownIndices({ logger })
+  const indexName = knownIndices.has(trickIndexName(lang)) ? trickIndexName(lang) : await setTrickIndexSettings(lang)
   await client.saveObjects({ indexName, objects: records })
   logger.debug({ indexName, records: records.length }, 'Saved trick records to Algolia')
 }
 
-/** The subset of the request's data sources {@link indexTrick} reads from */
-export interface IndexTrickDataSources {
-  tricks: TrickDataSource
-  trickLocalisations: TrickLocalisationDataSource
-  trickLevels: TrickLevelDataSource
-}
-
 /** Reindexes a single trick in every language it has a localisation for */
-export async function indexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: IndexTrickDataSources, logger?: Pino.Logger }) {
+async function indexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
   const [trick, localisations, levels] = await Promise.all([
     dataSources.tricks.findOneById(trickId),
     dataSources.trickLocalisations.findManyByQuery(c => c.where('trickId', '==', trickId)),
@@ -172,11 +147,11 @@ export async function indexTrick (trickId: string, { dataSources, logger = baseL
 }
 
 /**
- * {@link indexTrick}, but best effort: keeping the search index up to date
- * must never fail the mutation that changed the trick, so failures are logged
- * and reported to Sentry instead of thrown.
+ * Best effort: keeping the search index up to date must never fail the
+ * mutation that changed the trick, so failures are logged and reported to
+ * Sentry instead of thrown.
  */
-export async function tryIndexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: IndexTrickDataSources, logger?: Pino.Logger }) {
+export async function tryIndexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
   try {
     await indexTrick(trickId, { dataSources, logger })
   } catch (err) {
@@ -185,7 +160,7 @@ export async function tryIndexTrick (trickId: string, { dataSources, logger = ba
   }
 }
 
-export async function searchTricks (query: string, { discipline, lang, userId }: { discipline?: Discipline, lang?: string | null, userId?: string } = {}, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
+export async function searchTricks (query: string, { discipline, lang, userId }: { discipline?: Discipline, lang?: string, userId?: string } = {}, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
   return await Sentry.startSpan({
     op: 'search',
     name: 'AlgoliaSearchTricks'

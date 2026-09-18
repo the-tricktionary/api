@@ -22,11 +22,10 @@ export const userResolvers: Resolvers = {
         dataSources.users.findOneById(q)
       ])
 
-      const byIdList: UserDoc[] = byId ? [byId] : []
       const users = new Map<string, UserDoc>()
-      for (const found of [...byEmail, ...byUsername, ...byIdList]) users.set(found.id, found)
+      for (const found of [...byEmail, ...byUsername, ...(byId ? [byId] : [])]) users.set(found.id, found)
 
-      return [...users.values()].slice(0, 10)
+      return [...users.values()]
     }
   },
   Mutation: {
@@ -37,31 +36,27 @@ export const userResolvers: Resolvers = {
       if (!target) throw new NotFoundError(`User ${userId} not found`, { extensions: { entity: 'user', id: userId } })
 
       const parsedGrants = grantsSchema.parse(grants)
-
-      const rulesIds = [...new Set(parsedGrants.flatMap(grant => grant.type === GrantType.LevelEditor ? [grant.rulesId] : []))]
-      const rulesets = await Promise.all(rulesIds.map(async rulesId => [rulesId, await dataSources.rulesets.findOneById(rulesId)] as const))
-      for (const [rulesId, ruleset] of rulesets) {
-        if (!ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
-      }
-
       if (user?.id === userId && !parsedGrants.some(grant => grant.type === GrantType.SuperAdmin)) {
         throw new ValidationError('You cannot remove your own super admin grant')
       }
+
+      const rulesIds = new Set(parsedGrants.flatMap(grant => grant.type === GrantType.LevelEditor ? [grant.rulesId] : []))
+      await Promise.all([...rulesIds].map(async rulesId => {
+        const ruleset = await dataSources.rulesets.findOneById(rulesId)
+        if (!ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
+      }))
 
       return await (dataSources.users.updateOnePartial(userId, { grants: parsedGrants }) as Promise<UserDoc>)
     }
   },
   User: {
+    // neither field throws, other users simply don't get to see them
     grants (user, _, { allowUser }) {
-      // We don't throw here, a user simply can't see anyone else's grants
       if (!allowUser.user(user).getGrants()) return []
-
       return user.grants ?? []
     },
     email (user, _, { allowUser }) {
-      // We don't throw here, a user simply can't see anyone else's email
       if (!allowUser.user(user).getEmail()) return null
-
       return user.email ?? null
     },
     async checklist (user, _, { dataSources, allowUser }) {

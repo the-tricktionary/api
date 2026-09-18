@@ -33,7 +33,6 @@ export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocali
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
 
 export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUploadDoc> {
-  /** The uploads of a trick that haven't reached a final status yet */
   async findPendingByTrick (trickId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c
       .where('trickId', '==', trickId)
@@ -45,11 +44,6 @@ export const trickVideoUploadDataSource = (cache: KeyValueCache) => new TrickVid
 export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   async findAll (options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c, options)
-  }
-
-  async findPrimary (options?: QueryFindArgs) {
-    const result = await this.findManyByQuery(c => c.where('isPrimary', '==', true), options)
-    return result[0]
   }
 }
 export const rulesetDataSource = (cache: KeyValueCache) => new RulesetDataSource(firestore.collection('rulesets') as CollectionReference<RulesetDoc>, { logger: logger.child({ name: 'ruleset-data-source' }), cache })
@@ -105,32 +99,21 @@ export class EventDefinitionDataSource extends FirestoreDataSource<EventDefiniti
 }
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(firestore.collection('event-definitions') as CollectionReference<EventDefinitionDoc>, { logger: logger.child({ name: 'event-definition-data-source' }), cache })
 
-export interface DataSources {
-  eventDefinitions: EventDefinitionDataSource
-  rulesets: RulesetDataSource
-  speedResults: SpeedResultDataSource
-  tricks: TrickDataSource
-  trickLocalisations: TrickLocalisationDataSource
-  trickPrerequisites: TrickPrerequisiteDataSource
-  trickLevels: TrickLevelDataSource
-  trickCompletions: TrickCompletionDataSource
-  trickVideoUploads: TrickVideoUploadDataSource
-  users: UserDataSource
-}
-
 export const dataSourceCache = new InMemoryLRUCache()
 
-export function createDataSources (cache: KeyValueCache = dataSourceCache): DataSources {
+export function createDataSources () {
   return {
-    eventDefinitions: eventDefinitionDataSource(cache),
-    rulesets: rulesetDataSource(cache),
-    speedResults: speedResultDataSource(cache),
-    tricks: trickDataSource(cache),
-    trickLocalisations: trickLocalisationDataSource(cache),
-    trickPrerequisites: trickPrerequisiteDataSource(cache),
-    trickLevels: trickLevelDataSource(cache),
-    trickCompletions: trickCompletionDataSource(cache),
-    trickVideoUploads: trickVideoUploadDataSource(cache),
-    users: userDataSource(cache)
+    eventDefinitions: eventDefinitionDataSource(dataSourceCache),
+    rulesets: rulesetDataSource(dataSourceCache),
+    speedResults: speedResultDataSource(dataSourceCache),
+    tricks: trickDataSource(dataSourceCache),
+    trickLocalisations: trickLocalisationDataSource(dataSourceCache),
+    trickPrerequisites: trickPrerequisiteDataSource(dataSourceCache),
+    trickLevels: trickLevelDataSource(dataSourceCache),
+    trickCompletions: trickCompletionDataSource(dataSourceCache),
+    trickVideoUploads: trickVideoUploadDataSource(dataSourceCache),
+    users: userDataSource(dataSourceCache)
   }
 }
+
+export type DataSources = ReturnType<typeof createDataSources>

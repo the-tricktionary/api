@@ -151,7 +151,7 @@ async function main () {
       ...(level.verificationLevel
         ? { verificationLevel: level.verificationLevel, verifiedBy: level.verifiedBy, verifiedAt: updatedAt }
         : {}),
-      updatedBy: level.verifiedBy ?? 'migration',
+      ...(level.verifiedBy ? { updatedBy: level.verifiedBy } : {}),
       createdAt,
       updatedAt
     }

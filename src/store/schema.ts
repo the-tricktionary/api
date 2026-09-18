@@ -49,16 +49,11 @@ export interface TrickDoc extends DocBase {
 }
 export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tricks' }
 
-/**
- * A direct upload of a trick video to Mux. The document ID is the Mux upload
- * ID, which is also what identifies the upload in Mux's webhooks.
- */
+/** The document ID is the Mux upload ID, which is what Mux's webhooks identify the upload by */
 export interface TrickVideoUploadDoc extends DocBase {
   readonly collection: 'trick-video-uploads'
 
-  /** the trick the video is added to once the upload is ready */
   trickId: TrickDoc['id']
-  /** who started the upload */
   userId: UserDoc['id']
 
   type: VideoType
@@ -87,13 +82,8 @@ export interface TrickLocalisationDoc extends DocBase {
 }
 export function isTrickLocalisation (t: any): t is TrickLocalisationDoc { return t?.collection === 'trick-localisations' }
 
-/**
- * Trick localisations are unique per trick and language, so their document ID
- * is deterministic rather than random.
- */
 export function trickLocalisationId (trickId: TrickDoc['id'], lang: string) { return `${trickId}-${lang}` }
 
-/** The language of a trick localisation is its document ID's suffix */
 export function trickLocalisationLang (id: TrickLocalisationDoc['id'], trickId: TrickDoc['id']) {
   return id.startsWith(`${trickId}-`) ? id.slice(trickId.length + 1) : undefined
 }
@@ -118,7 +108,6 @@ export interface TrickLevelDoc extends DocBase {
   readonly collection: 'trick-levels'
 
   trickId: TrickDoc['id']
-  /** references RulesetDoc.id, e.g. `ijru@5.0.0` or `tricktionary` */
   rulesId: RulesetDoc['id']
   /** "5" or "2-5" */
   level: string
@@ -126,14 +115,11 @@ export interface TrickLevelDoc extends DocBase {
   verificationLevel?: VerificationLevel
   verifiedBy?: UserDoc['id']
   verifiedAt?: Timestamp
-  updatedBy: UserDoc['id']
+  /** absent on levels migrated from before edits were tracked */
+  updatedBy?: UserDoc['id']
 }
 export function isTrickLevel (t: any): t is TrickLevelDoc { return t?.collection === 'trick-levels' }
 
-/**
- * Trick levels are unique per trick and ruleset, so their document ID is
- * deterministic rather than random.
- */
 export function trickLevelId (trickId: TrickDoc['id'], rulesId: RulesetDoc['id']) { return `${trickId}-${rulesId}` }
 
 export interface TrickPrereqDoc extends DocBase {
