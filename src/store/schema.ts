@@ -1,4 +1,4 @@
-import type { Discipline, ProfileOptions, TrickType, VerificationLevel, Video, VideoHost } from '../generated/graphql'
+import type { Discipline, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -8,28 +8,33 @@ export interface DocBase {
   readonly updatedAt: Timestamp
 }
 
-export interface VideoDoc extends Omit<Video, '__typename'> {
+interface VideoBase {
   host: VideoHost
-  /**
-   * For YouTube videos this is the YouTube video ID.
-   * For Mux videos this is the public playback ID, which is what clients need
-   * for playback. The asset ID is stored separately in `assetId`.
-   */
+  /** Host-specific identifier of the video, see the individual hosts */
+  videoId: string
+  type: VideoType
+  slowMoStart?: number | null
+}
+
+export interface YouTubeVideo extends VideoBase {
+  host: VideoHost.YouTube
+  /** The YouTube video ID */
+  videoId: string
+}
+
+export interface MuxVideo extends VideoBase {
+  host: VideoHost.Mux
+  /** The public Mux playback ID, this is what clients need for playback */
   videoId: string
   /**
-   * Mux only: the asset ID the playback ID belongs to. Needed for managing the
-   * asset (deleting it, adding renditions, ...) through the Mux API.
+   * The Mux asset ID the playback ID belongs to, needed for managing the asset
+   * (deleting it, adding renditions, ...) through the Mux API
    */
-  assetId?: string
-  /**
-   * Mux only: the host and video id of the video this asset was created from,
-   * when it was migrated from another host.
-   */
-  migratedFrom?: {
-    host: VideoHost
-    videoId: string
-  }
+  assetId: string
 }
+
+/** A video embedded in a trick document */
+export type Video = YouTubeVideo | MuxVideo
 
 export interface TrickDoc extends DocBase {
   readonly collection: 'tricks'
@@ -39,7 +44,7 @@ export interface TrickDoc extends DocBase {
 
   submittedBy: UserDoc['id']
 
-  videos: VideoDoc[]
+  videos: Video[]
 }
 export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tricks' }
 

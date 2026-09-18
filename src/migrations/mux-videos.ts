@@ -8,7 +8,7 @@
  *   2. uploads the file to Mux with a direct upload
  *      (`basic` video quality, public playback policy)
  *   3. waits until the Mux asset is ready
- *   4. appends a `{ host: 'Mux', videoId: <playbackId>, ... }` entry to the
+ *   4. appends a `{ host: 'Mux', videoId: <playbackId>, assetId }` entry to the
  *      trick's `videos` array in Firestore, keeping the YouTube entry as-is
  *
  * The script is idempotent: tricks that already have a Mux video of the same
@@ -16,7 +16,7 @@
  *
  * Requirements:
  *   - `yt-dlp` and `ffmpeg` on PATH (ffmpeg is needed to merge video+audio)
- *   - MUX_TOKEN_ID / MUX_TOKEN_SECRET in the environment (see .env.example)
+ *   - MUX_TOKEN_ID / MUX_TOKEN_SECRET in the environment (read by the Mux SDK)
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with
  *     write access to the `tricks` collection
  *
@@ -28,16 +28,17 @@
  */
 import '../config'
 import { execFile } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs, promisify } from 'node:util'
 import { Firestore, Timestamp } from '@google-cloud/firestore'
+import Mux from '@mux/mux-node'
 import { VideoHost } from '../generated/graphql'
-import { getPublicPlaybackId, uploadFileToMux } from '../services/mux'
 import { logger } from '../services/logger'
 
-import type { TrickDoc, TrickLocalisationDoc, VideoDoc } from '../store/schema'
+import type { MuxVideo, TrickDoc, TrickLocalisationDoc, YouTubeVideo } from '../store/schema'
 
 const execFileAsync = promisify(execFile)
 
@@ -54,12 +55,16 @@ const dryRun = args['dry-run']
 const limit = args.limit ? parseInt(args.limit, 10) : Infinity
 const keepFiles = args['keep-files']
 
+const MUX_POLL_INTERVAL = 5_000
+
 const firestore = new Firestore()
+// reads MUX_TOKEN_ID and MUX_TOKEN_SECRET from the environment
+const mux = new Mux()
 
 interface MigrationTarget {
   trickId: string
   trickName: string
-  video: VideoDoc
+  video: YouTubeVideo
 }
 
 /**
@@ -87,6 +92,67 @@ async function downloadYouTubeVideo (youtubeId: string, dir: string) {
   return filePath
 }
 
+/**
+ * Upload a local video file to Mux using a direct upload and wait until the
+ * resulting asset is ready for playback.
+ *
+ * @returns the ready asset, including its playback IDs
+ */
+async function uploadFileToMux (filePath: string, { title, trickId, passthrough }: { title: string, trickId: string, passthrough: string }) {
+  const upload = await mux.video.uploads.create({
+    // required by the API even though we upload from a script rather than a browser
+    cors_origin: 'https://the-tricktionary.com',
+    timeout: 3600,
+    new_asset_settings: {
+      playback_policies: ['public'],
+      video_quality: 'basic',
+      passthrough,
+      meta: { title, external_id: trickId }
+    }
+  })
+  if (!upload.url) throw new Error(`Mux did not return an upload URL for upload ${upload.id}`)
+
+  // Trick videos are short clips so a single PUT is fine, no need for
+  // resumable uploads
+  const res = await fetch(upload.url, {
+    method: 'PUT',
+    body: await readFile(filePath),
+    headers: { 'content-type': 'video/mp4' }
+  })
+  if (!res.ok) throw new Error(`Uploading file to Mux failed with status ${res.status}: ${await res.text()}`)
+
+  // wait for Mux to create the asset from the upload
+  let assetId: string | undefined
+  while (!assetId) {
+    const status = await mux.video.uploads.retrieve(upload.id)
+    switch (status.status) {
+      case 'asset_created':
+        assetId = status.asset_id
+        break
+      case 'errored':
+        throw new Error(`Mux upload ${upload.id} errored: ${status.error?.type ?? 'unknown'}: ${status.error?.message ?? ''}`)
+      case 'cancelled':
+      case 'timed_out':
+        throw new Error(`Mux upload ${upload.id} ${status.status}`)
+      default:
+        await sleep(MUX_POLL_INTERVAL)
+    }
+  }
+
+  // wait for the asset to be ready for playback
+  while (true) {
+    const asset = await mux.video.assets.retrieve(assetId)
+    switch (asset.status) {
+      case 'ready':
+        return asset
+      case 'errored':
+        throw new Error(`Mux asset ${assetId} errored: ${JSON.stringify(asset.errors ?? {})}`)
+      default:
+        await sleep(MUX_POLL_INTERVAL)
+    }
+  }
+}
+
 async function migrateVideo ({ trickId, trickName, video }: MigrationTarget, workDir: string) {
   const log = logger.child({ trickId, youtubeId: video.videoId, type: video.type })
 
@@ -97,20 +163,21 @@ async function migrateVideo ({ trickId, trickName, video }: MigrationTarget, wor
     log.info({ filePath }, 'Uploading to Mux')
     const asset = await uploadFileToMux(filePath, {
       title: `${trickName} (${video.type})`,
-      externalId: trickId,
-      passthrough: JSON.stringify({ trickId, type: video.type, youtubeId: video.videoId }),
-      logger: log
+      trickId,
+      passthrough: JSON.stringify({ trickId, type: video.type, youtubeId: video.videoId })
     })
 
-    const muxVideo: VideoDoc = {
+    const playbackId = asset.playback_ids?.find(p => p.policy === 'public')
+    if (!playbackId) throw new Error(`Mux asset ${asset.id} has no public playback ID`)
+
+    const muxVideo: MuxVideo = {
       host: VideoHost.Mux,
-      videoId: getPublicPlaybackId(asset),
+      videoId: playbackId.id,
       assetId: asset.id,
       type: video.type,
-      ...(video.slowMoStart != null ? { slowMoStart: video.slowMoStart } : {}),
-      migratedFrom: { host: video.host, videoId: video.videoId }
+      ...(video.slowMoStart != null ? { slowMoStart: video.slowMoStart } : {})
     }
-    log.info({ assetId: asset.id, playbackId: muxVideo.videoId }, 'Mux asset ready')
+    log.info({ assetId: asset.id, playbackId: playbackId.id }, 'Mux asset ready')
 
     await firestore.runTransaction(async t => {
       const ref = firestore.collection('tricks').doc(trickId)
