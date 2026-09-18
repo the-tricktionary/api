@@ -2,64 +2,11 @@
 
 ## Configuration and secrets
 
-Plain configuration is read from the environment, and a `.env` file in the
-project root is loaded automatically. `src/config.ts` is the whole list:
-`PORT`, `SENTRY_DSN`, `ALGOLIA_APP_ID`, `GCP_PROJECT`, `MUX_UPLOAD_CORS_ORIGIN`.
-None of them are secret — a Sentry DSN and an Algolia app ID are both handed
-out to browsers.
-
-Secrets are read from [Google Secret Manager](https://cloud.google.com/secret-manager)
-through `getSecret()` in `src/services/secrets.ts`, one Secret Manager secret
-per value. They are prefixed with the service name so a shared project can hold
-another service's secrets alongside them:
-
-| Secret | Used for |
-| --- | --- |
-| `tricktionary-api-stripe-sk` | the Stripe API key the shop uses |
-| `tricktionary-api-algolia-api-key` | writing to and searching the Algolia indices |
-| `tricktionary-api-mux-token-id`, `tricktionary-api-mux-token-secret` | the Mux API |
-| `tricktionary-api-mux-webhook-secret` | verifying the signature on `POST /webhooks/mux` |
-
-The name is the Secret Manager secret ID, so `tricktionary-api-stripe-sk` is
-read from
-`projects/<project>/secrets/tricktionary-api-stripe-sk/versions/latest`. These
-are global secrets, readable from whichever region the service runs in, so no
-location is involved and moving the service between regions needs no change
-here.
-
-The project is `GCP_PROJECT`, falling back to the project of the application
-default credentials and, on Cloud Run, to the metadata server. The service
-account needs `roles/secretmanager.secretAccessor` on each secret:
-
-```sh
-printf %s "$VALUE" | gcloud secrets create tricktionary-api-stripe-sk --data-file=-
-gcloud secrets add-iam-policy-binding tricktionary-api-stripe-sk \
-  --member="serviceAccount:<the Cloud Run service account>" \
-  --role="roles/secretmanager.secretAccessor"
-```
-
-### Overriding a secret locally
-
-Setting `GSM_<name>` in the environment (or in `.env`) returns that value
-instead of asking Secret Manager, so local development and the migration
-scripts don't need access to the real secrets. `.env` is the easy way, since
-the names contain dashes and so can't be used with the `NAME=value command`
-shell prefix:
-
-```sh
-echo 'GSM_tricktionary-api-stripe-sk=sk_test_...' >> .env
-npm run dev
-
-# or, for a one-off
-env 'GSM_tricktionary-api-stripe-sk=sk_test_...' npm run dev
-```
-
-If every secret is overridden this way, Secret Manager is never contacted at
-all. Values are read while the modules that need them are loaded, so a secret
-that can't be read stops the process from starting rather than failing the
-first request that needs it. A resolved value is kept for the lifetime of the
-process, so a rotated secret is picked up by a new instance rather than a
-running one.
+Configuration comes from the environment, and a `.env` file in the project root
+is loaded automatically; `src/config.ts` is the whole list. Secrets are not in
+there — they live in Google Secret Manager and are read through `getSecret()`
+in `src/services/secrets.ts`. Set `GSM_<secret-name>` in the environment, most
+easily in `.env`, to override one locally; `.env.example` lists them.
 
 ## Trick levels
 
