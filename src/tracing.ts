@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node'
-import { eventLoopBlockIntegration } from '@sentry/node-native'
 import { SENTRY_DSN, GITHUB_SHA } from './config'
 import { logger } from './services/logger'
 
@@ -10,7 +9,6 @@ if (SENTRY_DSN != null) {
       Sentry.httpIntegration(),
       Sentry.nativeNodeFetchIntegration(),
       Sentry.graphqlIntegration(),
-      eventLoopBlockIntegration(),
       ...Sentry.getAutoPerformanceIntegrations()
     ],
     release: `tricktionary-api@${GITHUB_SHA}`,
