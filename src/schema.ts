@@ -50,6 +50,8 @@ const typeDefs = gql`
     shippingRates: [Price!]!
 
     eventDefinitions: [EventDefinition!]! @cacheControl(maxAge: 3600)
+
+    rulesets: [Ruleset!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
@@ -64,6 +66,11 @@ const typeDefs = gql`
 
     # Shop
     createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
+
+    # Rulesets
+    createRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
+    updateRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
+    setPrimaryRuleset (rulesId: ID!): Ruleset!
   }
 
   type Trick @cacheControl(maxAge: 3600) {
@@ -76,7 +83,7 @@ const typeDefs = gql`
     localisation (lang: String): TrickLocalisation
 
     videos: [Video!]!
-    levels (organisation: String, rulesVersion: String): [TrickLevel!]!
+    levels (rulesId: String): [TrickLevel!]!
 
     prerequisites: [Trick!]!
     prerequisiteFor: [Trick!]!
@@ -98,16 +105,36 @@ const typeDefs = gql`
     submitter: User
   }
 
+  type Ruleset @cacheControl(maxAge: 3600) {
+    id: ID!
+    """Display name in \`lang\`, falling back to english"""
+    name (lang: String): String!
+    names: [LocalisedString!]!
+    isPrimary: Boolean!
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
+  type LocalisedString {
+    lang: String!
+    value: String!
+  }
+
+  input LocalisedStringInput {
+    lang: String!
+    value: String!
+  }
+
   type TrickLevel @cacheControl(maxAge: 3600) {
     id: ID!
     trick: Trick!
-    organisation: String!
+    rulesId: String!
+    ruleset: Ruleset!
     level: String!
-    rulesVersion: String
-    createdAt: Timestamp!
-    updatedAt: Timestamp! # = verified at
-
     verificationLevel: VerificationLevel
+    verifiedAt: Timestamp
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
   }
 
   enum VerificationLevel {
@@ -154,9 +181,24 @@ const typeDefs = gql`
 
     # store fcm tokens in db? don't expose if so
 
-    # TODO: level editor (orgs, vLevel)
-    # TODO: trick translator (languages)
-    # TODO: trick editor
+    grants: [Grant!]!
+  }
+
+  enum GrantType {
+    SuperAdmin
+    TrickEditor
+    Translator
+    LevelEditor
+  }
+
+  type Grant {
+    type: GrantType!
+    """Translator only"""
+    lang: String
+    """LevelEditor only"""
+    rulesId: String
+    """LevelEditor only, null means the user may edit but not verify"""
+    verificationLevel: VerificationLevel
   }
 
   type ProfileOptions {

@@ -17,6 +17,7 @@ generates:
         User: ../store/schema#UserDoc
         Trick: ../store/schema#TrickDoc
         TrickLevel: ../store/schema#TrickLevelDoc
+        Ruleset: ../store/schema#RulesetDoc
         TrickCompletion: ../store/schema#TrickCompletionDoc
         SpeedResult: ../store/schema#SpeedResultDoc
         SimpleSpeedResult: ../store/schema#SimpleSpeedResultDoc

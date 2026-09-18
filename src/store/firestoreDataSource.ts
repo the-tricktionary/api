@@ -3,7 +3,7 @@ import { FirestoreDataSource } from 'apollo-datasource-firestore'
 import { logger } from '../services/logger'
 
 import type { Discipline } from '../generated/graphql'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc } from './schema'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, RulesetDoc } from './schema'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
@@ -30,12 +30,23 @@ export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(fir
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {}
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
 
+export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+
+  async findPrimary (options?: QueryFindArgs) {
+    const result = await this.findManyByQuery(c => c.where('isPrimary', '==', true), options)
+    return result[0]
+  }
+}
+export const rulesetDataSource = (cache: KeyValueCache) => new RulesetDataSource(firestore.collection('rulesets') as CollectionReference<RulesetDoc>, { logger: logger.child({ name: 'ruleset-data-source' }), cache })
+
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc> {
-  async findManyByFilters ({ trickId, organisation, rulesVersion }: { trickId: string, organisation?: string | null, rulesVersion?: string | null }, options?: QueryFindArgs) {
+  async findManyByTrick ({ trickId, rulesId }: { trickId: string, rulesId?: string | null }, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => {
       let q = c.where('trickId', '==', trickId)
-      if (organisation) q = q.where('organisation', '==', organisation)
-      if (rulesVersion) q = q.where('rulesVersion', '==', rulesVersion)
+      if (rulesId) q = q.where('rulesId', '==', rulesId)
       return q
     }, options)
   }

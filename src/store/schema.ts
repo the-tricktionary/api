@@ -59,22 +59,36 @@ export interface TrickLocalisationDoc extends DocBase {
 }
 export function isTrickLocalisation (t: any): t is TrickLocalisationDoc { return t?.collection === 'trick-localisations' }
 
-export interface UnverifiedTrickLevelDoc extends DocBase {
+export interface RulesetDoc extends DocBase {
+  readonly collection: 'rulesets'
+
+  /** lang -> display name, 'en' is required */
+  names: Record<string, string>
+  /** exactly one ruleset is primary */
+  isPrimary: boolean
+}
+export function isRuleset (t: any): t is RulesetDoc { return t?.collection === 'rulesets' }
+
+export interface TrickLevelDoc extends DocBase {
   readonly collection: 'trick-levels'
 
   trickId: TrickDoc['id']
-  organisation: string
+  /** references RulesetDoc.id, e.g. `ijru@5.0.0` or `tricktionary` */
+  rulesId: RulesetDoc['id']
+  /** "5" or "2-5" */
   level: string
-  rulesVersion?: string
+  verificationLevel: VerificationLevel | null
+  verifiedBy: UserDoc['id'] | null
+  verifiedAt: Timestamp | null
+  updatedBy: UserDoc['id']
 }
-
-export interface VerifiedTrickLevelDoc extends UnverifiedTrickLevelDoc {
-  verifiedBy: UserDoc['id']
-  verificationLevel: VerificationLevel
-}
-
-export type TrickLevelDoc = UnverifiedTrickLevelDoc | VerifiedTrickLevelDoc
 export function isTrickLevel (t: any): t is TrickLevelDoc { return t?.collection === 'trick-levels' }
+
+/**
+ * Trick levels are unique per trick and ruleset, so their document ID is
+ * deterministic rather than random.
+ */
+export function trickLevelId (trickId: TrickDoc['id'], rulesId: RulesetDoc['id']) { return `${trickId}-${rulesId}` }
 
 export interface TrickPrereqDoc extends DocBase {
   readonly collection: 'trick-prerequisites'
@@ -82,6 +96,27 @@ export interface TrickPrereqDoc extends DocBase {
   childId: TrickDoc['id']
 }
 export function isTrickPrereq (t: any): t is TrickDoc { return t?.collection === 'trick-prerequisites' }
+
+/**
+ * An administrative privilege granted to a user.
+ *
+ * - `super-admin` implies every other grant, for every language and every
+ *   ruleset, including verifying levels at the highest verification level.
+ * - `trick-editor` may edit tricks and implies `translator` for `en`
+ *   (english is the source language of the Tricktionary, so it's hard-coded
+ *   and never granted as a `translator` grant).
+ * - `translator` may edit trick localisations in a single language, the
+ *   `lang` is a BCP-47 tag and is never `en`.
+ * - `level-editor` may edit trick levels for a single ruleset. The
+ *   `verificationLevel` is the highest level the user may verify a level at,
+ *   ranked `null` (0) < `JUDGE` (1) < `OFFICIAL` (2), meaning a `null`
+ *   verification level allows editing levels but not verifying them.
+ */
+export type Grant =
+  | { type: 'super-admin' }
+  | { type: 'trick-editor' }
+  | { type: 'translator', lang: string }
+  | { type: 'level-editor', rulesId: string, verificationLevel: VerificationLevel | null }
 
 export interface UserDoc extends DocBase {
   readonly collection: 'users'
@@ -91,6 +126,7 @@ export interface UserDoc extends DocBase {
   photo?: string
   email?: string
   profile: Omit<ProfileOptions, '__typename'>
+  grants?: Grant[]
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
 

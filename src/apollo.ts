@@ -22,6 +22,7 @@ import { UnexpectedError, ValidationError } from './errors'
 import { logger } from './services/logger'
 import {
   eventDefinitionDataSource,
+  rulesetDataSource,
   speedResultDataSource,
   trickPrerequisiteDataSource,
   trickDataSource,
@@ -33,6 +34,7 @@ import {
 
 import type {
   EventDefinitionDataSource,
+  RulesetDataSource,
   SpeedResultDataSource,
   TrickPrerequisiteDataSource,
   TrickDataSource,
@@ -84,6 +86,7 @@ export async function initApollo (httpServer: Server) {
     async context (context: ExpressContextFunctionArgument): Promise<ApolloContext> {
       const dataSources = {
         eventDefinitions: eventDefinitionDataSource(cache),
+        rulesets: rulesetDataSource(cache),
         speedResults: speedResultDataSource(cache),
         tricks: trickDataSource(cache),
         trickLocalisations: trickLocalisationDataSource(cache),
@@ -113,6 +116,7 @@ export async function initApollo (httpServer: Server) {
 
 export interface DataSources {
   eventDefinitions: EventDefinitionDataSource
+  rulesets: RulesetDataSource
   speedResults: SpeedResultDataSource
   tricks: TrickDataSource
   trickLocalisations: TrickLocalisationDataSource
