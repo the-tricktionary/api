@@ -16,7 +16,8 @@
  *
  * Requirements:
  *   - `yt-dlp` and `ffmpeg` on PATH (ffmpeg is needed to merge video+audio)
- *   - MUX_TOKEN_ID / MUX_TOKEN_SECRET in the environment (read by the Mux SDK)
+ *   - MUX_TOKEN_ID and MUX_TOKEN_SECRET in Secret Manager, or GSM_MUX_TOKEN_ID
+ *     and GSM_MUX_TOKEN_SECRET in the environment
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with
  *     write access to the `tricks` collection
  *
@@ -26,7 +27,7 @@
  * Note: the API caches trick documents for up to an hour, so the new videos
  * show up in the API at most an hour after the migration ran.
  */
-import '../config'
+import '../config.js'
 import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -34,11 +35,11 @@ import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { parseArgs, promisify } from 'node:util'
 import { Firestore, Timestamp } from '@google-cloud/firestore'
-import Mux from '@mux/mux-node'
-import { VideoHost } from '../generated/graphql'
-import { logger } from '../services/logger'
+import { VideoHost } from '../generated/graphql.js'
+import { mux } from '../services/mux.js'
+import { logger } from '../services/logger.js'
 
-import type { MuxVideo, TrickDoc, TrickLocalisationDoc, YouTubeVideo } from '../store/schema'
+import type { MuxVideo, TrickDoc, TrickLocalisationDoc, YouTubeVideo } from '../store/schema.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -58,8 +59,6 @@ const keepFiles = args['keep-files']
 const MUX_POLL_INTERVAL = 5_000
 
 const firestore = new Firestore()
-// reads MUX_TOKEN_ID and MUX_TOKEN_SECRET from the environment
-const mux = new Mux()
 
 interface MigrationTarget {
   trickId: string

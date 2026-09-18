@@ -15,18 +15,23 @@ initializeApp({
   databaseURL: 'https://project-5641153190345267944.firebaseio.com'
 })
 
+// Configuration only. Secrets are read through `services/secrets`, which takes
+// them from Secret Manager, or from `GSM_<name>` in the environment.
 const envSchema = z.object({
+  // Not a secret, a Sentry DSN is public by design. It also has to be available
+  // synchronously, `tracing` initialises Sentry before the instrumented
+  // libraries are imported.
   SENTRY_DSN: z.string().optional(),
   GITHUB_SHA: z.string().optional(),
   GITHUB_REF: z.string().optional(),
   GCP_PROJECT: z.string().optional(),
-  STRIPE_SK: z.string(),
+  // The region to read regional secrets from. Unset means the secrets are
+  // global ones, which is what they should be unless they have to be stored in
+  // a particular region.
+  GSM_LOCATION: z.string().optional(),
+  // Not a secret either, it is handed out to search clients
   ALGOLIA_APP_ID: z.string(),
-  ALGOLIA_API_KEY: z.string(),
   PORT: z.coerce.number().default(3000),
-  MUX_TOKEN_ID: z.string(),
-  MUX_TOKEN_SECRET: z.string(),
-  MUX_WEBHOOK_SECRET: z.string(),
   // The origin a Mux direct upload is created for when the request's own
   // origin isn't one we allow
   MUX_UPLOAD_CORS_ORIGIN: z.url().default('https://admin.the-tricktionary.com')
@@ -37,12 +42,8 @@ export const {
   GITHUB_SHA,
   GITHUB_REF,
   GCP_PROJECT,
-  STRIPE_SK,
+  GSM_LOCATION,
   ALGOLIA_APP_ID,
-  ALGOLIA_API_KEY,
   PORT,
-  MUX_TOKEN_ID,
-  MUX_TOKEN_SECRET,
-  MUX_WEBHOOK_SECRET,
   MUX_UPLOAD_CORS_ORIGIN
 } = envSchema.parse(process.env)

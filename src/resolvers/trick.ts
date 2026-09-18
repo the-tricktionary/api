@@ -1,12 +1,12 @@
 import z from 'zod'
-import { isTrick, trickLocalisationId } from '../store/schema'
-import { Discipline, TrickType } from '../generated/graphql'
-import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors'
-import { tryIndexTrick, searchTricks } from '../services/algolia'
-import { langSchema, slugSchema, trickLocalisationSchema } from '../validation'
+import { isTrick, trickLocalisationId } from '../store/schema.js'
+import { Discipline, TrickType } from '../generated/graphql.js'
+import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
+import { tryIndexTrick, searchTricks } from '../services/algolia.js'
+import { langSchema, slugSchema, trickLocalisationSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema.js'
 
 const createTrickSchema = z.object({
   discipline: z.enum(Discipline),

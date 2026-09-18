@@ -1,16 +1,17 @@
 import { algoliasearch } from 'algoliasearch'
 import * as Sentry from '@sentry/node'
-import { ALGOLIA_API_KEY, ALGOLIA_APP_ID } from '../config'
-import { logger as baseLogger } from './logger'
-import { TRICKTIONARY_RULES_ID, trickLocalisationLang } from '../store/schema'
+import { ALGOLIA_APP_ID } from '../config.js'
+import { getSecret } from './secrets.js'
+import { logger as baseLogger } from './logger.js'
+import { TRICKTIONARY_RULES_ID, trickLocalisationLang } from '../store/schema.js'
 
 import type Pino from 'pino'
 import type { IndexSettings, SupportedLanguage } from 'algoliasearch'
-import type { Discipline } from '../generated/graphql'
-import type { TrickDoc, TrickLocalisationDoc } from '../store/schema'
-import type { DataSources } from '../store/firestoreDataSource'
+import type { Discipline } from '../generated/graphql.js'
+import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
+import type { DataSources } from '../store/firestoreDataSource.js'
 
-const client = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_API_KEY)
+const client = algoliasearch(ALGOLIA_APP_ID, await getSecret('ALGOLIA_API_KEY'))
 
 /** How long the list of indices fetched from Algolia is trusted */
 const INDEX_LIST_TTL = 60 * 60 * 1000

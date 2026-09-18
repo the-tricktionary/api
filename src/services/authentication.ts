@@ -1,9 +1,9 @@
-import { auth } from 'firebase-admin'
+import { getAuth } from 'firebase-admin/auth'
 
 import type Pino from 'pino'
-import type { UserDoc } from '../store/schema'
-import { AuthenticationError } from '../errors'
-import type { DataSources } from '../store/firestoreDataSource'
+import type { UserDoc } from '../store/schema.js'
+import { AuthenticationError } from '../errors.js'
+import type { DataSources } from '../store/firestoreDataSource.js'
 
 interface HeaderParserOptions {
   logger: Pino.Logger
@@ -26,7 +26,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
 
   let decoded
   try {
-    decoded = await auth().verifyIdToken(split[1])
+    decoded = await getAuth().verifyIdToken(split[1])
   } catch (err) {
     throw new AuthenticationError((err as Error).message)
   }

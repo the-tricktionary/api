@@ -1,6 +1,6 @@
 import type { ApolloServerPlugin } from '@apollo/server'
-import type { ApolloContext } from '../apollo'
-import { logger } from '../services/logger'
+import type { ApolloContext } from '../apollo.js'
+import { logger } from '../services/logger.js'
 
 const loggingPlugin: ApolloServerPlugin<ApolloContext> = {
   async requestDidStart (_) {
