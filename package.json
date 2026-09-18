@@ -65,5 +65,13 @@
     "tsx": "^4.23.13",
     "typescript": "6.0",
     "typescript-eslint": "^8.70.0"
+  },
+  "allowScripts": {
+    "@apollo/protobufjs@1.2.8": true,
+    "@firebase/util@1.15.3": true,
+    "@parcel/watcher@2.6.0": true,
+    "@sentry/node-native-stacktrace@0.5.2": true,
+    "esbuild@0.28.2": true,
+    "protobufjs@7.6.6": true
   }
 }

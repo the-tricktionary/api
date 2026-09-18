@@ -24,9 +24,12 @@ const envSchema = z.object({
   ALGOLIA_APP_ID: z.string(),
   ALGOLIA_API_KEY: z.string(),
   PORT: z.coerce.number().default(3000),
-  // Only required for scripts that talk to Mux (e.g. src/migrations/mux-videos.ts)
-  MUX_TOKEN_ID: z.string().optional(),
-  MUX_TOKEN_SECRET: z.string().optional()
+  MUX_TOKEN_ID: z.string(),
+  MUX_TOKEN_SECRET: z.string(),
+  MUX_WEBHOOK_SECRET: z.string(),
+  // The origin a Mux direct upload is created for when the request's own
+  // origin isn't one we allow
+  MUX_UPLOAD_CORS_ORIGIN: z.url().default('https://admin.the-tricktionary.com')
 })
 
 export const {
@@ -39,5 +42,7 @@ export const {
   ALGOLIA_API_KEY,
   PORT,
   MUX_TOKEN_ID,
-  MUX_TOKEN_SECRET
+  MUX_TOKEN_SECRET,
+  MUX_WEBHOOK_SECRET,
+  MUX_UPLOAD_CORS_ORIGIN
 } = envSchema.parse(process.env)

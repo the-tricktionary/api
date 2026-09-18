@@ -37,7 +37,8 @@ const typeDefs = gql`
 
   type Query {
     me: User
-    # findUser (username: String): User
+    """Exact match on email, username or user id. Super admins only."""
+    findUsers (query: String!): [User!]!
 
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick
@@ -50,9 +51,18 @@ const typeDefs = gql`
     shippingRates: [Price!]!
 
     eventDefinitions: [EventDefinition!]! @cacheControl(maxAge: 3600)
+
+    rulesets: [Ruleset!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
+    # Tricks
+    createTrick (data: CreateTrickInput!): Trick!
+    updateTrickDetails (trickId: ID!, data: UpdateTrickDetailsInput!): Trick!
+    setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation!
+    addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
+    removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
+
     # Checklist
     createTrickCompletion (trickId: ID!): TrickCompletion!
     deleteTrickCompletion (trickId: ID!): TrickCompletion
@@ -64,6 +74,29 @@ const typeDefs = gql`
 
     # Shop
     createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
+
+    # Rulesets
+    createRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
+    updateRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
+    setPrimaryRuleset (rulesId: ID!): Ruleset!
+
+    # Trick levels
+    """Sets the level of a trick under a ruleset. A null or empty level deletes it."""
+    setTrickLevel (trickId: ID!, rulesId: ID!, level: String): TrickLevel
+    """Verifies the level at the given verification level, or recalls the verification when null."""
+    setTrickLevelVerification (trickId: ID!, rulesId: ID!, verificationLevel: VerificationLevel): TrickLevel!
+
+    # Trick videos
+    addTrickVideo (trickId: ID!, data: YouTubeVideoInput!): Trick!
+    """
+    Starts a direct upload to Mux. Upload the file to the returned \`url\`, the
+    video is added to the trick once Mux has processed it.
+    """
+    createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload!
+    removeTrickVideo (trickId: ID!, videoId: String!): Trick!
+
+    # Users
+    setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
   }
 
   type Trick @cacheControl(maxAge: 3600) {
@@ -76,7 +109,12 @@ const typeDefs = gql`
     localisation (lang: String): TrickLocalisation
 
     videos: [Video!]!
-    levels (organisation: String, rulesVersion: String): [TrickLevel!]!
+    """
+    The video uploads of this trick that haven't finished processing yet.
+    Empty for users who may not edit trick videos.
+    """
+    pendingVideoUploads: [TrickVideoUpload!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+    levels (rulesId: String): [TrickLevel!]!
 
     prerequisites: [Trick!]!
     prerequisiteFor: [Trick!]!
@@ -98,16 +136,56 @@ const typeDefs = gql`
     submitter: User
   }
 
+  input CreateTrickInput {
+    discipline: Discipline!
+    trickType: TrickType!
+    slug: String!
+    """The english localisation of the new trick"""
+    localisation: TrickLocalisationInput!
+  }
+
+  input UpdateTrickDetailsInput {
+    discipline: Discipline
+    trickType: TrickType
+    slug: String
+  }
+
+  input TrickLocalisationInput {
+    name: String!
+    alternativeNames: [String!]!
+    description: String!
+  }
+
+  type Ruleset @cacheControl(maxAge: 3600) {
+    id: ID!
+    """Display name in \`lang\`, falling back to english"""
+    name (lang: String): String!
+    names: [LocalisedString!]!
+    isPrimary: Boolean!
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
+  type LocalisedString {
+    lang: String!
+    value: String!
+  }
+
+  input LocalisedStringInput {
+    lang: String!
+    value: String!
+  }
+
   type TrickLevel @cacheControl(maxAge: 3600) {
     id: ID!
     trick: Trick!
-    organisation: String!
+    rulesId: String!
+    ruleset: Ruleset!
     level: String!
-    rulesVersion: String
-    createdAt: Timestamp!
-    updatedAt: Timestamp! # = verified at
-
     verificationLevel: VerificationLevel
+    verifiedAt: Timestamp
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
   }
 
   enum VerificationLevel {
@@ -136,12 +214,52 @@ const typeDefs = gql`
     Explainer
   }
 
+  input YouTubeVideoInput {
+    videoId: String!
+    type: VideoType!
+    slowMoStart: Float
+  }
+
+  input VideoUploadInput {
+    type: VideoType!
+    slowMoStart: Float
+  }
+
+  enum VideoUploadStatus {
+    Waiting
+    Processing
+    Ready
+    Errored
+    Cancelled
+  }
+
+  """A direct upload of a trick video to Mux"""
+  type TrickVideoUpload {
+    """The Mux upload ID"""
+    id: ID!
+    """
+    Upload the file with a single PUT to this URL. Mux only hands it out once,
+    so it's only set on the \`createTrickVideoUpload\` response and null
+    everywhere else.
+    """
+    url: String
+    type: VideoType!
+    slowMoStart: Float
+    status: VideoUploadStatus!
+    """Why the upload failed, only set when the status is \`Errored\`"""
+    error: String
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
   type User {
     id: ID!
     username: String
     name: String
     lang: String
     photo: String
+    """Only visible to the user themselves and to super admins"""
+    email: String @cacheControl(maxAge: 0, scope: PRIVATE)
 
     profile: ProfileOptions!
 
@@ -154,9 +272,35 @@ const typeDefs = gql`
 
     # store fcm tokens in db? don't expose if so
 
-    # TODO: level editor (orgs, vLevel)
-    # TODO: trick translator (languages)
-    # TODO: trick editor
+    """Only visible to the user themselves and to super admins, empty for everyone else"""
+    grants: [Grant!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+  }
+
+  enum GrantType {
+    SuperAdmin
+    TrickEditor
+    Translator
+    LevelEditor
+  }
+
+  type Grant {
+    type: GrantType!
+    """Translator only"""
+    lang: String
+    """LevelEditor only"""
+    rulesId: String
+    """LevelEditor only, null means the user may edit but not verify"""
+    verificationLevel: VerificationLevel
+  }
+
+  input GrantInput {
+    type: GrantType!
+    """Translator only"""
+    lang: String
+    """LevelEditor only"""
+    rulesId: String
+    """LevelEditor only"""
+    verificationLevel: VerificationLevel
   }
 
   type ProfileOptions {

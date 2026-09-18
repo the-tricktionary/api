@@ -3,7 +3,7 @@ import { auth } from 'firebase-admin'
 import type Pino from 'pino'
 import type { UserDoc } from '../store/schema'
 import { AuthenticationError } from '../errors'
-import type { DataSources } from '../apollo'
+import type { DataSources } from '../store/firestoreDataSource'
 
 interface HeaderParserOptions {
   logger: Pino.Logger
@@ -32,7 +32,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
   }
 
   logger.debug({ uid: decoded.uid }, 'Finding user')
-  let user = await dataSources.users.findOneById(decoded.uid, { ttl: 3600 })
+  let user = await dataSources.users.findOneById(decoded.uid, { ttl: 30 })
 
   if (!user) {
     user = await dataSources.users.createOne({
