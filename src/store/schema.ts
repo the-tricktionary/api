@@ -1,4 +1,4 @@
-import type { Discipline, ProfileOptions, TrickType, VerificationLevel, Video } from '../generated/graphql'
+import type { Discipline, ProfileOptions, TrickType, VerificationLevel, Video, VideoHost } from '../generated/graphql'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -6,6 +6,29 @@ export interface DocBase {
   readonly collection: string
   readonly createdAt: Timestamp
   readonly updatedAt: Timestamp
+}
+
+export interface VideoDoc extends Omit<Video, '__typename'> {
+  host: VideoHost
+  /**
+   * For YouTube videos this is the YouTube video ID.
+   * For Mux videos this is the public playback ID, which is what clients need
+   * for playback. The asset ID is stored separately in `assetId`.
+   */
+  videoId: string
+  /**
+   * Mux only: the asset ID the playback ID belongs to. Needed for managing the
+   * asset (deleting it, adding renditions, ...) through the Mux API.
+   */
+  assetId?: string
+  /**
+   * Mux only: the host and video id of the video this asset was created from,
+   * when it was migrated from another host.
+   */
+  migratedFrom?: {
+    host: VideoHost
+    videoId: string
+  }
 }
 
 export interface TrickDoc extends DocBase {
@@ -16,7 +39,7 @@ export interface TrickDoc extends DocBase {
 
   submittedBy: UserDoc['id']
 
-  videos: Array<Omit<Video, '__typename'>>
+  videos: VideoDoc[]
 }
 export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tricks' }
 

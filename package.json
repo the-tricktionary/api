@@ -9,7 +9,8 @@
     "lint:fix": "npm run lint -- --fix",
     "typecheck": "tsc --noEmit",
     "codegen": "graphql-codegen --config codegen.yml",
-    "codegen:watch": "npm run codegen -- --watch"
+    "codegen:watch": "npm run codegen -- --watch",
+    "migrate:mux-videos": "tsx src/migrations/mux-videos.ts"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
     "@google-cloud/firestore": "^7.8.0",
     "@graphql-tools/merge": "^9.0.4",
     "@graphql-tools/schema": "^10.0.4",
+    "@mux/mux-node": "^15.2.0",
     "@sentry/node": "^8.11.0",
     "algoliasearch": "^4.23.3",
     "apollo-datasource-firestore": "^6.2.0",
