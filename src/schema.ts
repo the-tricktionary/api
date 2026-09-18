@@ -104,6 +104,8 @@ const typeDefs = gql`
     setLanguageEnabled (lang: String!, enabled: Boolean!): Language!
 
     # Users
+    """The signed in user's language, null clears it"""
+    setUserLang (lang: String): User!
     setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
   }
 
