@@ -1,21 +1,21 @@
-FROM node:20-alpine as base
+FROM node:24-alpine AS base
 
-FROM base as runtime_deps
+FROM base AS runtime_deps
 WORKDIR /src
 COPY package.json .
 COPY package-lock.json .
 RUN npm ci --omit=dev
 
-FROM runtime_deps as dev_deps
+FROM runtime_deps AS dev_deps
 RUN npm ci
 
-FROM dev_deps as builder
+FROM dev_deps AS builder
 COPY codegen.yml tsconfig* ./
 COPY src src
 RUN npm run codegen
 RUN npm run build
 
-FROM base as runner
+FROM base AS runner
 ARG GITHUB_SHA
 ARG GITHUB_REF
 ENV GITHUB_SHA=${GITHUB_SHA}

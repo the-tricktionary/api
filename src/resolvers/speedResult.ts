@@ -1,9 +1,9 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import { ApolloContext } from '../apollo'
+import type { ApolloContext } from '../apollo'
 
 import type { EventDefinition, Resolvers } from '../generated/graphql'
 import type { DetailedSpeedResultDoc, SpeedResultDoc } from '../store/schema'
-import { NotFoundError, ValidationError } from '../errors'
+import { AuthorizationError, NotFoundError, ValidationError } from '../errors'
 
 const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
   async creator (speedResult, _, { dataSources, allowUser }) {
@@ -13,7 +13,7 @@ const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
     return creator
   },
   async eventDefinition (speedResult, _, { dataSources }) {
-    if (speedResult.eventDefinitionId) return dataSources.eventDefinitions.findOneById(speedResult.eventDefinitionId, { ttl: 3600 }) as Promise<EventDefinition>
+    if (speedResult.eventDefinitionId) return await (dataSources.eventDefinitions.findOneById(speedResult.eventDefinitionId, { ttl: 3600 }) as Promise<EventDefinition>)
     else if (speedResult.eventDefinition) {
       return {
         ...speedResult.eventDefinition,
@@ -24,7 +24,7 @@ const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
   }
 }
 
-async function clicksPerSecond ({ clicks, eventDefinitionId, eventDefinition }: DetailedSpeedResultDoc, _: {}, { dataSources }: ApolloContext) {
+async function clicksPerSecond ({ clicks, eventDefinitionId, eventDefinition }: DetailedSpeedResultDoc, _: unknown, { dataSources }: ApolloContext) {
   const eDef = eventDefinitionId
     ? await dataSources.eventDefinitions.findOneById(eventDefinitionId, { ttl: 3600 })
     : eventDefinition
@@ -32,7 +32,7 @@ async function clicksPerSecond ({ clicks, eventDefinitionId, eventDefinition }: 
   return Math.round(clicks.length / eDef.totalDuration * 100) / 100
 }
 
-async function misses (speedResult: DetailedSpeedResultDoc, _: {}, context: ApolloContext) {
+async function misses (speedResult: DetailedSpeedResultDoc, _: unknown, context: ApolloContext) {
   const average = await clicksPerSecond(speedResult, _, context)
 
   let misses = 0
@@ -54,6 +54,7 @@ export const speedResultResolvers: Resolvers = {
     // TODO prevent XSS on name
     async createSpeedResult (_, { data }, { dataSources, allowUser, user }) {
       allowUser.createSpeedResult.assert()
+      if (!user) throw new AuthorizationError()
 
       let eObj
       if (data.eventDefinitionId) {
@@ -66,14 +67,14 @@ export const speedResultResolvers: Resolvers = {
         throw new ValidationError('No event definition or event definition id specified', {})
       }
 
-      return dataSources.speedResults.createOne({
+      return await (dataSources.speedResults.createOne({
         ...(data.name ? { name: data.name } : {}),
-        userId: user?.id as string,
+        userId: user.id,
         createdAt: Timestamp.now(),
         count: data.count,
         ...eObj,
         ...(Array.isArray(data.clicks) && data.clicks.length ? { clicks: data.clicks } : {})
-      }, { ttl: 60 }) as Promise<SpeedResultDoc>
+      }, { ttl: 60 }) as Promise<SpeedResultDoc>)
     },
     async updateSpeedResult (_, { speedResultId, data }, { allowUser, dataSources }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId)
@@ -97,10 +98,10 @@ export const speedResultResolvers: Resolvers = {
         }
       }
 
-      return dataSources.speedResults.updateOnePartial(speedResult.id, {
-        name: data.name ?? (FieldValue.delete() as any as undefined),
+      return await (dataSources.speedResults.updateOnePartial(speedResult.id, {
+        name: data.name ?? (FieldValue.delete()),
         ...eObj
-      }) as Promise<SpeedResultDoc>
+      }) as Promise<SpeedResultDoc>)
     },
     async deleteSpeedResult (_, { speedResultId }, { allowUser, dataSources }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId)

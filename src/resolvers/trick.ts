@@ -10,9 +10,9 @@ export const trickResolvers: Resolvers = {
       allowUser.getTricks.assert()
       if (searchQuery) {
         const hits = await searchTricks(searchQuery, { discipline: discipline ?? undefined })
-        return dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>
+        return await (dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>)
       } else {
-        return dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
+        return await dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
       }
     },
     async trick (_, { id }, { dataSources, allowUser }) {
@@ -63,7 +63,7 @@ export const trickResolvers: Resolvers = {
       return tricks
     },
     async levels (trick, { organisation, rulesVersion }, { dataSources }) {
-      return dataSources.trickLevels.findManyByFilters({ trickId: trick.id, organisation, rulesVersion })
+      return await dataSources.trickLevels.findManyByFilters({ trickId: trick.id, organisation, rulesVersion })
     }
   }
 }

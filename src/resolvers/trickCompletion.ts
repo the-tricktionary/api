@@ -10,7 +10,7 @@ export const trickCompletionResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
 
-      if (!existing) return dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>
+      if (!existing) return await (dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>)
       else return existing
     },
     async deleteTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
@@ -28,7 +28,7 @@ export const trickCompletionResolvers: Resolvers = {
   },
   TrickCompletion: {
     async trick (trickCompletion, _, { dataSources }) {
-      return dataSources.tricks.findOneById(trickCompletion.trickId) as Promise<TrickDoc>
+      return await (dataSources.tricks.findOneById(trickCompletion.trickId) as Promise<TrickDoc>)
     }
   }
 }

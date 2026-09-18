@@ -1,7 +1,7 @@
 import '../config'
 import { Firestore } from '@google-cloud/firestore'
 import { Discipline } from '../generated/graphql'
-import { TrickDoc, TrickLocalisationDoc } from '../store/schema'
+import type { TrickDoc, TrickLocalisationDoc } from '../store/schema'
 import { writeFileSync } from 'fs'
 
 const firestore = new Firestore()

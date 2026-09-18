@@ -1,7 +1,14 @@
-import * as dotenv from 'dotenv'
 import { initializeApp, applicationDefault } from 'firebase-admin/app'
 import z from 'zod'
-dotenv.config()
+
+// Load a local .env file if there is one (Node >= 20.12 has this built in, so
+// no need for dotenv). Variables already set in the environment take
+// precedence, just like with dotenv.
+try {
+  process.loadEnvFile()
+} catch (err) {
+  if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+}
 
 initializeApp({
   credential: applicationDefault(),
@@ -30,7 +37,7 @@ export const {
   STRIPE_SK,
   ALGOLIA_APP_ID,
   ALGOLIA_API_KEY,
-  PORT = 3000,
+  PORT,
   MUX_TOKEN_ID,
   MUX_TOKEN_SECRET
 } = envSchema.parse(process.env)

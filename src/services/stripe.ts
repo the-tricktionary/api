@@ -5,23 +5,24 @@ import postCountries from './post.json'
 import type { UserDoc } from '../store/schema'
 import type { Currency } from '../generated/graphql'
 
-const stripe = new Stripe(STRIPE_SK as string, { apiVersion: '2024-04-10' })
+// Uses the API version the installed SDK is pinned to
+const stripe = new Stripe(STRIPE_SK)
 
 // TODO caching
 
-export async function getProducts () {
+export async function getProducts (): Promise<Stripe.Product[]> {
   const products = await stripe.products.list()
   return products.data.filter(p => p.active && p.metadata.store === 'the-tricktionary')
 }
 
-export async function getShippingRates (currency?: string) {
+export async function getShippingRates (currency?: string): Promise<Stripe.Price[]> {
   const products = await stripe.products.list()
   const product = products.data.find(p => p.active && p.metadata['shipping-store'] === 'the-tricktionary')
   if (!product) throw new Error('No shipping rate found in stripe')
-  return getPrices(product.id, currency)
+  return await getPrices(product.id, currency)
 }
 
-export async function getPrices (productId: string, currency?: string) {
+export async function getPrices (productId: string, currency?: string): Promise<Stripe.Price[]> {
   const prices = await stripe.prices.list({
     product: productId,
     currency
@@ -35,7 +36,7 @@ interface CheckoutSessionParams {
   currency: Currency
 }
 
-export async function createCheckoutSession ({ products, user, currency }: CheckoutSessionParams) {
+export async function createCheckoutSession ({ products, user, currency }: CheckoutSessionParams): Promise<Stripe.Checkout.Session> {
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
   for (const product of products) {
     const prices = await getPrices(product.productId, currency)
@@ -51,7 +52,7 @@ export async function createCheckoutSession ({ products, user, currency }: Check
   const shippingRate = await getShippingRates(currency)
   lineItems.push({ price: shippingRate[0].id, quantity: 1, adjustable_quantity: { enabled: false } })
 
-  return stripe.checkout.sessions.create({
+  return await stripe.checkout.sessions.create({
     success_url: 'https://the-tricktionary.com/shop-success?session_id={CHECKOUT_SESSION_ID}',
     cancel_url: 'https://the-tricktionary.com/shop?state=cancelled', // TODO: include products + qty in query parameters?
     mode: 'payment',
@@ -63,7 +64,7 @@ export async function createCheckoutSession ({ products, user, currency }: Check
     tax_id_collection: { enabled: true },
     billing_address_collection: 'auto',
     shipping_address_collection: {
-      allowed_countries: postCountries as Stripe.Checkout.SessionCreateParams.ShippingAddressCollection.AllowedCountry[]
+      allowed_countries: postCountries
     },
     // shipping_rates: [], // TODO add shipping rate
     metadata: { store: 'the-tricktionary' },

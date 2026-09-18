@@ -1,6 +1,6 @@
 import { createCheckoutSession, getPrices, getProducts, getShippingRates } from '../services/stripe'
 
-import type { Price, Product, Currency, Resolvers } from '../generated/graphql'
+import type { Product, Currency, Resolvers } from '../generated/graphql'
 import type Stripe from 'stripe'
 
 export const productResolvers: Resolvers = {
@@ -19,13 +19,13 @@ export const productResolvers: Resolvers = {
         currency: p.currency as Currency,
         unitAmount: p.unit_amount,
         unitAmountDecimal: p.unit_amount_decimal
-      })) as Price[]
+      }))
     }
   },
   Mutation: {
     async createCheckoutSession (_, { products, currency }, { dataSources, user, allowUser, logger }) {
       allowUser.makePurchase.assert()
-      return createCheckoutSession({ products, user, currency }) as Promise<Stripe.Checkout.Session & { url: string }>
+      return await (createCheckoutSession({ products, user, currency }) as Promise<Stripe.Checkout.Session & { url: string }>)
     }
   },
   Product: {

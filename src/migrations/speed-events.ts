@@ -1,5 +1,5 @@
 import '../config'
-import { FieldValue, Firestore } from '@google-cloud/firestore'
+import { Firestore } from '@google-cloud/firestore'
 
 const firestore = new Firestore()
 
@@ -101,7 +101,7 @@ export type CompetitionEvent = `e.${string}.${'fs' | 'sp' | 'oa'}.${'sr' | 'dd' 
 //     })
 // }
 
-const knownEvents: Record<string, { name: string, totalDuration: number }> = {
+export const knownEvents: Record<string, { name: string, totalDuration: number }> = {
   'e.ijru.sp.sr.srss.1.30': { name: 'Single Rope Speed Sprint', totalDuration: 30 },
   'e.ijru.sp.sr.srse.1.180': { name: 'Single Rope Speed Endurance', totalDuration: 180 },
   'e.ijru.sp.sr.srtu.1.0': { name: 'Single Rope Triple Unders', totalDuration: 0 },
