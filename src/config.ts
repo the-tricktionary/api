@@ -16,7 +16,10 @@ const envSchema = z.object({
   STRIPE_SK: z.string(),
   ALGOLIA_APP_ID: z.string(),
   ALGOLIA_API_KEY: z.string(),
-  PORT: z.coerce.number().default(3000)
+  PORT: z.coerce.number().default(3000),
+  // Only required for scripts that talk to Mux (e.g. src/migrations/mux-videos.ts)
+  MUX_TOKEN_ID: z.string().optional(),
+  MUX_TOKEN_SECRET: z.string().optional()
 })
 
 export const {
@@ -27,5 +30,7 @@ export const {
   STRIPE_SK,
   ALGOLIA_APP_ID,
   ALGOLIA_API_KEY,
-  PORT = 3000
+  PORT = 3000,
+  MUX_TOKEN_ID,
+  MUX_TOKEN_SECRET
 } = envSchema.parse(process.env)

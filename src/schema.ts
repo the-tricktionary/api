@@ -117,6 +117,10 @@ const typeDefs = gql`
 
   type Video {
     host: VideoHost!
+    """
+    Host-specific identifier for the video.
+    For YouTube this is the video ID, for Mux this is the public playback ID.
+    """
     videoId: String!
     type: VideoType!
     slowMoStart: Float
@@ -124,6 +128,7 @@ const typeDefs = gql`
 
   enum VideoHost {
     YouTube
+    Mux
   }
 
   enum VideoType {
