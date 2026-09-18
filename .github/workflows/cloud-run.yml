@@ -44,7 +44,7 @@ jobs:
     - name: Build
       run: |-
         docker build \
-          --tag "$REGION-docker.pkg.dev/$PROJECT_NO/$SERVICE/$SERVICE:$GITHUB_SHA" \
+          --tag "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
           --build-arg GITHUB_SHA="$GITHUB_SHA" \
           --build-arg GITHUB_REF="$GITHUB_REF" \
           .
@@ -52,14 +52,14 @@ jobs:
     # Push the Docker image to Google Container Registry
     - name: Publish
       run: |-
-        docker push "$REGION-docker.pkg.dev/$PROJECT_NO/$SERVICE/$SERVICE:$GITHUB_SHA"
+        docker push "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA"
 
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v3
       with:
         service: ${{ env.SERVICE }}
-        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_NO }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
+        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
         region: ${{ env.REGION }}
         env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ vars.GCP_PROJECT_ID }},ALGOLIA_APP_ID=${{ secrets.ALGOLIA_APP_ID }},ALGOLIA_API_KEY=${{ secrets.ALGOLIA_API_KEY }}
         secrets: STRIPE_SK=${{ secrets.STRIPE_SK_SECRET }}
