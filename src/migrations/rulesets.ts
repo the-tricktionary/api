@@ -31,16 +31,16 @@
  * Note: the API caches trick levels for up to an hour, so the migrated levels
  * show up in the API at most an hour after the migration ran.
  */
-import '../config'
+import '../config.js'
 import { parseArgs } from 'node:util'
 import { Firestore } from '@google-cloud/firestore'
-import { logger } from '../services/logger'
-import { verificationLevelRank } from '../services/permissions'
-import { trickLevelId } from '../store/schema'
+import { logger } from '../services/logger.js'
+import { verificationLevelRank } from '../services/permissions.js'
+import { trickLevelId } from '../store/schema.js'
 
 import type { Timestamp } from '@google-cloud/firestore'
-import type { VerificationLevel } from '../generated/graphql'
-import type { RulesetDoc, TrickLevelDoc } from '../store/schema'
+import type { VerificationLevel } from '../generated/graphql.js'
+import type { RulesetDoc, TrickLevelDoc } from '../store/schema.js'
 
 const { values: args } = parseArgs({
   options: {

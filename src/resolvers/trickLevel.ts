@@ -1,12 +1,12 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import { AuthorizationError, NotFoundError } from '../errors'
-import { VerificationLevel } from '../generated/graphql'
-import { TRICKTIONARY_RULES_ID, trickLevelId } from '../store/schema'
-import { tryIndexTrick } from '../services/algolia'
-import { levelSchema, tricktionaryLevelSchema } from '../validation'
+import { AuthorizationError, NotFoundError } from '../errors.js'
+import { VerificationLevel } from '../generated/graphql.js'
+import { TRICKTIONARY_RULES_ID, trickLevelId } from '../store/schema.js'
+import { tryIndexTrick } from '../services/algolia.js'
+import { levelSchema, tricktionaryLevelSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { TrickLevelDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { TrickLevelDoc } from '../store/schema.js'
 
 export const trickLevelResolvers: Resolvers = {
   Mutation: {

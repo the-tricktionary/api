@@ -1,8 +1,8 @@
-import { CollisionError, NotFoundError } from '../errors'
-import { localisedStringsSchema, rulesIdSchema } from '../validation'
+import { CollisionError, NotFoundError } from '../errors.js'
+import { localisedStringsSchema, rulesIdSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { RulesetDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { RulesetDoc } from '../store/schema.js'
 
 export const rulesetResolvers: Resolvers = {
   Query: {

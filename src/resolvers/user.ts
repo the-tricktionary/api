@@ -1,9 +1,9 @@
-import { NotFoundError, ValidationError } from '../errors'
-import { GrantType } from '../generated/graphql'
-import { grantsSchema } from '../validation'
+import { NotFoundError, ValidationError } from '../errors.js'
+import { GrantType } from '../generated/graphql.js'
+import { grantsSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { UserDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { UserDoc } from '../store/schema.js'
 
 export const userResolvers: Resolvers = {
   Query: {

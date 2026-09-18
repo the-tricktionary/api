@@ -1,5 +1,13 @@
 # the Tricktionary API
 
+## Configuration and secrets
+
+Configuration comes from the environment, and a `.env` file in the project root
+is loaded automatically; `src/config.ts` is the whole list. Secrets are not in
+there — they live in Google Secret Manager and are read through `getSecret()`
+in `src/services/secrets.ts`. Set `GSM_<secret-name>` in the environment, most
+easily in `.env`, to override one locally; `.env.example` lists them.
+
 ## Trick levels
 
 ### Migrating trick levels to rulesets
@@ -28,7 +36,9 @@ Trick videos are stored inline on the trick document as an array of
 - `Mux` – `videoId` is the public [Mux](https://www.mux.com) playback ID, the
   Mux asset ID is stored alongside it as `assetId`
 
-Mux needs `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` and `MUX_WEBHOOK_SECRET`.
+Mux needs the `tricktionary-api-mux-token-id`,
+`tricktionary-api-mux-token-secret` and `tricktionary-api-mux-webhook-secret`
+secrets.
 
 ### Migrating YouTube videos to Mux
 
@@ -37,9 +47,10 @@ Mux needs `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` and `MUX_WEBHOOK_SECRET`.
 as additional `Mux` videos on the trick. It is safe to re-run; tricks that
 already have a Mux video of the same type are skipped.
 
-Requirements: `yt-dlp` and `ffmpeg` on `PATH`, `MUX_TOKEN_ID` and
-`MUX_TOKEN_SECRET` in the environment, and Firestore credentials with write
-access to the `tricks` collection.
+Requirements: `yt-dlp` and `ffmpeg` on `PATH`, the
+`tricktionary-api-mux-token-id` and `tricktionary-api-mux-token-secret`
+secrets, and Firestore credentials with write access to the `tricks`
+collection.
 
 ```sh
 npx tsx src/migrations/mux-videos.ts --dry-run          # only list what would be migrated
@@ -50,8 +61,8 @@ npx tsx src/migrations/mux-videos.ts --limit 5          # migrate at most 5 vide
 ## Search (Algolia)
 
 Tricks are indexed once per language in `tricktionary_<lang>`, the index
-settings live in `src/services/algolia.ts`. `ALGOLIA_API_KEY` needs write
-access to the indices.
+settings live in `src/services/algolia.ts`. The `tricktionary-api-algolia-api-key` secret
+needs write access to the indices.
 
 ### Reindexing
 

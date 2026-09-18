@@ -1,9 +1,9 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import type { ApolloContext } from '../apollo'
+import type { ApolloContext } from '../apollo.js'
 
-import type { EventDefinition, Resolvers } from '../generated/graphql'
-import type { DetailedSpeedResultDoc, SpeedResultDoc } from '../store/schema'
-import { AuthorizationError, NotFoundError, ValidationError } from '../errors'
+import type { EventDefinition, Resolvers } from '../generated/graphql.js'
+import type { DetailedSpeedResultDoc, SpeedResultDoc } from '../store/schema.js'
+import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 
 const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
   async creator (speedResult, _, { dataSources, allowUser }) {

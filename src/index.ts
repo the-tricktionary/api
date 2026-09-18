@@ -1,10 +1,12 @@
-import './tracing'
-
-import { PORT } from './config'
-import { initApollo } from './apollo'
-import { logger } from './services/logger'
-import { allowedOrigins } from './services/cors'
-import { muxWebhookHandler } from './services/muxWebhook'
+// Sentry is not imported here: under ESM the loader hooks that instrument a
+// module have to be registered before that module is loaded, and every import
+// below is loaded before any of this file runs. `tracing` is preloaded with
+// node's `--import` flag instead, see the `dev` script and the Dockerfile.
+import { PORT } from './config.js'
+import { initApollo } from './apollo.js'
+import { logger } from './services/logger.js'
+import { allowedOrigins } from './services/cors.js'
+import { muxWebhookHandler } from './services/muxWebhook.js'
 import express from 'express'
 import cors from 'cors'
 import http from 'node:http'
