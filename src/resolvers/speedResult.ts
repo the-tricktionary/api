@@ -1,45 +1,15 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import z from 'zod'
+import type z from 'zod'
 
 import type { ApolloContext } from '../apollo.js'
 import type { Resolvers } from '../generated/graphql.js'
-import type { EventDefinitionDoc, SpeedMarkDoc, SpeedResultDoc } from '../store/schema.js'
+import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/schema.js'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
+import type { speedMarkSchema } from '../validation.js'
+import { speedResultCreateSchema, speedResultUpdateSchema } from '../validation.js'
 import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../services/speedMarks.js'
 
-const MAX_MARKS = 20_000
-
-const nameSchema = z.string().trim().max(120)
-const countSchema = z.number().int().min(0).max(1_000_000)
-const eventDefinitionSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  // 24 hours ought to be enough for anybody
-  totalDuration: z.number().int().min(0).max(86_400)
-})
-const markSchema = z.object({
-  sequence: z.number().int().min(0),
-  timestamp: z.instanceof(Timestamp),
-  schema: z.string().trim().min(1).max(32),
-  value: z.number().nullish(),
-  target: z.number().int().min(0).nullish()
-})
-
-const createSchema = z.object({
-  name: nameSchema.nullish(),
-  count: countSchema.nullish(),
-  marks: z.array(markSchema).max(MAX_MARKS).nullish(),
-  eventDefinitionId: z.string().min(1).nullish(),
-  eventDefinition: eventDefinitionSchema.nullish()
-})
-
-const updateSchema = z.object({
-  name: nameSchema.nullish(),
-  count: countSchema.nullish(),
-  eventDefinitionId: z.string().min(1).nullish(),
-  eventDefinition: eventDefinitionSchema.nullish()
-})
-
-function toMarkDoc (mark: z.infer<typeof markSchema>): SpeedMarkDoc {
+function toMark (mark: z.infer<typeof speedMarkSchema>): SpeedMark {
   return {
     sequence: mark.sequence,
     timestamp: mark.timestamp.toMillis(),
@@ -110,13 +80,13 @@ export const speedResultResolvers: Resolvers = {
       allowUser.createSpeedResult.assert()
       if (!user) throw new AuthorizationError()
 
-      const data = createSchema.parse(rawData)
+      const data = speedResultCreateSchema.parse(rawData)
       const eventFields = await eventDefinitionFields(data, { dataSources }, { required: true })
 
       let count: number
-      let marks: SpeedMarkDoc[] | undefined
+      let marks: SpeedMark[] | undefined
       if (data.marks?.length) {
-        marks = data.marks.map(toMarkDoc)
+        marks = data.marks.map(toMark)
         try {
           assertValidMarkStream(marks)
         } catch (err) {
@@ -140,7 +110,7 @@ export const speedResultResolvers: Resolvers = {
     },
     async updateSpeedResult (_, { speedResultId, data: rawData }, context) {
       const speedResult = await ownedSpeedResult(speedResultId, context, 'edit')
-      const data = updateSchema.parse(rawData)
+      const data = speedResultUpdateSchema.parse(rawData)
       const eventFields = await eventDefinitionFields(data, context, { required: false })
 
       let countFields = {}

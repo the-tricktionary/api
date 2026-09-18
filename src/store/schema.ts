@@ -182,7 +182,7 @@ export function isTrickCompletion (t: any): t is TrickDoc { return t?.collection
  * a millisecond epoch timestamp rather than a Firestore Timestamp so the array
  * can be passed straight to the library's reducers.
  */
-export interface SpeedMarkDoc {
+export interface SpeedMark {
   sequence: number
   timestamp: number
   schema: string
@@ -207,7 +207,7 @@ export interface SpeedResultDoc extends DocBase {
   }
 
   /** The mark stream the result was counted from, absent for plain counts */
-  marks?: SpeedMarkDoc[]
+  marks?: SpeedMark[]
 
   /**
    * Legacy: absolute click timestamps recorded by the first v4 API, see

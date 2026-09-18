@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { createMarkReducer, filterMarkStream, simpleReducer } from '@ropescore/rulesets'
-import type { SpeedMarkDoc, SpeedResultDoc } from '../store/schema.js'
+import type { SpeedMark, SpeedResultDoc } from '../store/schema.js'
 
 /** Gaps between steps longer than this many median gaps count as a miss */
 const MISS_THRESHOLD = 1.5
@@ -27,7 +27,7 @@ function round2 (n: number) {
  * Marks recorded by the first v4 API as a bare list of absolute click
  * timestamps, one per step.
  */
-function clicksToMarks (clicks: NonNullable<SpeedResultDoc['clicks']>): SpeedMarkDoc[] {
+function clicksToMarks (clicks: NonNullable<SpeedResultDoc['clicks']>): SpeedMark[] {
   return clicks.map((click, sequence) => ({
     sequence,
     timestamp: toMillis(click),
@@ -44,7 +44,7 @@ function clicksToMarks (clicks: NonNullable<SpeedResultDoc['clicks']>): SpeedMar
  * This is lossy but keeps the pacing graph of old results, the count stays
  * whatever was stored on the document.
  */
-function graphDataToMarks (result: Pick<SpeedResultDoc, 'graphData' | 'createdAt' | 'count' | 'eventDefinition'>): SpeedMarkDoc[] {
+function graphDataToMarks (result: Pick<SpeedResultDoc, 'graphData' | 'createdAt' | 'count' | 'eventDefinition'>): SpeedMark[] {
   const offsets = (result.graphData ?? []).filter(n => Number.isFinite(n))
   if (!offsets.length) return []
   const totalDuration = result.eventDefinition?.totalDuration ?? 0
@@ -52,7 +52,7 @@ function graphDataToMarks (result: Pick<SpeedResultDoc, 'graphData' | 'createdAt
   const durationMs = totalDuration > 0 ? totalDuration * 1000 : lastOffset * 10
   const start = toMillis(result.createdAt) - durationMs
 
-  const marks: SpeedMarkDoc[] = offsets.map((offset, sequence) => ({
+  const marks: SpeedMark[] = offsets.map((offset, sequence) => ({
     sequence,
     timestamp: start + (offset * 10),
     schema: 'step',
@@ -70,7 +70,7 @@ function graphDataToMarks (result: Pick<SpeedResultDoc, 'graphData' | 'createdAt
  * The mark stream of a result, converting the legacy formats on the fly until
  * the speed-marks migration has been run.
  */
-export function marksOf (result: SpeedResultDoc): SpeedMarkDoc[] {
+export function marksOf (result: SpeedResultDoc): SpeedMark[] {
   if (Array.isArray(result.marks)) return result.marks
   if (Array.isArray(result.clicks) && result.clicks.length) return clicksToMarks(result.clicks)
   if (Array.isArray(result.graphData) && result.graphData.length) return graphDataToMarks(result)
@@ -82,7 +82,7 @@ export function marksOf (result: SpeedResultDoc): SpeedMarkDoc[] {
  * rulesets speed judges use so undo/clear marks and negative corrections
  * behave identically to the scoring app.
  */
-export function countSteps (marks: readonly SpeedMarkDoc[]): number {
+export function countSteps (marks: readonly SpeedMark[]): number {
   const reducer = createMarkReducer<string, string>(simpleReducer)
   for (const mark of marks) reducer.addMark(mark)
   const steps = reducer.tally.step ?? 0
@@ -93,7 +93,7 @@ export function countSteps (marks: readonly SpeedMarkDoc[]): number {
  * Throws if the marks can't be processed by the rulesets reducers, which
  * require a gap-free sequence starting at 0.
  */
-export function assertValidMarkStream (marks: readonly SpeedMarkDoc[]) {
+export function assertValidMarkStream (marks: readonly SpeedMark[]) {
   for (let idx = 0; idx < marks.length; idx++) {
     const mark = marks[idx]
     if (mark.sequence !== idx) throw new RangeError(`Mark ${idx} has sequence ${mark.sequence}, marks must be provided in order with a starting sequence of 0`)
@@ -109,7 +109,7 @@ export function assertValidMarkStream (marks: readonly SpeedMarkDoc[]) {
  * When the event has a total duration that is used as the duration, otherwise
  * the time from the start to the last step is used.
  */
-export function analyseMarks (rawMarks: readonly SpeedMarkDoc[], totalDuration: number): SpeedAnalysis | null {
+export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: number): SpeedAnalysis | null {
   const marks = filterMarkStream(rawMarks as Parameters<typeof filterMarkStream>[0])
   const steps = marks
     .filter(mark => mark.schema === 'step' && (mark.value ?? 1) > 0)

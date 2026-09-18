@@ -1,3 +1,4 @@
+import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
 import { GrantType, VerificationLevel } from './generated/graphql.js'
 
@@ -95,3 +96,40 @@ export const grantsSchema = z.array(grantInputSchema)
       }
     : grant
   ))
+
+// Speed results
+
+const MAX_MARKS = 20_000
+
+const speedResultNameSchema = z.string().trim().max(120)
+const speedResultCountSchema = z.number().int().min(0).max(1_000_000)
+
+/** A custom event definition embedded in a speed result, duration in seconds */
+export const eventDefinitionInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  totalDuration: z.number().int().min(0).max(3_600)
+})
+
+/** One mark of a rulesets-compatible mark stream, the timestamp arrives parsed by the Timestamp scalar */
+export const speedMarkSchema = z.object({
+  sequence: z.number().int().min(0),
+  timestamp: z.instanceof(Timestamp),
+  schema: z.string().trim().min(1).max(32),
+  value: z.number().nullish(),
+  target: z.number().int().min(0).nullish()
+})
+
+export const speedResultCreateSchema = z.object({
+  name: speedResultNameSchema.nullish(),
+  count: speedResultCountSchema.nullish(),
+  marks: z.array(speedMarkSchema).max(MAX_MARKS).nullish(),
+  eventDefinitionId: z.string().min(1).nullish(),
+  eventDefinition: eventDefinitionInputSchema.nullish()
+})
+
+export const speedResultUpdateSchema = z.object({
+  name: speedResultNameSchema.nullish(),
+  count: speedResultCountSchema.nullish(),
+  eventDefinitionId: z.string().min(1).nullish(),
+  eventDefinition: eventDefinitionInputSchema.nullish()
+})
