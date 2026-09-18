@@ -1,7 +1,7 @@
 import { Timestamp } from '@google-cloud/firestore'
-import type { Resolvers } from '../generated/graphql'
-import type { TrickCompletionDoc, TrickDoc } from '../store/schema'
-import { AuthorizationError } from '../errors'
+import type { Resolvers } from '../generated/graphql.js'
+import type { TrickCompletionDoc, TrickDoc } from '../store/schema.js'
+import { AuthorizationError } from '../errors.js'
 
 export const trickCompletionResolvers: Resolvers = {
   Mutation: {

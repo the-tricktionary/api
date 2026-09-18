@@ -1,4 +1,4 @@
-import type { Resolvers } from '../generated/graphql'
+import type { Resolvers } from '../generated/graphql.js'
 
 export const eventDefinitionResolvers: Resolvers = {
   Query: {

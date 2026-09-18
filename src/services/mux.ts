@@ -1,7 +1,9 @@
 import Mux from '@mux/mux-node'
-import { MUX_TOKEN_ID, MUX_TOKEN_SECRET } from '../config'
-import { VideoUploadStatus } from '../generated/graphql'
+import { getSecret } from './secrets.js'
+import { VideoUploadStatus } from '../generated/graphql.js'
 
-export const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET })
+const [tokenId, tokenSecret] = await Promise.all([getSecret('tricktionary-api-mux-token-id'), getSecret('tricktionary-api-mux-token-secret')])
+
+export const mux = new Mux({ tokenId, tokenSecret })
 
 export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]

@@ -1,12 +1,12 @@
 import Stripe from 'stripe'
-import { STRIPE_SK } from '../config'
-import postCountries from './post.json'
+import { getSecret } from './secrets.js'
+import postCountries from './post.json' with { type: 'json' }
 
-import type { UserDoc } from '../store/schema'
-import type { Currency } from '../generated/graphql'
+import type { UserDoc } from '../store/schema.js'
+import type { Currency } from '../generated/graphql.js'
 
 // Uses the API version the installed SDK is pinned to
-const stripe = new Stripe(STRIPE_SK)
+const stripe = new Stripe(await getSecret('tricktionary-api-stripe-sk'))
 
 // TODO caching
 

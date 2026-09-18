@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql'
+import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {

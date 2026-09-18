@@ -22,5 +22,7 @@ ENV GITHUB_SHA=${GITHUB_SHA}
 ENV GITHUB_REF=${GITHUB_REF}
 WORKDIR /app
 COPY --from=runtime_deps /src/node_modules /app/node_modules
+# the package is ESM, and node decides that from the nearest package.json
+COPY --from=runtime_deps /src/package.json /app/package.json
 COPY --from=builder /src/dist /app
-CMD ["node", "src/index.js"]
+CMD ["node", "--import", "./src/tracing.js", "src/index.js"]

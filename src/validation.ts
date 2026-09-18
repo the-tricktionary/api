@@ -1,7 +1,7 @@
 import z from 'zod'
-import { GrantType, VerificationLevel } from './generated/graphql'
+import { GrantType, VerificationLevel } from './generated/graphql.js'
 
-import type { Grant } from './store/schema'
+import type { Grant } from './store/schema.js'
 
 /** A BCP-47-ish language tag, normalised to lowercase, e.g. `en`, `sv` or `pt-br` */
 export const langSchema = z.string().trim()
