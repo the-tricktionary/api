@@ -20,20 +20,21 @@
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
  *     access to the `trick-localisations` collection
- *   - ALGOLIA_APP_ID and an ALGOLIA_API_KEY with write access in the environment
+ *   - ALGOLIA_APP_ID in the environment, and a tricktionary-api-algolia-api-key
+ *     secret with write access, or GSM_<name> for it in the environment
  *
  * Usage:
  *   npx tsx src/migrations/algolia-reindex.ts [--dry-run]
  */
-import '../config'
+import '../config.js'
 import { parseArgs } from 'node:util'
 import { Firestore } from '@google-cloud/firestore'
-import { logger } from '../services/logger'
-import { saveTrickRecords, setTrickIndexSettings, trickIndexName, trickRecord } from '../services/algolia'
+import { logger } from '../services/logger.js'
+import { saveTrickRecords, setTrickIndexSettings, trickIndexName, trickRecord } from '../services/algolia.js'
 
-import { TRICKTIONARY_RULES_ID } from '../store/schema'
+import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
 
-import type { TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema'
+import type { TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema.js'
 
 const { values: args } = parseArgs({
   options: {

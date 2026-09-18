@@ -1,17 +1,18 @@
 import { mergeResolvers } from '@graphql-tools/merge'
-import { TimestampScalar } from '../scalars'
+import { TimestampScalar } from '../scalars.js'
 
-import { userResolvers } from './user'
-import { trickResolvers } from './trick'
-import { trickCompletionResolvers } from './trickCompletion'
-import { trickVideoResolvers } from './trickVideo'
-import { speedResultResolvers } from './speedResult'
-import { productResolvers } from './products'
-import { eventDefinitionResolvers } from './eventDefinitions'
-import { rulesetResolvers } from './ruleset'
-import { trickLevelResolvers } from './trickLevel'
+import { userResolvers } from './user.js'
+import { trickResolvers } from './trick.js'
+import { trickCompletionResolvers } from './trickCompletion.js'
+import { trickVideoResolvers } from './trickVideo.js'
+import { speedResultResolvers } from './speedResult.js'
+import { productResolvers } from './products.js'
+import { eventDefinitionResolvers } from './eventDefinitions.js'
+import { rulesetResolvers } from './ruleset.js'
+import { languageResolvers } from './language.js'
+import { trickLevelResolvers } from './trickLevel.js'
 
-import type { Resolvers } from '../generated/graphql'
+import type { Resolvers } from '../generated/graphql.js'
 
 export const commonResolvers: Resolvers = {
   Timestamp: TimestampScalar
@@ -27,5 +28,6 @@ export const rootResolver = mergeResolvers([
   userResolvers,
   eventDefinitionResolvers,
   rulesetResolvers,
+  languageResolvers,
   trickLevelResolvers
 ]) as Resolvers

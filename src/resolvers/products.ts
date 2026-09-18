@@ -1,6 +1,6 @@
-import { createCheckoutSession, getPrices, getProducts, getShippingRates } from '../services/stripe'
+import { createCheckoutSession, getPrices, getProducts, getShippingRates } from '../services/stripe.js'
 
-import type { Product, Currency, Resolvers } from '../generated/graphql'
+import type { Product, Currency, Resolvers } from '../generated/graphql.js'
 import type Stripe from 'stripe'
 
 export const productResolvers: Resolvers = {

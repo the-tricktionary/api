@@ -1,6 +1,10 @@
+/**
+ * Preloaded with node's `--import` flag rather than imported from `index`, so
+ * that `Sentry.init` runs before the libraries it instruments are loaded.
+ */
 import * as Sentry from '@sentry/node'
-import { SENTRY_DSN, GITHUB_SHA } from './config'
-import { logger } from './services/logger'
+import { SENTRY_DSN, GITHUB_SHA } from './config.js'
+import { logger } from './services/logger.js'
 
 if (SENTRY_DSN != null) {
   Sentry.init({

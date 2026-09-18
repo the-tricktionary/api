@@ -39,6 +39,8 @@ const typeDefs = gql`
     me: User
     """Exact match on email, username or user id. Super admins only."""
     findUsers (query: String!): [User!]!
+    """Every user that holds at least one grant. Super admins only."""
+    usersWithGrants: [User!]!
 
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick
@@ -53,6 +55,8 @@ const typeDefs = gql`
     eventDefinitions: [EventDefinition!]! @cacheControl(maxAge: 3600)
 
     rulesets: [Ruleset!]! @cacheControl(maxAge: 3600)
+
+    languages: [Language!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
@@ -94,6 +98,10 @@ const typeDefs = gql`
     """
     createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload!
     removeTrickVideo (trickId: ID!, videoId: String!): Trick!
+
+    # Languages
+    createLanguage (lang: String!): Language!
+    setLanguageEnabled (lang: String!, enabled: Boolean!): Language!
 
     # Users
     setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
@@ -164,6 +172,12 @@ const typeDefs = gql`
     isPrimary: Boolean!
     createdAt: Timestamp!
     updatedAt: Timestamp!
+  }
+
+  type Language @cacheControl(maxAge: 3600) {
+    id: ID!
+    """Whether the public site offers the language"""
+    enabled: Boolean!
   }
 
   type LocalisedString {

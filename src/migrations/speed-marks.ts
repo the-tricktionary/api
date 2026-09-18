@@ -8,11 +8,11 @@
  * The legacy fields are left in place, the API prefers `marks` once it is set.
  * Run with: npx tsx src/migrations/speed-marks.ts
  */
-import '../config'
+import '../config.js'
 import { Firestore } from '@google-cloud/firestore'
-import { logger } from '../services/logger'
-import { marksOf } from '../services/speedMarks'
-import type { SpeedResultDoc } from '../store/schema'
+import { logger } from '../services/logger.js'
+import { marksOf } from '../services/speedMarks.js'
+import type { SpeedResultDoc } from '../store/schema.js'
 
 const firestore = new Firestore()
 const BATCH_SIZE = 200

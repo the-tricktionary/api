@@ -1,15 +1,15 @@
 import z from 'zod'
 import * as Sentry from '@sentry/node'
 import { FieldValue } from '@google-cloud/firestore'
-import { AuthorizationError, NotFoundError, UpstreamError } from '../errors'
-import { VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql'
-import { MUX_UPLOAD_CORS_ORIGIN } from '../config'
-import { mux } from '../services/mux'
-import { isAllowedOrigin } from '../services/cors'
-import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation'
+import { AuthorizationError, NotFoundError, UpstreamError } from '../errors.js'
+import { VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import { MUX_UPLOAD_CORS_ORIGIN } from '../config.js'
+import { mux } from '../services/mux.js'
+import { isAllowedOrigin } from '../services/cors.js'
+import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { TrickDoc, TrickVideoUploadDoc, YouTubeVideo } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { TrickDoc, TrickVideoUploadDoc, YouTubeVideo } from '../store/schema.js'
 
 const youTubeVideoSchema = z.object({
   videoId: youTubeVideoIdSchema,

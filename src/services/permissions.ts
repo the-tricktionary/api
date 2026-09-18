@@ -1,7 +1,7 @@
-import { AuthorizationError } from '../errors'
-import { GrantType, VerificationLevel } from '../generated/graphql'
-import { TRICKTIONARY_RULES_ID } from '../store/schema'
-import type { Grant, SpeedResultDoc, TrickLevelDoc, UserDoc } from '../store/schema'
+import { AuthorizationError } from '../errors.js'
+import { GrantType, VerificationLevel } from '../generated/graphql.js'
+import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
+import type { Grant, SpeedResultDoc, TrickLevelDoc, UserDoc } from '../store/schema.js'
 import type Pino from 'pino'
 
 interface AllowUserContext { logger: Pino.Logger }
@@ -58,11 +58,15 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editTrickVideos: editTricks,
     getTrickVideoUploads: editTricks,
 
+    createLanguage: isSuperAdmin,
+    setLanguageEnabled: isSuperAdmin,
+
     createRuleset: isSuperAdmin,
     editRuleset: isSuperAdmin,
     setPrimaryRuleset: isSuperAdmin,
 
     findUsers: isSuperAdmin,
+    getUsersWithGrants: isSuperAdmin,
     setUserGrants: isSuperAdmin,
 
     localisation (lang: string) {

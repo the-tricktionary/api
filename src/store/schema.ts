@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql'
+import type { Discipline, GrantType, ProfileOptions, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -87,6 +87,14 @@ export function trickLocalisationId (trickId: TrickDoc['id'], lang: string) { re
 export function trickLocalisationLang (id: TrickLocalisationDoc['id'], trickId: TrickDoc['id']) {
   return id.startsWith(`${trickId}-`) ? id.slice(trickId.length + 1) : undefined
 }
+
+export interface LanguageDoc extends DocBase {
+  readonly collection: 'languages'
+
+  /** whether the public site offers the language */
+  enabled: boolean
+}
+export function isLanguage (t: any): t is LanguageDoc { return t?.collection === 'languages' }
 
 export interface RulesetDoc extends DocBase {
   readonly collection: 'rulesets'

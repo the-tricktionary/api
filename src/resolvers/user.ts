@@ -1,9 +1,9 @@
-import { NotFoundError, ValidationError } from '../errors'
-import { GrantType } from '../generated/graphql'
-import { grantsSchema } from '../validation'
+import { NotFoundError, ValidationError } from '../errors.js'
+import { GrantType } from '../generated/graphql.js'
+import { grantsSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { UserDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { UserDoc } from '../store/schema.js'
 
 export const userResolvers: Resolvers = {
   Query: {
@@ -26,6 +26,10 @@ export const userResolvers: Resolvers = {
       for (const found of [...byEmail, ...byUsername, ...(byId ? [byId] : [])]) users.set(found.id, found)
 
       return [...users.values()]
+    },
+    async usersWithGrants (_, args, { dataSources, allowUser }) {
+      allowUser.getUsersWithGrants.assert()
+      return await dataSources.users.findManyWithGrants()
     }
   },
   Mutation: {
@@ -44,6 +48,12 @@ export const userResolvers: Resolvers = {
       await Promise.all([...rulesIds].map(async rulesId => {
         const ruleset = await dataSources.rulesets.findOneById(rulesId)
         if (!ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
+      }))
+
+      const langs = new Set(parsedGrants.flatMap(grant => grant.type === GrantType.Translator ? [grant.lang] : []))
+      await Promise.all([...langs].map(async lang => {
+        const language = await dataSources.languages.findOneById(lang)
+        if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
       }))
 
       return await (dataSources.users.updateOnePartial(userId, { grants: parsedGrants }) as Promise<UserDoc>)

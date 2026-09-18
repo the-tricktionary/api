@@ -1,4 +1,4 @@
-import type { Resolvers } from '../generated/graphql'
+import type { Resolvers } from '../generated/graphql.js'
 
 /** Rulesets competition event lookup codes look like e.ijru.sp.sr.srss.1.30 */
 const lookupCodePattern = /^e\.[a-z0-9-]+\.(fs|sp|oa)\.(sr|dd|wh|ts|xd)\.[a-z0-9-]+\.\d+\.(\d+x)?\d+$/

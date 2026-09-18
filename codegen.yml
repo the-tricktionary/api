@@ -14,19 +14,20 @@ generates:
       avoidOptionals: false
       contextType: ApolloContext
       mappers:
-        User: ../store/schema#UserDoc
-        Trick: ../store/schema#TrickDoc
-        TrickLevel: ../store/schema#TrickLevelDoc
-        TrickVideoUpload: ../store/schema#TrickVideoUploadDoc
-        Ruleset: ../store/schema#RulesetDoc
-        TrickCompletion: ../store/schema#TrickCompletionDoc
-        SpeedResult: ../store/schema#SpeedResultDoc
-        SpeedMark: ../store/schema#SpeedMarkDoc
-        EventDefinition: ../store/schema#EventDefinitionDoc
+        User: ../store/schema.js#UserDoc
+        Trick: ../store/schema.js#TrickDoc
+        TrickLevel: ../store/schema.js#TrickLevelDoc
+        TrickVideoUpload: ../store/schema.js#TrickVideoUploadDoc
+        Ruleset: ../store/schema.js#RulesetDoc
+        Language: ../store/schema.js#LanguageDoc
+        TrickCompletion: ../store/schema.js#TrickCompletionDoc
+        SpeedResult: ../store/schema.js#SpeedResultDoc
+        SpeedMark: ../store/schema.js#SpeedMarkDoc
+        EventDefinition: ../store/schema.js#EventDefinitionDoc
     plugins:
       - typescript
       - typescript-resolvers
       - add:
           content: |
-            import type { ApolloContext } from '../apollo'
+            import type { ApolloContext } from '../apollo.js'
             import type { Timestamp } from '@google-cloud/firestore'

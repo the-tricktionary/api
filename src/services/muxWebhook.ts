@@ -1,18 +1,20 @@
 import * as Sentry from '@sentry/node'
 import { FieldValue } from '@google-cloud/firestore'
-import { MUX_WEBHOOK_SECRET } from '../config'
-import { VideoHost, VideoUploadStatus } from '../generated/graphql'
-import { mux } from './mux'
-import { logger as baseLogger } from './logger'
-import { createDataSources } from '../store/firestoreDataSource'
+import { VideoHost, VideoUploadStatus } from '../generated/graphql.js'
+import { mux } from './mux.js'
+import { getSecret } from './secrets.js'
+import { logger as baseLogger } from './logger.js'
+import { createDataSources } from '../store/firestoreDataSource.js'
 
 import type Mux from '@mux/mux-node'
 import type { RequestHandler } from 'express'
 import type Pino from 'pino'
-import type { DataSources } from '../store/firestoreDataSource'
-import type { MuxVideo, TrickVideoUploadDoc } from '../store/schema'
+import type { DataSources } from '../store/firestoreDataSource.js'
+import type { MuxVideo, TrickVideoUploadDoc } from '../store/schema.js'
 
 type MuxWebhookEvent = Mux.Webhooks.UnwrapWebhookEvent
+
+const webhookSecret = await getSecret('tricktionary-api-mux-webhook-secret')
 
 interface MuxWebhookContext {
   dataSources: DataSources
@@ -128,7 +130,7 @@ export const muxWebhookHandler: RequestHandler = async (req, res) => {
 
   let event: MuxWebhookEvent
   try {
-    event = await mux.webhooks.unwrap(body, req.headers, MUX_WEBHOOK_SECRET)
+    event = await mux.webhooks.unwrap(body, req.headers, webhookSecret)
   } catch (err) {
     logger.warn(err, 'Rejected a Mux webhook we could not verify')
     res.status(400).send('Invalid signature')

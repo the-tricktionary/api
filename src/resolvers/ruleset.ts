@@ -1,8 +1,8 @@
-import { CollisionError, NotFoundError } from '../errors'
-import { localisedStringsSchema, rulesIdSchema } from '../validation'
+import { CollisionError, NotFoundError } from '../errors.js'
+import { localisedStringsSchema, rulesIdSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { RulesetDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { RulesetDoc } from '../store/schema.js'
 
 export const rulesetResolvers: Resolvers = {
   Query: {
@@ -15,6 +15,11 @@ export const rulesetResolvers: Resolvers = {
       allowUser.createRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
       const parsedNames = localisedStringsSchema.parse(names)
+
+      await Promise.all(Object.keys(parsedNames).map(async lang => {
+        const language = await dataSources.languages.findOneById(lang)
+        if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
+      }))
 
       const existing = await dataSources.rulesets.findOneById(id)
       if (existing) throw new CollisionError(`A ruleset with the id ${id} already exists`, { extensions: { entity: 'ruleset', id } })
@@ -29,6 +34,11 @@ export const rulesetResolvers: Resolvers = {
       allowUser.editRuleset.assert()
       const id = rulesIdSchema.parse(rulesId)
       const parsedNames = localisedStringsSchema.parse(names)
+
+      await Promise.all(Object.keys(parsedNames).map(async lang => {
+        const language = await dataSources.languages.findOneById(lang)
+        if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
+      }))
 
       const existing = await dataSources.rulesets.findOneById(id)
       if (!existing) throw new NotFoundError(`Ruleset ${id} not found`, { extensions: { entity: 'ruleset', id } })

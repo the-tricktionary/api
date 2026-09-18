@@ -1,11 +1,11 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
 
-import type { ApolloContext } from '../apollo'
-import type { Resolvers } from '../generated/graphql'
-import type { EventDefinitionDoc, SpeedMarkDoc, SpeedResultDoc } from '../store/schema'
-import { AuthorizationError, NotFoundError, ValidationError } from '../errors'
-import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../services/speedMarks'
+import type { ApolloContext } from '../apollo.js'
+import type { Resolvers } from '../generated/graphql.js'
+import type { EventDefinitionDoc, SpeedMarkDoc, SpeedResultDoc } from '../store/schema.js'
+import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
+import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../services/speedMarks.js'
 
 const MAX_MARKS = 20_000
 

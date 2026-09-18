@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { createMarkReducer, filterMarkStream, simpleReducer } from '@ropescore/rulesets'
-import type { SpeedMarkDoc, SpeedResultDoc } from '../store/schema'
+import type { SpeedMarkDoc, SpeedResultDoc } from '../store/schema.js'
 
 /** Gaps between steps longer than this many median gaps count as a miss */
 const MISS_THRESHOLD = 1.5

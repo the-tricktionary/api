@@ -1,12 +1,12 @@
 import z from 'zod'
-import { isTrick, trickLocalisationId } from '../store/schema'
-import { Discipline, TrickType } from '../generated/graphql'
-import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors'
-import { tryIndexTrick, searchTricks } from '../services/algolia'
-import { langSchema, slugSchema, trickLocalisationSchema } from '../validation'
+import { isTrick, trickLocalisationId } from '../store/schema.js'
+import { Discipline, TrickType } from '../generated/graphql.js'
+import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
+import { tryIndexTrick, searchTricks } from '../services/algolia.js'
+import { langSchema, slugSchema, trickLocalisationSchema } from '../validation.js'
 
-import type { Resolvers } from '../generated/graphql'
-import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql.js'
+import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema.js'
 
 const createTrickSchema = z.object({
   discipline: z.enum(Discipline),
@@ -147,8 +147,12 @@ export const trickResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const parsed = trickLocalisationSchema.parse(data)
 
-      const trick = await dataSources.tricks.findOneById(trickId)
+      const [trick, language] = await Promise.all([
+        dataSources.tricks.findOneById(trickId),
+        dataSources.languages.findOneById(parsedLang)
+      ])
       if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      if (!language) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
 
       const localisationId = trickLocalisationId(trickId, parsedLang)
       const existing = await dataSources.trickLocalisations.findOneById(localisationId)
