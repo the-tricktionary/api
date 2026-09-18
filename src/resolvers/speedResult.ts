@@ -1,139 +1,191 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
+import z from 'zod'
+
 import type { ApolloContext } from '../apollo'
-
-import type { EventDefinition, Resolvers } from '../generated/graphql'
-import type { DetailedSpeedResultDoc, SpeedResultDoc } from '../store/schema'
+import type { Resolvers } from '../generated/graphql'
+import type { EventDefinitionDoc, SpeedMarkDoc, SpeedResultDoc } from '../store/schema'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors'
+import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../services/speedMarks'
 
-const sharedResolvers: Resolvers['SimpleSpeedResult'] = {
-  async creator (speedResult, _, { dataSources, allowUser }) {
-    const creator = await dataSources.users.findOneById(speedResult.userId, { ttl: 60 })
-    if (!creator) throw new NotFoundError('User not found', { extensions: { entity: 'user', id: speedResult.userId } })
-    allowUser.user(creator).speedResult(speedResult).getCreator.assert()
-    return creator
-  },
-  async eventDefinition (speedResult, _, { dataSources }) {
-    if (speedResult.eventDefinitionId) return await (dataSources.eventDefinitions.findOneById(speedResult.eventDefinitionId, { ttl: 3600 }) as Promise<EventDefinition>)
-    else if (speedResult.eventDefinition) {
-      return {
-        ...speedResult.eventDefinition,
-        collection: 'event-definitions',
-        id: Buffer.from(`${speedResult.eventDefinition.name}-${speedResult.eventDefinition.totalDuration}`, 'utf-8').toString('base64')
-      }
-    } else throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.eventDefinition } })
+const MAX_MARKS = 20_000
+
+const nameSchema = z.string().trim().max(120)
+const countSchema = z.number().int().min(0).max(1_000_000)
+const eventDefinitionSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  // 24 hours ought to be enough for anybody
+  totalDuration: z.number().int().min(0).max(86_400)
+})
+const markSchema = z.object({
+  sequence: z.number().int().min(0),
+  timestamp: z.instanceof(Timestamp),
+  schema: z.string().trim().min(1).max(32),
+  value: z.number().nullish(),
+  target: z.number().int().min(0).nullish()
+})
+
+const createSchema = z.object({
+  name: nameSchema.nullish(),
+  count: countSchema.nullish(),
+  marks: z.array(markSchema).max(MAX_MARKS).nullish(),
+  eventDefinitionId: z.string().min(1).nullish(),
+  eventDefinition: eventDefinitionSchema.nullish()
+})
+
+const updateSchema = z.object({
+  name: nameSchema.nullish(),
+  count: countSchema.nullish(),
+  eventDefinitionId: z.string().min(1).nullish(),
+  eventDefinition: eventDefinitionSchema.nullish()
+})
+
+function toMarkDoc (mark: z.infer<typeof markSchema>): SpeedMarkDoc {
+  return {
+    sequence: mark.sequence,
+    timestamp: mark.timestamp.toMillis(),
+    schema: mark.schema,
+    ...(mark.value != null ? { value: mark.value } : {}),
+    ...(mark.target != null ? { target: mark.target } : {})
   }
 }
 
-async function clicksPerSecond ({ clicks, eventDefinitionId, eventDefinition }: DetailedSpeedResultDoc, _: unknown, { dataSources }: ApolloContext) {
-  const eDef = eventDefinitionId
-    ? await dataSources.eventDefinitions.findOneById(eventDefinitionId, { ttl: 3600 })
-    : eventDefinition
-  if (!eDef) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: eventDefinitionId } })
-  return Math.round(clicks.length / eDef.totalDuration * 100) / 100
+/**
+ * Resolves the event definition of a result, either the linked document or
+ * the custom one embedded in the result.
+ */
+async function eventDefinitionOf (speedResult: SpeedResultDoc, { dataSources }: Pick<ApolloContext, 'dataSources'>): Promise<EventDefinitionDoc> {
+  if (speedResult.eventDefinitionId) {
+    const eventDefinition = await dataSources.eventDefinitions.findOneById(speedResult.eventDefinitionId, { ttl: 3600 })
+    if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.eventDefinitionId } })
+    return eventDefinition
+  } else if (speedResult.eventDefinition) {
+    return {
+      ...speedResult.eventDefinition,
+      collection: 'event-definitions',
+      // A stable id for the client cache, custom definitions have no document
+      id: Buffer.from(`${speedResult.eventDefinition.name}-${speedResult.eventDefinition.totalDuration}`, 'utf-8').toString('base64')
+    } as EventDefinitionDoc
+  } else {
+    throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.id } })
+  }
 }
 
-async function misses (speedResult: DetailedSpeedResultDoc, _: unknown, context: ApolloContext) {
-  const average = await clicksPerSecond(speedResult, _, context)
-
-  let misses = 0
-  let currAvg = 0
-  for (let i = 1; i < speedResult.clicks.length; i++) {
-    const prev = Timestamp.prototype.toMillis.call(speedResult.clicks[i - 1])
-    const curr = Timestamp.prototype.toMillis.call(speedResult.clicks[i])
-    currAvg = 100 * (1 / (curr - prev))
-    if ((average / currAvg) > 1.5) {
-      misses++
+/**
+ * Validates the event definition part of an input, returning the fields to
+ * write on the result document. `required` decides whether omitting both is
+ * an error (create) or means "leave as is" (update).
+ */
+async function eventDefinitionFields (data: { eventDefinitionId?: string | null, eventDefinition?: { name: string, totalDuration: number } | null }, { dataSources }: Pick<ApolloContext, 'dataSources'>, { required }: { required: boolean }) {
+  if (data.eventDefinitionId) {
+    const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
+    if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
+    return {
+      eventDefinitionId: eventDefinition.id,
+      eventDefinition: FieldValue.delete() as unknown as undefined
     }
+  } else if (data.eventDefinition) {
+    return {
+      eventDefinitionId: FieldValue.delete() as unknown as undefined,
+      eventDefinition: data.eventDefinition
+    }
+  } else if (required) {
+    throw new ValidationError('No event definition or event definition id specified')
   }
-  return misses
+  return {}
+}
+
+async function ownedSpeedResult (speedResultId: string, { dataSources, allowUser }: Pick<ApolloContext, 'dataSources' | 'allowUser'>, action: 'edit' | 'delete') {
+  const speedResult = await dataSources.speedResults.findOneById(speedResultId)
+  if (!speedResult) throw new NotFoundError('Speed result not found', { extensions: { entity: 'speed-result', id: speedResultId } })
+  const speedResultUser = await dataSources.users.findOneById(speedResult.userId, { ttl: 3600 })
+  if (!speedResultUser) throw new NotFoundError('Speed result user not found', { extensions: { entity: 'user', id: speedResult.userId } })
+  allowUser.user(speedResultUser).speedResult(speedResult)[action].assert()
+  return speedResult
 }
 
 export const speedResultResolvers: Resolvers = {
   Query: {},
   Mutation: {
-    // TODO prevent XSS on name
-    async createSpeedResult (_, { data }, { dataSources, allowUser, user }) {
+    async createSpeedResult (_, { data: rawData }, { dataSources, allowUser, user }) {
       allowUser.createSpeedResult.assert()
       if (!user) throw new AuthorizationError()
 
-      let eObj
-      if (data.eventDefinitionId) {
-        const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
-        if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
-        eObj = { eventDefinitionId: eventDefinition.id }
-      } else if (data.eventDefinition) {
-        eObj = { eventDefinition: data.eventDefinition }
+      const data = createSchema.parse(rawData)
+      const eventFields = await eventDefinitionFields(data, { dataSources }, { required: true })
+
+      let count: number
+      let marks: SpeedMarkDoc[] | undefined
+      if (data.marks?.length) {
+        marks = data.marks.map(toMarkDoc)
+        try {
+          assertValidMarkStream(marks)
+        } catch (err) {
+          throw new ValidationError(err as Error)
+        }
+        count = countSteps(marks)
+      } else if (typeof data.count === 'number') {
+        count = data.count
       } else {
-        throw new ValidationError('No event definition or event definition id specified', {})
+        throw new ValidationError('A count is required when no marks are provided')
       }
 
       return await (dataSources.speedResults.createOne({
         ...(data.name ? { name: data.name } : {}),
         userId: user.id,
         createdAt: Timestamp.now(),
-        count: data.count,
-        ...eObj,
-        ...(Array.isArray(data.clicks) && data.clicks.length ? { clicks: data.clicks } : {})
+        count,
+        ...eventFields,
+        ...(marks ? { marks } : {})
       }, { ttl: 60 }) as Promise<SpeedResultDoc>)
     },
-    async updateSpeedResult (_, { speedResultId, data }, { allowUser, dataSources }) {
-      const speedResult = await dataSources.speedResults.findOneById(speedResultId)
-      if (!speedResult) throw new NotFoundError('Speed result not found', { extensions: { entity: 'speed-result', id: speedResultId } })
-      const speedResultUser = await dataSources.users.findOneById(speedResult.userId, { ttl: 3600 })
-      if (!speedResultUser) throw new NotFoundError('Speed result user not found', { extensions: { entity: 'speed-result-user', id: speedResult.userId } })
-      allowUser.user(speedResultUser).speedResult(speedResult).edit.assert()
+    async updateSpeedResult (_, { speedResultId, data: rawData }, context) {
+      const speedResult = await ownedSpeedResult(speedResultId, context, 'edit')
+      const data = updateSchema.parse(rawData)
+      const eventFields = await eventDefinitionFields(data, context, { required: false })
 
-      let eObj = {}
-      if (data.eventDefinitionId) {
-        const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
-        if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
-        eObj = {
-          eventDefinitionId: eventDefinition.id,
-          eventDefinition: FieldValue.delete() as any as undefined
-        }
-      } else if (data.eventDefinition) {
-        eObj = {
-          eventDefinitionId: FieldValue.delete() as any as undefined,
-          eventDefinition: data.eventDefinition
-        }
+      let countFields = {}
+      if (typeof data.count === 'number') {
+        if (marksOf(speedResult).length) throw new ValidationError('The count of a result recorded from marks is derived from the marks and cannot be changed')
+        countFields = { count: data.count }
       }
 
-      return await (dataSources.speedResults.updateOnePartial(speedResult.id, {
-        name: data.name ?? (FieldValue.delete()),
-        ...eObj
+      // undefined leaves the name alone, null or an empty string clears it
+      let nameFields = {}
+      if (data.name !== undefined) {
+        const name = data.name ?? ''
+        nameFields = { name: name.length > 0 ? name : (FieldValue.delete() as unknown as undefined) }
+      }
+
+      return await (context.dataSources.speedResults.updateOnePartial(speedResult.id, {
+        ...nameFields,
+        ...countFields,
+        ...eventFields
       }) as Promise<SpeedResultDoc>)
     },
-    async deleteSpeedResult (_, { speedResultId }, { allowUser, dataSources }) {
-      const speedResult = await dataSources.speedResults.findOneById(speedResultId)
-      if (!speedResult) throw new NotFoundError('Speed result not found', { extensions: { entity: 'speed-result', id: speedResultId } })
-      const speedResultUser = await dataSources.users.findOneById(speedResult.userId, { ttl: 3600 })
-      if (!speedResultUser) throw new NotFoundError('Speed result user not found', { extensions: { entity: 'speed-result-user', id: speedResult.userId } })
-      allowUser.user(speedResultUser).speedResult(speedResult).delete.assert()
-      await dataSources.speedResults.deleteOne(speedResult.id)
+    async deleteSpeedResult (_, { speedResultId }, context) {
+      const speedResult = await ownedSpeedResult(speedResultId, context, 'delete')
+      await context.dataSources.speedResults.deleteOne(speedResult.id)
       return speedResult
     }
   },
-  SimpleSpeedResult: sharedResolvers,
-  DetailedSpeedResult: {
-    ...sharedResolvers,
-    // TODO prevent having to run clicksPerSecond three times...
-    clicksPerSecond,
-    misses,
-    async jumpsLost (speedResult, _, context) {
-      const average = await clicksPerSecond(speedResult, _, context)
-      const numMisses = await misses(speedResult, _, context)
-
-      return Math.ceil(numMisses * average)
+  SpeedResult: {
+    async creator (speedResult, _, { dataSources, allowUser }) {
+      const creator = await dataSources.users.findOneById(speedResult.userId, { ttl: 60 })
+      if (!creator) throw new NotFoundError('User not found', { extensions: { entity: 'user', id: speedResult.userId } })
+      allowUser.user(creator).speedResult(speedResult).getCreator.assert()
+      return creator
     },
-    maxClicksPerSecond ({ clicks }) {
-      let max = 0
-      for (let i = 1; i < clicks.length; i++) {
-        const prev = Timestamp.prototype.toMillis.call(clicks[i - 1])
-        const curr = Timestamp.prototype.toMillis.call(clicks[i])
-        const cps = 100 * (1 / (curr - prev))
-        if (cps >= max) max = cps
-      }
-      return Math.round(max * 100) / 100
+    async eventDefinition (speedResult, _, context) {
+      return await eventDefinitionOf(speedResult, context)
+    },
+    marks (speedResult) {
+      return marksOf(speedResult)
+    },
+    async analysis (speedResult, _, context) {
+      const marks = marksOf(speedResult)
+      if (!marks.length) return null
+      const eventDefinition = await eventDefinitionOf(speedResult, context)
+      return analyseMarks(marks, eventDefinition.totalDuration)
     }
   }
 }

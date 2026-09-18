@@ -101,10 +101,20 @@ export interface TrickCompletionDoc extends DocBase {
 }
 export function isTrickCompletion (t: any): t is TrickDoc { return t?.collection === 'trick-completions' }
 
-export type SpeedResultDoc = SimpleSpeedResultDoc | DetailedSpeedResultDoc
-export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed' }
+/**
+ * A mark in the same shape as the @ropescore/rulesets mark stream, stored with
+ * a millisecond epoch timestamp rather than a Firestore Timestamp so the array
+ * can be passed straight to the library's reducers.
+ */
+export interface SpeedMarkDoc {
+  sequence: number
+  timestamp: number
+  schema: string
+  value?: number
+  target?: number
+}
 
-export interface SimpleSpeedResultDoc extends DocBase {
+export interface SpeedResultDoc extends DocBase {
   readonly collection: 'speed-results'
   name?: string
   userId: UserDoc['id']
@@ -119,17 +129,30 @@ export interface SimpleSpeedResultDoc extends DocBase {
     totalDuration: number
     name: string
   }
-}
-export function isSimpleSpeedResult (t: any): t is SimpleSpeedResultDoc { return t?.collection === 'speed-results' && !t.clicks }
 
-export interface DetailedSpeedResultDoc extends SimpleSpeedResultDoc {
-  clicks: Timestamp[]
+  /** The mark stream the result was counted from, absent for plain counts */
+  marks?: SpeedMarkDoc[]
+
+  /**
+   * Legacy: absolute click timestamps recorded by the first v4 API, see
+   * src/migrations/speed-marks.ts which converts these into marks
+   */
+  clicks?: Timestamp[]
+  /**
+   * Legacy: pairwise averaged click offsets in 10 ms units, mirrored from
+   * the v2 realtime database, see src/migrations/speed-marks.ts
+   */
+  graphData?: number[]
+  /** Key of the mirrored v2 realtime database entry, kept so deletes propagate */
+  rtdKey?: string
 }
-export function isDetailedSpeedResult (t: any): t is DetailedSpeedResultDoc { return t?.collection === 'speed-results' && !!t.clicks }
+export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed-results' }
 
 export interface EventDefinitionDoc extends DocBase {
   collection: 'event-definitions'
   name: string
   totalDuration: number
+  /** Rulesets competition event lookup code (without version), if this is a known competition event */
+  lookupCode?: string
 }
 export function isEventDefinition (t: any): t is EventDefinitionDoc { return t?.collection === 'event-definitions' }
