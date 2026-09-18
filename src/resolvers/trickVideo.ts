@@ -1,8 +1,10 @@
 import z from 'zod'
 import * as Sentry from '@sentry/node'
+import { FieldValue } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, UpstreamError } from '../errors'
 import { VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql'
-import { DEFAULT_UPLOAD_CORS_ORIGIN, mux } from '../services/mux'
+import { MUX_UPLOAD_CORS_ORIGIN } from '../config'
+import { mux } from '../services/mux'
 import { isAllowedOrigin } from '../services/cors'
 import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation'
 
@@ -51,20 +53,15 @@ export const trickVideoResolvers: Resolvers = {
         ...(slowMoStart != null ? { slowMoStart } : {})
       }
 
-      const collection = dataSources.tricks.collection
-      await collection.firestore.runTransaction(async t => {
-        const ref = collection.doc(trickId)
-        const trick = (await t.get(ref)).data()
-        if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      const trick = await dataSources.tricks.findOneById(trickId)
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+      // adding a video that's already there is a no-op rather than an error
+      if (trick.videos.some(v => v.host === VideoHost.YouTube && v.videoId === videoId)) return trick
 
-        const videos = trick.videos ?? []
-        // adding a video that's already there is a no-op rather than an error
-        if (videos.some(v => v.host === VideoHost.YouTube && v.videoId === videoId)) return
-
-        t.update(ref.withConverter(null), { videos: [...videos, video], updatedBy: user.id })
-      })
-
-      return await reloadTrick(trickId, dataSources)
+      return await (dataSources.tricks.updateOnePartial(trickId, {
+        videos: FieldValue.arrayUnion(video) as any as TrickDoc['videos'],
+        updatedBy: user.id
+      }) as Promise<TrickDoc>)
     },
     async createTrickVideoUpload (_, { trickId, data }, { dataSources, allowUser, user, req }) {
       allowUser.editTrickVideos.assert()
@@ -78,7 +75,7 @@ export const trickVideoResolvers: Resolvers = {
       // it was created for, so it has to be the caller's own one
       const origin = req.get('origin')
       const upload = await mux.video.uploads.create({
-        cors_origin: isAllowedOrigin(origin) ? origin : DEFAULT_UPLOAD_CORS_ORIGIN,
+        cors_origin: isAllowedOrigin(origin) ? origin : MUX_UPLOAD_CORS_ORIGIN,
         new_asset_settings: {
           playback_policies: ['public'],
           video_quality: 'basic',
@@ -95,7 +92,6 @@ export const trickVideoResolvers: Resolvers = {
         status: VideoUploadStatus.Waiting,
         ...(slowMoStart != null ? { slowMoStart } : {})
       }) as Promise<TrickVideoUploadDoc>)
-      await dataSources.trickVideoUploads.deleteFromCacheById(upload.id)
 
       const withUrl: TrickVideoUploadWithUrl = { ...uploadDoc, url: upload.url }
       return withUrl
@@ -111,21 +107,20 @@ export const trickVideoResolvers: Resolvers = {
         if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
 
         const videos = trick.videos ?? []
-        const remove = videos.filter(v => v.videoId === videoId)
-        if (remove.length === 0) return remove
+        const idx = videos.findIndex(v => v.videoId === videoId)
+        if (idx === -1) return undefined
 
-        t.update(ref.withConverter(null), { videos: videos.filter(v => v.videoId !== videoId), updatedBy: user.id })
-        return remove
+        t.update(ref.withConverter(null), { videos: videos.toSpliced(idx, 1), updatedBy: user.id })
+        return videos[idx]
       })
 
       // the trick no longer references the asset either way, so a failed
       // deletion leaves an orphan in Mux rather than failing the mutation
-      for (const video of removed) {
-        if (video.host !== VideoHost.Mux) continue
+      if (removed?.host === VideoHost.Mux) {
         try {
-          await mux.video.assets.delete(video.assetId)
+          await mux.video.assets.delete(removed.assetId)
         } catch (err) {
-          logger.error(err, `Failed to delete the Mux asset ${video.assetId}`)
+          logger.error(err, `Failed to delete the Mux asset ${removed.assetId}`)
           Sentry.captureException(err)
         }
       }

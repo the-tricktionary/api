@@ -5,7 +5,7 @@
  * accepts a browser upload from the origin it was created for.
  */
 export const allowedOrigins = [
-  /(^https?:\/\/|\.)the-tricktionary\.(com)(:\d+)?$/,
+  /^https:\/\/([a-z0-9-]+\.)*the-tricktionary\.com$/,
   /^https:\/\/tricktionary-(v4|admin)--.+\.web\.app$/,
   /^https?:\/\/localhost(:\d+)?$/
 ]

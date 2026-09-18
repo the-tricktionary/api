@@ -48,13 +48,7 @@ export const userResolvers: Resolvers = {
         throw new ValidationError('You cannot remove your own super admin grant')
       }
 
-      await dataSources.users.updateOnePartial(userId, { grants: parsedGrants })
-      await dataSources.users.deleteFromCacheById(userId)
-
-      const updated = await dataSources.users.findOneById(userId)
-      if (!updated) throw new NotFoundError(`User ${userId} not found`, { extensions: { entity: 'user', id: userId } })
-
-      return updated
+      return await (dataSources.users.updateOnePartial(userId, { grants: parsedGrants }) as Promise<UserDoc>)
     }
   },
   User: {

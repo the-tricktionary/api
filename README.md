@@ -87,15 +87,6 @@ Trick videos are stored inline on the trick document as an array of
 
 Mux needs `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET` and `MUX_WEBHOOK_SECRET`.
 
-### Uploading a video
-
-`createTrickVideoUpload` creates a Mux direct upload and a `trick-video-uploads`
-document (its ID is the Mux upload ID) tracking it; the client PUTs the file to
-the returned `url`. Mux then reports progress to `POST /webhooks/mux`, which
-verifies the signature with `MUX_WEBHOOK_SECRET` and adds the video to the trick
-once the asset is ready. Point the Mux webhook at that path and subscribe to the
-`video.upload.*` and `video.asset.*` events.
-
 ### Migrating YouTube videos to Mux
 
 `npm run migrate:mux-videos` downloads every trick's YouTube videos with

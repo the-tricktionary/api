@@ -1,8 +1,8 @@
 import { Firestore } from 'firebase-admin/firestore'
 import { FirestoreDataSource } from 'apollo-datasource-firestore'
 import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
-import { VideoUploadStatus } from '../generated/graphql'
 import { logger } from '../services/logger'
+import { FINAL_UPLOAD_STATUSES } from '../services/mux'
 
 import type { Discipline } from '../generated/graphql'
 import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, RulesetDoc, TrickVideoUploadDoc } from './schema'
@@ -31,9 +31,6 @@ export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(fir
 
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {}
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(firestore.collection('trick-localisations') as CollectionReference<TrickLocalisationDoc>, { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
-
-/** The statuses an upload never leaves again */
-const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
 
 export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUploadDoc> {
   /** The uploads of a trick that haven't reached a final status yet */
@@ -121,17 +118,8 @@ export interface DataSources {
   users: UserDataSource
 }
 
-/**
- * The document cache shared by every data source in this process, including
- * the ones the Mux webhook builds outside of a GraphQL request, so that
- * evicting a document there is visible to the API too.
- */
 export const dataSourceCache = new InMemoryLRUCache()
 
-/**
- * A fresh set of data sources, one per request: the documents they load are
- * shared through `cache`, the per-request data loaders are not.
- */
 export function createDataSources (cache: KeyValueCache = dataSourceCache): DataSources {
   return {
     eventDefinitions: eventDefinitionDataSource(cache),

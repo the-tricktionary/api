@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node'
+import { FieldValue } from '@google-cloud/firestore'
 import { MUX_WEBHOOK_SECRET } from '../config'
 import { VideoHost, VideoUploadStatus } from '../generated/graphql'
 import { mux } from './mux'
@@ -9,7 +10,7 @@ import type Mux from '@mux/mux-node'
 import type { RequestHandler } from 'express'
 import type Pino from 'pino'
 import type { DataSources } from '../store/firestoreDataSource'
-import type { MuxVideo, TrickVideoUploadDoc } from '../store/schema'
+import type { MuxVideo, TrickDoc, TrickVideoUploadDoc } from '../store/schema'
 
 type MuxWebhookEvent = Mux.Webhooks.UnwrapWebhookEvent
 
@@ -18,17 +19,11 @@ interface MuxWebhookContext {
   logger: Pino.Logger
 }
 
-/** Updates an upload document and drops it from the cache */
 async function setUploadStatus (upload: TrickVideoUploadDoc, changes: Partial<TrickVideoUploadDoc>, { dataSources }: MuxWebhookContext) {
   await dataSources.trickVideoUploads.updateOnePartial(upload.id, changes)
-  await dataSources.trickVideoUploads.deleteFromCacheById(upload.id)
 }
 
-/**
- * Adds the finished asset to the trick the upload was started for. Videos are
- * stored inline on the trick, so a transaction keeps concurrent uploads from
- * overwriting each other.
- */
+/** Adds the finished asset to the trick the upload was started for */
 async function addAssetToTrick (upload: TrickVideoUploadDoc, asset: { id: string, playbackId: string }, { dataSources, logger }: MuxWebhookContext) {
   const video: MuxVideo = {
     host: VideoHost.Mux,
@@ -38,23 +33,17 @@ async function addAssetToTrick (upload: TrickVideoUploadDoc, asset: { id: string
     ...(upload.slowMoStart != null ? { slowMoStart: upload.slowMoStart } : {})
   }
 
-  const collection = dataSources.tricks.collection
-  await collection.firestore.runTransaction(async t => {
-    const ref = collection.doc(upload.trickId)
-    const trick = (await t.get(ref)).data()
-    if (!trick) throw new Error(`Trick ${upload.trickId} of upload ${upload.id} does not exist`)
+  const trick = await dataSources.tricks.findOneById(upload.trickId)
+  if (!trick) throw new Error(`Trick ${upload.trickId} of upload ${upload.id} does not exist`)
 
-    const videos = trick.videos ?? []
-    // Mux retries a webhook until we acknowledge it, so the asset may already
-    // be on the trick
-    if (videos.some(v => v.host === VideoHost.Mux && v.assetId === asset.id)) {
-      logger.info({ trickId: upload.trickId, assetId: asset.id }, 'Mux asset is already on the trick')
-      return
-    }
+  // Mux retries a webhook until we acknowledge it, so the asset may already
+  // be on the trick
+  if (trick.videos.some(v => v.host === VideoHost.Mux && v.assetId === asset.id)) {
+    logger.info({ trickId: upload.trickId, assetId: asset.id }, 'Mux asset is already on the trick')
+    return
+  }
 
-    t.update(ref.withConverter(null), { videos: [...videos, video] })
-  })
-  await dataSources.tricks.deleteFromCacheById(upload.trickId)
+  await dataSources.tricks.updateOnePartial(upload.trickId, { videos: FieldValue.arrayUnion(video) as any as TrickDoc['videos'] })
 }
 
 /**
