@@ -268,7 +268,7 @@ export const usernameSchema = z.string().trim().toLowerCase()
 /** The display name shown on a profile and next to contributions */
 export const userNameSchema = z.string().trim()
   .min(1, 'A name is required')
-  .max(60, 'A name can be at most 60 characters')
+  .max(120, 'A name can be at most 120 characters')
 
 export const profileOptionsSchema = z.object({
   public: z.boolean(),

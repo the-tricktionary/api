@@ -11,13 +11,14 @@ import type { DataSources } from '../store/firestoreDataSource.js'
 import type { UserDoc } from '../store/schema.js'
 
 /**
- * Moves the user to a username, or off one when it's null. Firestore can only
- * keep a field unique through a document per value, so a claim is a document
- * in `usernames` named after the handle: claiming the new one, releasing the
- * old one and updating the user happen in one transaction, so a handle is
- * never held by two users and never left reserved by a user who gave it up.
+ * Moves the user to a username, or off one when it's null, and returns the
+ * user as they are afterwards. Firestore can only keep a field unique through
+ * a document per value, so a claim is a document in `usernames` named after
+ * the handle: claiming the new one, releasing the old one and updating the
+ * user happen in one transaction, so a handle is never held by two users and
+ * never left reserved by a user who gave it up.
  */
-async function moveUsername (user: UserDoc, username: string | null, name: string | undefined, dataSources: DataSources) {
+async function moveUsername (user: UserDoc, username: string | null, name: string | undefined, dataSources: DataSources): Promise<UserDoc> {
   const usernames = dataSources.usernames.collection
   const users = dataSources.users.collection
 
@@ -41,6 +42,12 @@ async function moveUsername (user: UserDoc, username: string | null, name: strin
       username: username ?? FieldValue.delete()
     })
   })
+
+  // the transaction wrote past the data source, so its copy is stale
+  await dataSources.users.deleteFromCacheById(user.id)
+  const updated = await dataSources.users.findOneById(user.id)
+  if (!updated) throw new NotFoundError(`User ${user.id} not found`, { extensions: { entity: 'user', id: user.id } })
+  return updated
 }
 
 export const userResolvers: Resolvers = {
@@ -54,10 +61,15 @@ export const userResolvers: Resolvers = {
 
       // usernames are lowercase while uids are case sensitive, so only the
       // username lookup gets the lowercased argument, and only when the
-      // argument could be a username at all
+      // argument could be a username at all. Both are looked up and the id
+      // wins, so nobody can claim an all-lowercase uid as their username and
+      // sit in front of its owner's profile.
       const username = usernameSchema.safeParse(query)
-      const found = (username.success ? await dataSources.users.findOneByUsername(username.data, { ttl: 60 }) : undefined) ??
-        await dataSources.users.findOneById(query, { ttl: 60 })
+      const [byId, byUsername] = await Promise.all([
+        dataSources.users.findOneById(query, { ttl: 60 }),
+        username.success ? dataSources.users.findOneByUsername(username.data, { ttl: 60 }) : undefined
+      ])
+      const found = byId ?? byUsername
 
       // a profile that isn't public reads the same as a user that isn't there
       if (!found || !allowUser.user(found).getProfile()) return null
@@ -115,14 +127,7 @@ export const userResolvers: Resolvers = {
         return await (dataSources.users.updateOnePartial(user.id, { name: data.name }) as Promise<UserDoc>)
       }
 
-      await moveUsername(user, data.username ?? null, data.name, dataSources)
-
-      // the transaction wrote past the data source, so its copy is stale
-      await dataSources.users.deleteFromCacheById(user.id)
-      const updated = await dataSources.users.findOneById(user.id)
-      if (!updated) throw new NotFoundError(`User ${user.id} not found`, { extensions: { entity: 'user', id: user.id } })
-
-      return updated
+      return await moveUsername(user, data.username ?? null, data.name, dataSources)
     },
     async setProfileOptions (_, { data: rawData }, { dataSources, allowUser, user }) {
       allowUser.editProfile.assert()
@@ -176,27 +181,21 @@ export const userResolvers: Resolvers = {
     async checklistStats (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getChecklistStats.assert()
 
-      const [completions, trickLevels, tricks] = await Promise.all([
+      // both carry the trick id, so the tricks themselves are never read; a
+      // completion of a trick that has since been deleted still counts, which
+      // is a fair reflection of what the user did
+      const [completions, trickLevels] = await Promise.all([
         dataSources.trickCompletions.findManyByUser(user.id, { ttl: 60 }),
-        dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID, { ttl: 3600 }),
-        dataSources.tricks.findManyByDiscipline(null, { ttl: 3600 })
+        dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID, { ttl: 3600 })
       ])
 
-      // a level or a completion of a trick that no longer exists counts for
-      // nothing, the totals are about the tricks in the Tricktionary today
-      const trickIds = new Set(tricks.map(trick => trick.id))
-      const levelOfTrick = new Map(trickLevels
-        .filter(trickLevel => trickIds.has(trickLevel.trickId))
-        .map(trickLevel => [trickLevel.trickId, trickLevel.level]))
+      const levelOfTrick = new Map(trickLevels.map(trickLevel => [trickLevel.trickId, trickLevel.level]))
 
       const totals = new Map<string, number>()
       for (const level of levelOfTrick.values()) totals.set(level, (totals.get(level) ?? 0) + 1)
 
-      let completed = 0
       const completedPerLevel = new Map<string, number>()
       for (const completion of completions) {
-        if (!trickIds.has(completion.trickId)) continue
-        completed++
         const level = levelOfTrick.get(completion.trickId)
         // tricks without a tricktionary level only count towards the total
         if (level == null) continue
@@ -204,8 +203,7 @@ export const userResolvers: Resolvers = {
       }
 
       return {
-        completed,
-        total: tricks.length,
+        completed: completions.length,
         levels: [...totals.entries()]
           .sort(([a], [b]) => Number(a) - Number(b))
           .map(([level, total]) => ({ level, completed: completedPerLevel.get(level) ?? 0, total }))

@@ -39,8 +39,8 @@ const typeDefs = gql`
   type Query {
     me: User
     """
-    A user by username or id, the username is tried first. Null when there is
-    no such user, and when their profile isn't public unless they are you.
+    A user by username or id, the id wins should both match. Null when there
+    is no such user, and when their profile isn't public unless they are you.
     """
     user (usernameOrId: ID!): User
     """Exact match on email, username or user id. Super admins only."""
@@ -444,8 +444,6 @@ const typeDefs = gql`
   type ChecklistStats {
     """Completed tricks, including ones without a Tricktionary level"""
     completed: Int!
-    """Tricks in the Tricktionary"""
-    total: Int!
     """One entry per Tricktionary level that has tricks, lowest first"""
     levels: [ChecklistLevelStats!]!
   }
