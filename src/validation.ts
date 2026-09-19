@@ -27,6 +27,17 @@ export const localisedStringsSchema = z.array(z.object({
   .refine(values => values.some(value => value.lang === 'en'), 'An english (`en`) value is required')
   .transform(values => Object.fromEntries(values.map(value => [value.lang, value.value])))
 
+/** A dotted path into the interface message tree, e.g. `nav.tricks` or `trick.level` */
+export const uiMessageKeySchema = z.string().trim()
+  .regex(/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)*$/, 'A message key is a dot separated path of camelCase parts, such as `trick.level`')
+
+/** A list of `{ key, value }` pairs, an empty or absent value removes the key */
+export const uiMessagesSchema = z.array(z.object({
+  key: uiMessageKeySchema,
+  value: z.string().trim().nullish()
+}))
+  .refine(entries => new Set(entries.map(entry => entry.key)).size === entries.length, 'Each key may only be specified once')
+
 export const trickLocalisationSchema = z.object({
   name: z.string().trim().min(1, 'A name is required'),
   alternativeNames: z.array(z.string())

@@ -8,6 +8,7 @@ const typeDefs = gql`
   ) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION
 
   scalar Timestamp
+  scalar JSONObject
 
   enum CacheControlScope {
     PUBLIC
@@ -57,6 +58,15 @@ const typeDefs = gql`
     rulesets: [Ruleset!]! @cacheControl(maxAge: 3600)
 
     languages: [Language!]! @cacheControl(maxAge: 3600)
+
+    """
+    The public site's interface messages in a language as a flat map keyed like
+    its en.json (\`{ "trick.level": "..." }\`). Empty for a language nobody has
+    translated yet.
+    """
+    uiMessages (lang: String!): JSONObject! @cacheControl(maxAge: 3600)
+    """Every translated interface message of a language, with who last set it"""
+    uiMessageEntries (lang: String!): [UiMessageEntry!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
   type Mutation {
@@ -115,6 +125,13 @@ const typeDefs = gql`
     # Languages
     createLanguage (lang: String!): Language!
     setLanguageEnabled (lang: String!, enabled: Boolean!): Language!
+
+    # Interface messages
+    """
+    Sets interface messages of a language, keys that aren't included are left
+    alone. English is the site's source language and cannot be set here.
+    """
+    setUiMessages (lang: String!, entries: [UiMessageInput!]!): [UiMessageEntry!]!
 
     # Users
     """The signed in user's language, null clears it"""
@@ -193,6 +210,21 @@ const typeDefs = gql`
     id: ID!
     """Whether the public site offers the language"""
     enabled: Boolean!
+  }
+
+  type UiMessageEntry {
+    """The dotted key of the message, e.g. \`trick.level\`"""
+    key: String!
+    value: String!
+    """Null when the user who set the message no longer exists"""
+    updatedBy: User
+    updatedAt: Timestamp!
+  }
+
+  input UiMessageInput {
+    key: String!
+    """empty or null removes the key"""
+    value: String
   }
 
   type LocalisedString {

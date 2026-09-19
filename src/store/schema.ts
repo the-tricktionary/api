@@ -96,6 +96,25 @@ export interface LanguageDoc extends DocBase {
 }
 export function isLanguage (t: any): t is LanguageDoc { return t?.collection === 'languages' }
 
+export interface UiMessageLeaf {
+  value: string
+  updatedBy: UserDoc['id']
+  updatedAt: Timestamp
+}
+
+/**
+ * The public site's interface strings in a single language, the document ID is
+ * the language tag. English is the source language and lives in the site's own
+ * repository rather than here.
+ */
+export interface UiMessagesDoc extends DocBase {
+  readonly collection: 'ui-messages'
+
+  /** keyed like the site's en.json, `trick.level`, one field per message so saves merge per key */
+  messages: Record<string, UiMessageLeaf>
+}
+export function isUiMessages (t: any): t is UiMessagesDoc { return t?.collection === 'ui-messages' }
+
 export interface RulesetDoc extends DocBase {
   readonly collection: 'rulesets'
 
