@@ -20,8 +20,24 @@ function toMark (mark: z.infer<typeof speedMarkSchema>): SpeedMark {
 }
 
 /**
+ * A stable id for the client cache, since a custom definition has no document.
+ *
+ * The switches are part of it: two custom events sharing a name and duration
+ * but splitting at different times are different events, and results against
+ * them must not be compared as if they were the same one. An event without
+ * switches keeps the id it has always had.
+ */
+function customEventDefinitionId (eventDefinition: NonNullable<SpeedResultDoc['eventDefinition']>): string {
+  const switches = (eventDefinition.cues ?? []).map(cue => cue.offset).join(',')
+  const key = `${eventDefinition.name}-${eventDefinition.totalDuration}${switches ? `-${switches}` : ''}`
+  return Buffer.from(key, 'utf-8').toString('base64')
+}
+
+/**
  * Resolves the event definition of a result, either the linked document or
- * the custom one embedded in the result.
+ * the custom one embedded in the result. A custom event's switches become a
+ * track of cues without audio, so everything downstream can treat the two
+ * kinds of event alike.
  */
 async function eventDefinitionOf (speedResult: SpeedResultDoc, { dataSources }: Pick<ApolloContext, 'dataSources'>): Promise<EventDefinitionDoc> {
   if (speedResult.eventDefinitionId) {
@@ -29,11 +45,13 @@ async function eventDefinitionOf (speedResult: SpeedResultDoc, { dataSources }: 
     if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.eventDefinitionId } })
     return eventDefinition
   } else if (speedResult.eventDefinition) {
+    const { name, totalDuration, cues } = speedResult.eventDefinition
     return {
-      ...speedResult.eventDefinition,
+      name,
+      totalDuration,
       collection: 'event-definitions',
-      // A stable id for the client cache, custom definitions have no document
-      id: Buffer.from(`${speedResult.eventDefinition.name}-${speedResult.eventDefinition.totalDuration}`, 'utf-8').toString('base64')
+      ...(cues?.length ? { timingTrack: { cues } } : {}),
+      id: customEventDefinitionId(speedResult.eventDefinition)
     } as EventDefinitionDoc
   } else {
     throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.id } })
@@ -169,7 +187,12 @@ export const speedResultResolvers: Resolvers = {
       const marks = marksOf(speedResult)
       if (!marks.length) return null
       const eventDefinition = await eventDefinitionOf(speedResult, context)
-      return analyseMarks(marks, eventDefinition.totalDuration, speedResult.timingTrack)
+      // The snapshot taken when the result was recorded wins. Falling back to
+      // the event's own cues is only safe for a custom event, whose cues are
+      // stored on the result itself: a known event's track can be edited
+      // later, and that must not rewrite how an old result was segmented.
+      const timing = speedResult.timingTrack ?? (speedResult.eventDefinitionId ? null : eventDefinition.timingTrack)
+      return analyseMarks(marks, eventDefinition.totalDuration, timing)
     }
   }
 }

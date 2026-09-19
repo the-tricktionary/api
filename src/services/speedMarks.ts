@@ -129,20 +129,26 @@ function eventStart (marks: ReadonlyArray<{ schema: string, timestamp: number }>
 
 /**
  * The segments of the event in seconds from its start: one per stretch
- * between the track's start, switch and end cues, or a single one spanning
- * the whole event when there is no track.
+ * between the switch cues, or a single one spanning the whole event when
+ * there are none.
+ *
+ * Cues are offsets into the audio, so they are measured from the start cue
+ * where there is one. A track without audio has no lead-in to skip, and a
+ * custom event's switches are offsets into the event itself, so both start
+ * from zero.
  */
 function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
   const startCue = timingTrack?.cues.find(cue => cue.type === TimingCueType.Start)
   const switches = timingTrack?.cues.filter(cue => cue.type === TimingCueType.Switch) ?? []
-  if (startCue == null || switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]
+  if (switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]
 
+  const startOffset = startCue?.offset ?? 0
   const bounds: Array<{ start: number, end: number, label?: string }> = []
-  let previous: { offset: number, label?: string } = startCue
-  for (const cue of [...switches, { type: TimingCueType.End, offset: startCue.offset + durationSeconds * 1000, label: undefined }]) {
+  let previous: { offset: number, label?: string } = { offset: startOffset, ...(startCue?.label ? { label: startCue.label } : {}) }
+  for (const cue of [...switches, { type: TimingCueType.End, offset: startOffset + durationSeconds * 1000, label: undefined }]) {
     bounds.push({
-      start: (previous.offset - startCue.offset) / 1000,
-      end: Math.min(durationSeconds, (cue.offset - startCue.offset) / 1000),
+      start: (previous.offset - startOffset) / 1000,
+      end: Math.min(durationSeconds, (cue.offset - startOffset) / 1000),
       ...(previous.label ? { label: previous.label } : {})
     })
     previous = cue

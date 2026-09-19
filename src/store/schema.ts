@@ -226,6 +226,8 @@ export interface SpeedResultDoc extends DocBase {
   eventDefinition?: {
     totalDuration: number
     name: string
+    /** Athlete switches in a custom relay, always of type Switch */
+    cues?: TimingCue[]
   }
 
   /** The mark stream the result was counted from, absent for plain counts */
@@ -257,8 +259,8 @@ export interface TimingCue {
 
 /** Stored inline on an event definition, and snapshotted onto results recorded with it */
 export interface TimingTrack {
-  /** Public URL of the audio object, see services/storage.ts */
-  audioUrl: string
+  /** Public URL of the audio object, see services/storage.ts, absent for cues without audio */
+  audioUrl?: string
   cues: TimingCue[]
 }
 
