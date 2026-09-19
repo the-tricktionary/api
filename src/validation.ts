@@ -29,7 +29,7 @@ export const localisedStringsSchema = z.array(z.object({
 
 /** A dotted path into the interface message tree, e.g. `nav.tricks` or `trick.level` */
 export const uiMessageKeySchema = z.string().trim()
-  .regex(/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)*$/, 'A message key is a dot separated path of camelCase parts, such as `trick.level`')
+  .regex(/^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)*$/, 'A message key is a dot separated path of alphanumeric parts, such as `trick.level` or `enums.discipline.DoubleDutch`')
 
 /** A list of `{ key, value }` pairs, an empty or absent value removes the key */
 export const uiMessagesSchema = z.array(z.object({
