@@ -464,10 +464,14 @@ const typeDefs = gql`
     """Steps that would have fit in the miss gaps had the athlete kept the average pace"""
     stepsLost: Int!
     """
-    Steps counted in each whole second of the event, index 0 is the first
-    second after the start. Handy for plotting the whole duration.
+    The pace in each whole second of the event, index 0 is the first second
+    after the start. Handy for plotting the whole duration.
+
+    This is the time-weighted average of the rates between steps, not a count
+    of the steps landing in the second, so a steady rhythm reads as a steady
+    rate rather than alternating between neighbouring whole numbers.
     """
-    stepsPerSecondSeries: [Int!]!
+    stepsPerSecondSeries: [Float!]!
     """
     The event split at its timing track's switch cues, so a relay's steps can
     be attributed to each athlete. A single segment when there is no track.
