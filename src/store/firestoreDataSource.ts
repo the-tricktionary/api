@@ -5,13 +5,14 @@ import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc } from './schema.js'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import type { CollectionReference, DocumentData, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
 import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
 
-const firestore = new Firestore()
+/** Exported so a resolver can run a transaction across several collections */
+export const firestore = new Firestore()
 
 // the collection type is only ever what the document type says it is
 function collection<T extends DocumentData> (name: string) {
@@ -93,8 +94,17 @@ export class UserDataSource extends FirestoreDataSource<UserDoc> {
   async findManyWithGrants (options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('grants', '!=', []), options)
   }
+
+  /** A username is held by at most one user, see UsernameDataSource */
+  async findOneByUsername (username: string, options?: QueryFindArgs) {
+    return (await this.findManyByQuery(c => c.where('username', '==', username), options))[0]
+  }
 }
 export const userDataSource = (cache: KeyValueCache) => new UserDataSource(collection<UserDoc>('users'), { logger: logger.child({ name: 'user-data-source' }), cache })
+
+/** The reservations that make usernames unique, the document ID is the username */
+export class UsernameDataSource extends FirestoreDataSource<UsernameDoc> {}
+export const usernameDataSource = (cache: KeyValueCache) => new UsernameDataSource(collection<UsernameDoc>('usernames'), { logger: logger.child({ name: 'username-data-source' }), cache })
 
 export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc> {
   async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
@@ -113,6 +123,15 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
       if (limit) q = q.limit(limit)
       return q
     }, { ttl })
+  }
+
+  /** The user's highest score in a single event, undefined when they have none */
+  async findBestByUserAndEvent (userId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
+    return (await this.findManyByQuery(c => c
+      .where('userId', '==', userId)
+      .where('eventDefinitionId', '==', eventDefinitionId)
+      .orderBy('count', 'desc')
+      .limit(1), { ttl }))[0]
   }
 }
 export const speedResultDataSource = (cache: KeyValueCache) => new SpeedResultDataSource(collection<SpeedResultDoc>('speed-results'), { logger: logger.child({ name: 'speed-result-data-source' }), cache })
@@ -139,7 +158,8 @@ export function createDataSources () {
     trickCompletions: trickCompletionDataSource(dataSourceCache),
     trickVideoUploads: trickVideoUploadDataSource(dataSourceCache),
     uiMessages: uiMessagesDataSource(dataSourceCache),
-    users: userDataSource(dataSourceCache)
+    users: userDataSource(dataSourceCache),
+    usernames: usernameDataSource(dataSourceCache)
   }
 }
 

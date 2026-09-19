@@ -192,6 +192,17 @@ export interface UserDoc extends DocBase {
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
 
+/**
+ * A claimed username, the document ID is the username itself: Firestore only
+ * ever holds one document per ID, so the reservation is what keeps two users
+ * from claiming the same handle. The user document carries the same username.
+ */
+export interface UsernameDoc extends DocBase {
+  readonly collection: 'usernames'
+  userId: UserDoc['id']
+}
+export function isUsername (t: any): t is UsernameDoc { return t?.collection === 'usernames' }
+
 export interface TrickCompletionDoc extends DocBase {
   readonly collection: 'trick-completions'
   userId: UserDoc['id']
