@@ -47,7 +47,8 @@ const typeDefs = gql`
     trickBySlug (discipline: Discipline!, slug: String!): Trick
     tricks (
       discipline: Discipline,
-      searchQuery: String
+      searchQuery: String,
+      filter: TrickFilter
     ): [Trick!]!
 
     products: [Product!]!
@@ -181,6 +182,20 @@ const typeDefs = gql`
     name: String!
     alternativeNames: [String!]!
     description: String!
+  }
+
+  input TrickLevelFilter {
+    rulesId: ID!
+    """Also match levels verified below this, absent matches missing levels only"""
+    verifiedBelow: VerificationLevel
+  }
+
+  input TrickFilter {
+    """Tricks with no localisation in this language, or one whose name or description is empty"""
+    missingLocalisation: String
+    """Tricks whose level in a ruleset is missing, or verified below a level"""
+    level: TrickLevelFilter
+    withoutVideos: Boolean
   }
 
   type Ruleset @cacheControl(maxAge: 3600) {

@@ -3,7 +3,8 @@ import { isTrick, trickLocalisationId } from '../store/schema.js'
 import { Discipline, TrickType } from '../generated/graphql.js'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { tryIndexTrick, searchTricks } from '../services/algolia.js'
-import { langSchema, slugSchema, trickLocalisationSchema } from '../validation.js'
+import { verificationLevelRank } from '../services/permissions.js'
+import { langSchema, rulesIdSchema, slugSchema, trickLocalisationSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema.js'
@@ -23,14 +24,50 @@ const updateTrickDetailsSchema = z.object({
 
 export const trickResolvers: Resolvers = {
   Query: {
-    async tricks (_, { discipline, searchQuery }, { dataSources, allowUser, user }) {
+    async tricks (_, { discipline, searchQuery, filter }, { dataSources, allowUser, user }) {
       allowUser.getTricks.assert()
+      let tricks: TrickDoc[]
       if (searchQuery) {
         const hits = await searchTricks(searchQuery, { discipline: discipline ?? undefined, lang: user?.lang, userId: user?.id })
-        return await (dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>)
+        tricks = await (dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>)
       } else {
-        return await dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
+        tricks = await dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
       }
+
+      if (filter?.withoutVideos === true) {
+        tricks = tricks.filter(trick => (trick.videos?.length ?? 0) === 0)
+      }
+
+      if (filter?.level) {
+        const rulesId = rulesIdSchema.parse(filter.level.rulesId)
+        const ruleset = await dataSources.rulesets.findOneById(rulesId, { ttl: 3600 })
+        if (!ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
+
+        const verifiedBelow = filter.level.verifiedBelow
+        const levels = await dataSources.trickLevels.findManyByRuleset(rulesId)
+        const levelByTrick = new Map(levels.map(level => [level.trickId, level]))
+
+        tricks = tricks.filter(trick => {
+          const level = levelByTrick.get(trick.id)
+          if (!level) return true
+          return verifiedBelow != null && verificationLevelRank(level.verificationLevel) < verificationLevelRank(verifiedBelow)
+        })
+      }
+
+      if (filter?.missingLocalisation != null) {
+        const lang = langSchema.parse(filter.missingLocalisation)
+        const language = await dataSources.languages.findOneById(lang, { ttl: 3600 })
+        if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
+
+        const localisations = await dataSources.trickLocalisations.findManyByIds(tricks.map(trick => trickLocalisationId(trick.id, lang)), { ttl: 3600 })
+
+        tricks = tricks.filter((_, idx) => {
+          const localisation = localisations[idx]
+          return (localisation?.name.trim() ?? '') === '' || (localisation?.description?.trim() ?? '') === ''
+        })
+      }
+
+      return tricks
     },
     async trick (_, { id }, { dataSources, allowUser }) {
       allowUser.getTricks.assert()
