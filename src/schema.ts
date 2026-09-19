@@ -218,6 +218,12 @@ const typeDefs = gql`
     """The dotted key of the message, e.g. \`trick.level\`"""
     key: String!
     value: String!
+    """
+    The English message this was translated from, which differs from the site's
+    current English when the translation needs redoing. Null for translations
+    saved before we recorded it.
+    """
+    source: String
     """Null when the user who set the message no longer exists"""
     updatedBy: User
     updatedAt: Timestamp!
@@ -227,6 +233,8 @@ const typeDefs = gql`
     key: String!
     """empty or null removes the key"""
     value: String
+    """The English message this is a translation of, as the site words it today"""
+    source: String
   }
 
   type LocalisedString {
