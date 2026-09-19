@@ -119,12 +119,14 @@ const speedResultNameSchema = z.string().trim().max(120)
 const speedResultCountSchema = z.number().int().min(0).max(1_000_000)
 
 /**
- * A switch in a custom relay. The event's clock runs from zero to its total
- * duration, so there is nothing for a start or end cue to say.
+ * A cue on a custom relay. The event's clock runs from zero to its total
+ * duration, so an end cue has nothing to say and a start cue can only sit at
+ * zero, where it exists to name the opening stretch: every segment takes the
+ * label of the cue that opens it, and without one the first would have none.
  */
 const customEventCueSchema = z.object({
   type: z.enum(TimingCueType),
-  offset: z.number().int().min(1).max(3_600_000),
+  offset: z.number().int().min(0).max(3_600_000),
   label: z.string().trim().max(40).nullish()
 })
 
@@ -134,18 +136,30 @@ export const eventDefinitionInputSchema = z.object({
   totalDuration: z.number().int().min(0).max(3_600),
   cues: z.array(customEventCueSchema).max(50)
     .refine(
-      cues => cues.every(cue => cue.type === TimingCueType.Switch),
-      'A custom event can only have switch cues, its clock runs from zero to its total duration'
+      cues => cues.every(cue => cue.type !== TimingCueType.End),
+      'A custom event ends at its total duration, so it has no end cue'
+    )
+    .refine(
+      cues => cues.filter(cue => cue.type === TimingCueType.Start).length <= 1,
+      'A custom event can only have one start cue'
+    )
+    .refine(
+      cues => cues.every(cue => cue.type !== TimingCueType.Start || cue.offset === 0),
+      'A custom event starts at zero, so its start cue can only sit there to name the opening stretch'
+    )
+    .refine(
+      cues => cues.every(cue => cue.type !== TimingCueType.Switch || cue.offset >= 1),
+      'A switch cannot happen before the event starts'
     )
     .refine(
       cues => new Set(cues.map(cue => cue.offset)).size === cues.length,
-      'Two switches cannot share an offset'
+      'Two cues cannot share an offset'
     )
     .nullish()
 })
   .refine(
     data => !data.cues?.length || (data.totalDuration > 0 && data.cues.every(cue => cue.offset < data.totalDuration * 1000)),
-    'Switch cues must fall inside the event, which needs a total duration'
+    'Cues must fall inside the event, which needs a total duration'
   )
   .transform(data => ({
     name: data.name,
