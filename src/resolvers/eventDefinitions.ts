@@ -46,11 +46,16 @@ async function discardAudio (audioUrl: string | undefined, eventDefinitionId: st
   }
 }
 
+/** Shortest first, then by name */
+export function byEventOrder (a: EventDefinitionDoc, b: EventDefinitionDoc) {
+  return a.totalDuration - b.totalDuration || a.name.localeCompare(b.name)
+}
+
 export const eventDefinitionResolvers: Resolvers = {
   Query: {
     async eventDefinitions (_, args, { dataSources }) {
       const eventDefinitions = await dataSources.eventDefinitions.findManyByQuery(c => c, { ttl: 3600 })
-      return eventDefinitions.sort((a, b) => a.totalDuration - b.totalDuration || a.name.localeCompare(b.name))
+      return eventDefinitions.sort(byEventOrder)
     }
   },
   Mutation: {

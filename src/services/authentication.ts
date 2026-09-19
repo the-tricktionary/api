@@ -38,7 +38,7 @@ export async function userFromAuthorizationHeader (header: string | undefined, {
     user = await dataSources.users.createOne({
       id: decoded.uid,
       ...(decoded.name ? { name: decoded.name } : {}),
-      ...(decoded.photo ? { photo: decoded.picture } : {}),
+      ...(decoded.picture ? { photo: decoded.picture } : {}),
       ...(decoded.email && decoded.email_verified ? { email: decoded.email } : {}),
       profile: {
         public: false,

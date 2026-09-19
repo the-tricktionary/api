@@ -192,6 +192,13 @@ export interface UserDoc extends DocBase {
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
 
+/** A claimed username, the document ID is the username */
+export interface UsernameDoc extends DocBase {
+  readonly collection: 'usernames'
+  userId: UserDoc['id']
+}
+export function isUsername (t: any): t is UsernameDoc { return t?.collection === 'usernames' }
+
 export interface TrickCompletionDoc extends DocBase {
   readonly collection: 'trick-completions'
   userId: UserDoc['id']

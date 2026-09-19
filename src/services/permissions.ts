@@ -53,6 +53,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editTrickCompletions: isAuthenticated,
     createSpeedResult: isAuthenticated,
     setUserLang: isAuthenticated,
+    editProfile: isAuthenticated,
     editEventDefinitions,
     makePurchase: everyone,
 
@@ -157,15 +158,19 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     user (subUser: UserDoc) {
       const isMe = enrich(function isMe () { return !!user && user.id === subUser.id })
       const hasPublicProfile = enrich(function hasPublicProfile () { return subUser.profile.public })
-      const hasPublicChecklist = enrich(function hasPublicProfile () { return subUser.profile.checklist })
-      const hasPublicSpeed = enrich(function hasPublicProfile () { return subUser.profile.speed })
+      const hasPublicChecklist = enrich(function hasPublicChecklist () { return subUser.profile.checklist })
+      const hasPublicSpeed = enrich(function hasPublicSpeed () { return subUser.profile.speed })
 
-      const isMeOrHasPublicChecklist = enrich(function isMeAndHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicChecklist()) })
-      const isMeOrHasPublicSpeed = enrich(function isMeAndHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicSpeed()) })
+      const isMeOrHasPublicProfile = enrich(function isMeOrHasPublicProfile () { return isMe() || hasPublicProfile() })
+      const isMeOrHasPublicChecklist = enrich(function isMeOrHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicChecklist()) })
+      const isMeOrHasPublicSpeed = enrich(function isMeOrHasPublicSpeed () { return isMe() || (hasPublicProfile() && hasPublicSpeed()) })
       const isMeOrIsSuperAdmin = enrich(function isMeOrIsSuperAdmin () { return isMe() || isSuperAdmin() })
       return {
+        getProfile: isMeOrHasPublicProfile,
         getChecklist: isMeOrHasPublicChecklist,
-        getSpeedResults: isMeOrHasPublicSpeed,
+        getChecklistStats: isMeOrHasPublicProfile,
+        getSpeedResults: isMe,
+        getSpeedPersonalBests: isMeOrHasPublicSpeed,
         getGrants: isMeOrIsSuperAdmin,
         getEmail: isMeOrIsSuperAdmin,
 

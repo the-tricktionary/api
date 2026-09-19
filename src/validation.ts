@@ -255,3 +255,30 @@ export const eventDefinitionUpdateSchema = z.object({
   lookupCode: eventLookupCodeSchema.nullish(),
   timingTrack: timingTrackInputSchema.nullish()
 })
+
+// Users
+
+/** A profile's handle, e.g. `jane.doe`, lowercased */
+export const usernameSchema = z.string().trim().toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9._-]{1,28}[a-z0-9]$/, 'A username is 3 to 30 characters of lowercase letters, digits, dots, dashes or underscores, and starts and ends with a letter or digit')
+
+export const userNameSchema = z.string().trim()
+  .min(1, 'A name is required')
+  .max(120, 'A name can be at most 120 characters')
+
+export const profileOptionsSchema = z.object({
+  public: z.boolean(),
+  checklist: z.boolean(),
+  speed: z.boolean()
+}).transform(options => ({
+  public: options.public,
+  // a private profile shows nothing, so its details are stored off
+  checklist: options.public && options.checklist,
+  speed: options.public && options.speed
+}))
+
+/** Sets every field, a missing username means none */
+export const userProfileInputSchema = z.object({
+  name: userNameSchema,
+  username: usernameSchema.nullish().transform(username => username ?? null)
+})

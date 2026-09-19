@@ -1,15 +1,70 @@
-import { FieldValue } from '@google-cloud/firestore'
+import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { GrantType } from '../generated/graphql.js'
-import { grantsSchema, langSchema } from '../validation.js'
+import { firestore } from '../store/firestoreDataSource.js'
+import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
+import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema, usernameSchema } from '../validation.js'
+import { byEventOrder } from './eventDefinitions.js'
 
 import type { Resolvers } from '../generated/graphql.js'
+import type { DataSources } from '../store/firestoreDataSource.js'
 import type { UserDoc } from '../store/schema.js'
+
+/**
+ * Claims `username` (null releases the current one) and sets the name in one
+ * transaction, the `usernames` documents being what keeps a handle unique.
+ */
+async function moveUsername (user: UserDoc, username: string | null, name: string, dataSources: DataSources): Promise<UserDoc> {
+  const usernames = dataSources.usernames.collection
+  const users = dataSources.users.collection
+
+  await firestore.runTransaction(async tx => {
+    const claim = username != null ? await tx.get(usernames.doc(username)) : undefined
+    if (claim?.exists && claim.data()?.userId !== user.id) {
+      throw new ValidationError('That username is taken', { extensions: { field: 'username', reason: 'taken' } })
+    }
+
+    const now = Timestamp.now()
+    if (username != null && !claim?.exists) {
+      tx.create(usernames.doc(username), { id: username, collection: 'usernames', userId: user.id, createdAt: now, updatedAt: now })
+    }
+    if (user.username != null && user.username !== username) tx.delete(usernames.doc(user.username))
+
+    tx.update(users.doc(user.id), {
+      name,
+      username: username ?? FieldValue.delete()
+    })
+  })
+
+  // the transaction bypassed the data source cache
+  await dataSources.users.deleteFromCacheById(user.id)
+  const updated = await dataSources.users.findOneById(user.id)
+  if (!updated) throw new NotFoundError(`User ${user.id} not found`, { extensions: { entity: 'user', id: user.id } })
+  return updated
+}
 
 export const userResolvers: Resolvers = {
   Query: {
     async me (_, args, { dataSources, user }) {
       return user ?? null
+    },
+    async user (_, { usernameOrId }, { dataSources, allowUser }) {
+      const query = usernameOrId.trim()
+      if (!query) return null
+
+      // uids are case sensitive, so only the username lookup is lowercased;
+      // the id wins so a lowercase uid can't be claimed as somebody's username
+      const username = usernameSchema.safeParse(query)
+      const [byId, byUsername] = await Promise.all([
+        dataSources.users.findOneById(query, { ttl: 60 }),
+        username.success ? dataSources.users.findOneByUsername(username.data, { ttl: 60 }) : undefined
+      ])
+      const found = byId ?? byUsername
+
+      // private reads the same as missing
+      if (!found || !allowUser.user(found).getProfile()) return null
+
+      return found
     },
     async findUsers (_, { query }, { dataSources, allowUser }) {
       allowUser.findUsers.assert()
@@ -47,6 +102,26 @@ export const userResolvers: Resolvers = {
       if (!language?.enabled) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
 
       return await (dataSources.users.updateOnePartial(user.id, { lang: parsedLang }) as Promise<UserDoc>)
+    },
+    async updateUserProfile (_, { data: rawData }, { dataSources, allowUser, user }) {
+      allowUser.editProfile.assert()
+      if (!user) throw new AuthorizationError()
+
+      const data = userProfileInputSchema.parse(rawData)
+
+      if (data.username === (user.username ?? null)) {
+        return await (dataSources.users.updateOnePartial(user.id, { name: data.name }) as Promise<UserDoc>)
+      }
+
+      return await moveUsername(user, data.username, data.name, dataSources)
+    },
+    async setProfileOptions (_, { data: rawData }, { dataSources, allowUser, user }) {
+      allowUser.editProfile.assert()
+      if (!user) throw new AuthorizationError()
+
+      const profile = profileOptionsSchema.parse(rawData)
+
+      return await (dataSources.users.updateOnePartial(user.id, { profile }) as Promise<UserDoc>)
     },
     async setUserGrants (_, { userId, grants }, { dataSources, allowUser, user }) {
       allowUser.setUserGrants.assert()
@@ -89,6 +164,35 @@ export const userResolvers: Resolvers = {
 
       return await dataSources.trickCompletions.findManyByUser(user.id)
     },
+    async checklistStats (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getChecklistStats.assert()
+
+      // completions of deleted tricks still count
+      const [completions, trickLevels] = await Promise.all([
+        dataSources.trickCompletions.findManyByUser(user.id, { ttl: 60 }),
+        dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID, { ttl: 3600 })
+      ])
+
+      const levelOfTrick = new Map(trickLevels.map(trickLevel => [trickLevel.trickId, trickLevel.level]))
+
+      const totals = new Map<string, number>()
+      for (const level of levelOfTrick.values()) totals.set(level, (totals.get(level) ?? 0) + 1)
+
+      const completedPerLevel = new Map<string, number>()
+      for (const completion of completions) {
+        const level = levelOfTrick.get(completion.trickId)
+        // unlevelled tricks only count towards completed
+        if (level == null) continue
+        completedPerLevel.set(level, (completedPerLevel.get(level) ?? 0) + 1)
+      }
+
+      return {
+        completed: completions.length,
+        levels: [...totals.entries()]
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([level, total]) => ({ level, completed: completedPerLevel.get(level) ?? 0, total }))
+      }
+    },
     async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
@@ -100,6 +204,19 @@ export const userResolvers: Resolvers = {
       allowUser.user(user).speedResult(speedResult).get.assert()
 
       return speedResult
+    },
+    async speedPersonalBests (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getSpeedPersonalBests.assert()
+
+      // custom events have no personal best
+      const eventDefinitions = (await dataSources.eventDefinitions.findManyByQuery(c => c, { ttl: 3600 }))
+        .sort(byEventOrder)
+
+      const bests = await Promise.all(eventDefinitions.map(async eventDefinition =>
+        await dataSources.speedResults.findBestByUserAndEvent(user.id, eventDefinition.id, { ttl: 60 })
+      ))
+
+      return bests.filter(best => best != null)
     }
   }
 }

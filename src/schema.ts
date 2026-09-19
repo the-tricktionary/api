@@ -38,6 +38,11 @@ const typeDefs = gql`
 
   type Query {
     me: User
+    """
+    A user by username or id, the id wins should both match. Null when there
+    is no such user, and when their profile isn't public unless they are you.
+    """
+    user (usernameOrId: ID!): User
     """Exact match on email, username or user id. Super admins only."""
     findUsers (query: String!): [User!]!
     """Every user that holds at least one grant. Super admins only."""
@@ -137,6 +142,10 @@ const typeDefs = gql`
     # Users
     """The signed in user's language, null clears it"""
     setUserLang (lang: String): User!
+    """The signed in user's name and username, both are set on every update"""
+    updateUserProfile (data: UserProfileInput!): User!
+    """What others get to see of the signed in user's profile"""
+    setProfileOptions (data: ProfileOptionsInput!): User!
     setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
   }
 
@@ -350,10 +359,23 @@ const typeDefs = gql`
     # groups: [Group!]! # Only top-level groups?
     # friends: [User!]! # maybe in the future?
 
+    """Visible to the user themselves, and to everyone on a public profile that shows its checklist"""
     checklist: [TrickCompletion!]!
-    """Newest first. eventDefinitionId narrows the list to one event."""
+    """
+    How many tricks the user has completed, in total and per Tricktionary
+    level. Visible to the user themselves and to everyone on a public profile.
+    """
+    checklistStats: ChecklistStats!
+    """Newest first. eventDefinitionId narrows the list to one event. Only visible to the user themselves."""
     speedResults (limit: Int, startAfter: Timestamp, eventDefinitionId: ID): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
+    """
+    The user's highest score in each predefined event they have a score in,
+    however it was entered, in the order the events are listed. Custom events
+    are left out. Visible to the user themselves, and to everyone on a public
+    profile that shows its speed scores.
+    """
+    speedPersonalBests: [SpeedResult!]!
 
     # store fcm tokens in db? don't expose if so
 
@@ -391,9 +413,45 @@ const typeDefs = gql`
   }
 
   type ProfileOptions {
+    """Whether anyone may see the profile: name, photo, username and checklist stats"""
     public: Boolean!
+    """Whether the completed tricks are shown on the public profile"""
     checklist: Boolean!
+    """Whether the speed personal bests are shown on the public profile"""
     speed: Boolean!
+  }
+
+  input ProfileOptionsInput {
+    public: Boolean!
+    """Stored as false while the profile isn't public"""
+    checklist: Boolean!
+    """Stored as false while the profile isn't public"""
+    speed: Boolean!
+  }
+
+  input UserProfileInput {
+    """Shown on the profile and next to contributions"""
+    name: String!
+    """
+    The handle the profile is reachable at, as /profile/<username>. 3 to 30
+    lowercase letters, digits, dots, dashes or underscores, starting and
+    ending with a letter or digit; uppercase is lowercased on save. Null or
+    omitted releases the current username, an empty string is rejected.
+    """
+    username: String
+  }
+
+  type ChecklistStats {
+    """Completed tricks, including ones without a Tricktionary level"""
+    completed: Int!
+    """One entry per Tricktionary level that has tricks, lowest first"""
+    levels: [ChecklistLevelStats!]!
+  }
+
+  type ChecklistLevelStats {
+    level: String!
+    completed: Int!
+    total: Int!
   }
 
   type TrickCompletion {
