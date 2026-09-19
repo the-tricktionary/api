@@ -183,6 +183,12 @@ export const speedResultResolvers: Resolvers = {
     timingTrack (speedResult) {
       return speedResult.timingTrack ?? null
     },
+    counted (speedResult) {
+      // Scanning the stream the document already carries, rather than running
+      // the analysis, so a list of results stays cheap. A stream with no step
+      // in it has nothing to analyse either, so the two agree.
+      return marksOf(speedResult).some(mark => mark.schema === 'step')
+    },
     async analysis (speedResult, _, context) {
       const marks = marksOf(speedResult)
       if (!marks.length) return null

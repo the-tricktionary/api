@@ -433,6 +433,12 @@ const typeDefs = gql`
     timingTrack: TimingTrack
     """Derived from the marks, null for results without any step marks"""
     analysis: SpeedAnalysis
+    """
+    Whether this score was counted step by step rather than entered as a
+    total, so a list can tell the two apart without asking for the marks or
+    the analysis. True exactly when there is an analysis to show.
+    """
+    counted: Boolean!
   }
 
   type SpeedMark {
