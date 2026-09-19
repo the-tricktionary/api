@@ -98,6 +98,8 @@ export function isLanguage (t: any): t is LanguageDoc { return t?.collection ===
 
 export interface UiMessageLeaf {
   value: string
+  /** The English message this was translated from, absent for translations saved before we recorded it */
+  source?: string
   updatedBy: UserDoc['id']
   updatedAt: Timestamp
 }

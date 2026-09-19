@@ -39,7 +39,9 @@ export const uiMessageResolvers: Resolvers = {
       const updatedAt = Timestamp.now()
       const patch = Object.fromEntries(parsedEntries.map(entry => [
         entry.key,
-        entry.value ? { value: entry.value, updatedBy: user.id, updatedAt } : FieldValue.delete()
+        entry.value
+          ? { value: entry.value, ...(entry.source ? { source: entry.source } : {}), updatedBy: user.id, updatedAt }
+          : FieldValue.delete()
       ]))
 
       const uiMessages = await (dataSources.uiMessages.updateOnePartial(parsedLang, { messages: patch }) as Promise<UiMessagesDoc>)
@@ -49,6 +51,9 @@ export const uiMessageResolvers: Resolvers = {
   UiMessageEntry: {
     value (entry) {
       return entry.leaf.value
+    },
+    source (entry) {
+      return entry.leaf.source ?? null
     },
     updatedAt (entry) {
       return entry.leaf.updatedAt
