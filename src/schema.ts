@@ -537,8 +537,9 @@ const typeDefs = gql`
     """
     Athlete switches in a custom relay, so its steps can be attributed to
     each athlete without an official timing track. The clock runs from zero
-    to totalDuration, so only Switch cues are accepted and they must fall
-    inside the event.
+    to totalDuration, so there is no End cue, and a Start cue is only
+    accepted at offset 0, where it names the opening stretch. Switches must
+    fall inside the event.
     """
     cues: [TimingCueInput!]
   }
