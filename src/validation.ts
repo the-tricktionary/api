@@ -118,11 +118,50 @@ const MAX_MARKS = 20_000
 const speedResultNameSchema = z.string().trim().max(120)
 const speedResultCountSchema = z.number().int().min(0).max(1_000_000)
 
+/**
+ * A switch in a custom relay. The event's clock runs from zero to its total
+ * duration, so there is nothing for a start or end cue to say.
+ */
+const customEventCueSchema = z.object({
+  type: z.enum(TimingCueType),
+  offset: z.number().int().min(1).max(3_600_000),
+  label: z.string().trim().max(40).nullish()
+})
+
 /** A custom event definition embedded in a speed result, duration in seconds */
 export const eventDefinitionInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  totalDuration: z.number().int().min(0).max(3_600)
+  totalDuration: z.number().int().min(0).max(3_600),
+  cues: z.array(customEventCueSchema).max(50)
+    .refine(
+      cues => cues.every(cue => cue.type === TimingCueType.Switch),
+      'A custom event can only have switch cues, its clock runs from zero to its total duration'
+    )
+    .refine(
+      cues => new Set(cues.map(cue => cue.offset)).size === cues.length,
+      'Two switches cannot share an offset'
+    )
+    .nullish()
 })
+  .refine(
+    data => !data.cues?.length || (data.totalDuration > 0 && data.cues.every(cue => cue.offset < data.totalDuration * 1000)),
+    'Switch cues must fall inside the event, which needs a total duration'
+  )
+  .transform(data => ({
+    name: data.name,
+    totalDuration: data.totalDuration,
+    ...(data.cues?.length
+      ? {
+          cues: [...data.cues]
+            .sort((a, b) => a.offset - b.offset)
+            .map(cue => ({
+              type: cue.type,
+              offset: cue.offset,
+              ...(cue.label ? { label: cue.label } : {})
+            }))
+        }
+      : {})
+  }))
 
 /** One mark of a rulesets-compatible mark stream, the timestamp arrives parsed by the Timestamp scalar */
 export const speedMarkSchema = z.object({
@@ -166,7 +205,8 @@ const timingCueSchema = z.object({
 })
 
 export const timingTrackInputSchema = z.object({
-  audioUrl: z.url(),
+  /** Absent for an event whose cues are known but which has no audio to play */
+  audioUrl: z.url().nullish(),
   cues: z.array(timingCueSchema).max(50)
     .refine(cues => cues.filter(cue => cue.type === TimingCueType.Start).length <= 1, 'A track can only have one start cue')
     .refine(cues => cues.filter(cue => cue.type === TimingCueType.End).length <= 1, 'A track can only have one end cue')
@@ -183,7 +223,10 @@ export const timingTrackInputSchema = z.object({
         ...(cue.label ? { label: cue.label } : {})
       }))
     )
-})
+}).transform(track => ({
+  ...(track.audioUrl ? { audioUrl: track.audioUrl } : {}),
+  cues: track.cues
+}))
 
 /** A track is uploaded against an existing definition, so it can only be attached on update */
 export const eventDefinitionCreateSchema = z.object({

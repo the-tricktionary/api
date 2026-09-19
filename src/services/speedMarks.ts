@@ -129,25 +129,65 @@ function eventStart (marks: ReadonlyArray<{ schema: string, timestamp: number }>
 
 /**
  * The segments of the event in seconds from its start: one per stretch
- * between the track's start, switch and end cues, or a single one spanning
- * the whole event when there is no track.
+ * between the switch cues, or a single one spanning the whole event when
+ * there are none.
+ *
+ * Cues are offsets into the audio, so they are measured from the start cue
+ * where there is one. A track without audio has no lead-in to skip, and a
+ * custom event's switches are offsets into the event itself, so both start
+ * from zero.
  */
 function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
   const startCue = timingTrack?.cues.find(cue => cue.type === TimingCueType.Start)
   const switches = timingTrack?.cues.filter(cue => cue.type === TimingCueType.Switch) ?? []
-  if (startCue == null || switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]
+  if (switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]
 
+  const startOffset = startCue?.offset ?? 0
   const bounds: Array<{ start: number, end: number, label?: string }> = []
-  let previous: { offset: number, label?: string } = startCue
-  for (const cue of [...switches, { type: TimingCueType.End, offset: startCue.offset + durationSeconds * 1000, label: undefined }]) {
+  let previous: { offset: number, label?: string } = { offset: startOffset, ...(startCue?.label ? { label: startCue.label } : {}) }
+  for (const cue of [...switches, { type: TimingCueType.End, offset: startOffset + durationSeconds * 1000, label: undefined }]) {
     bounds.push({
-      start: (previous.offset - startCue.offset) / 1000,
-      end: Math.min(durationSeconds, (cue.offset - startCue.offset) / 1000),
+      start: (previous.offset - startOffset) / 1000,
+      end: Math.min(durationSeconds, (cue.offset - startOffset) / 1000),
       ...(previous.label ? { label: previous.label } : {})
     })
     previous = cue
   }
   return bounds
+}
+
+/**
+ * The pace through the event, one value per second.
+ *
+ * Counting the steps that land in each second can only ever produce whole
+ * numbers, which both throws away precision and makes the plot jump between
+ * neighbouring integers even when the athlete is holding a steady rhythm.
+ * Instead the gap between each pair of steps gives a rate that holds until
+ * the next step, and every second reports the time-weighted average of the
+ * rates covering it. A second the athlete did not step through keeps its
+ * uncovered time at zero, so a catch still shows as a dip.
+ */
+function paceSeries (steps: ReadonlyArray<{ timestamp: number, value: number }>, start: number, buckets: number): number[] {
+  const series = new Array<number>(buckets).fill(0)
+
+  let from = start
+  for (const step of steps) {
+    const to = step.timestamp
+    const span = to - from
+    from = to
+    if (span <= 0) continue
+
+    const rate = (step.value / span) * 1000
+    const first = Math.max(0, Math.floor((to - span - start) / 1000))
+    const last = Math.min(buckets - 1, Math.floor((to - start) / 1000))
+    for (let idx = first; idx <= last; idx++) {
+      const bucketFrom = start + idx * 1000
+      const overlap = Math.min(to, bucketFrom + 1000) - Math.max(to - span, bucketFrom)
+      if (overlap > 0) series[idx] += (rate * overlap) / 1000
+    }
+  }
+
+  return series.map(round2)
 }
 
 /**
@@ -204,11 +244,7 @@ export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: num
   }
 
   const buckets = totalDuration > 0 ? totalDuration : Math.max(1, Math.ceil((end - start) / 1000))
-  const stepsPerSecondSeries = new Array<number>(buckets).fill(0)
-  for (const step of steps) {
-    const idx = Math.floor((step.timestamp - start) / 1000)
-    if (idx >= 0 && idx < buckets) stepsPerSecondSeries[idx] += step.value
-  }
+  const stepsPerSecondSeries = paceSeries(steps, start, buckets)
 
   const segments: SpeedSegment[] = segmentBounds(duration, timingTrack).map((bounds, index) => {
     const from = start + bounds.start * 1000

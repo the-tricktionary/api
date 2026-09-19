@@ -20,10 +20,11 @@ async function existingEventDefinition (eventDefinitionId: string, { dataSources
 
 /**
  * An admin can only ever save an audio URL that createTimingTrackUpload handed
- * out for this very event definition, anything else is rejected here.
+ * out for this very event definition, anything else is rejected here. A track
+ * of cues alone carries no URL to check.
  */
 function validatedTimingTrack (track: TimingTrack, eventDefinitionId: string): TimingTrack {
-  if (timingTrackObjectName(track.audioUrl, eventDefinitionId) == null) {
+  if (track.audioUrl != null && timingTrackObjectName(track.audioUrl, eventDefinitionId) == null) {
     throw new ValidationError('The audio URL is not one createTimingTrackUpload handed out for this event definition')
   }
   return track

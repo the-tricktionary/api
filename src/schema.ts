@@ -464,10 +464,14 @@ const typeDefs = gql`
     """Steps that would have fit in the miss gaps had the athlete kept the average pace"""
     stepsLost: Int!
     """
-    Steps counted in each whole second of the event, index 0 is the first
-    second after the start. Handy for plotting the whole duration.
+    The pace in each whole second of the event, index 0 is the first second
+    after the start. Handy for plotting the whole duration.
+
+    This is the time-weighted average of the rates between steps, not a count
+    of the steps landing in the second, so a steady rhythm reads as a steady
+    rate rather than alternating between neighbouring whole numbers.
     """
-    stepsPerSecondSeries: [Int!]!
+    stepsPerSecondSeries: [Float!]!
     """
     The event split at its timing track's switch cues, so a relay's steps can
     be attributed to each athlete. A single segment when there is no track.
@@ -524,6 +528,13 @@ const typeDefs = gql`
   input EventDefinitionInput {
     name: String!
     totalDuration: Int!
+    """
+    Athlete switches in a custom relay, so its steps can be attributed to
+    each athlete without an official timing track. The clock runs from zero
+    to totalDuration, so only Switch cues are accepted and they must fall
+    inside the event.
+    """
+    cues: [TimingCueInput!]
   }
 
   type EventDefinition @cacheControl(maxAge: 3600) {
@@ -533,7 +544,7 @@ const typeDefs = gql`
     totalDuration: Int!
     """The rulesets competition event lookup code (without version) when this is a known competition event"""
     eventDefinitionLookupCode: String
-    """The official audio track of the event, when one has been uploaded"""
+    """The moments that matter in the event, with its audio when one has been uploaded"""
     timingTrack: TimingTrack
   }
 
@@ -555,10 +566,10 @@ const typeDefs = gql`
     label: String
   }
 
-  """The official audio of an event, with the moments that matter in it"""
+  """The moments that matter in an event, and the audio to play them, if any"""
   type TimingTrack {
-    """Publicly readable URL of the audio file"""
-    audioUrl: String!
+    """Publicly readable URL of the audio file, null for cues without audio"""
+    audioUrl: String
     cues: [TimingCue!]!
   }
 
@@ -569,8 +580,12 @@ const typeDefs = gql`
   }
 
   input TimingTrackInput {
-    """The audioUrl returned by createTimingTrackUpload"""
-    audioUrl: String!
+    """
+    The audioUrl returned by createTimingTrackUpload. Omit it for an event
+    whose cues are known but which has no audio to play: the clock then
+    starts at the first cue offset, or at zero when there is no start cue.
+    """
+    audioUrl: String
     cues: [TimingCueInput!]!
   }
 
