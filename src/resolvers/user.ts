@@ -1,6 +1,7 @@
-import { NotFoundError, ValidationError } from '../errors.js'
+import { FieldValue } from '@google-cloud/firestore'
+import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { GrantType } from '../generated/graphql.js'
-import { grantsSchema } from '../validation.js'
+import { grantsSchema, langSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { UserDoc } from '../store/schema.js'
@@ -33,6 +34,20 @@ export const userResolvers: Resolvers = {
     }
   },
   Mutation: {
+    async setUserLang (_, { lang }, { dataSources, allowUser, user }) {
+      allowUser.setUserLang.assert()
+      if (!user) throw new AuthorizationError()
+
+      if (lang == null) {
+        return await (dataSources.users.updateOnePartial(user.id, { lang: FieldValue.delete() }) as Promise<UserDoc>)
+      }
+
+      const parsedLang = langSchema.parse(lang)
+      const language = await dataSources.languages.findOneById(parsedLang)
+      if (!language?.enabled) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
+
+      return await (dataSources.users.updateOnePartial(user.id, { lang: parsedLang }) as Promise<UserDoc>)
+    },
     async setUserGrants (_, { userId, grants }, { dataSources, allowUser, user }) {
       allowUser.setUserGrants.assert()
 
