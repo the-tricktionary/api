@@ -102,9 +102,6 @@ export interface UiMessageLeaf {
   updatedAt: Timestamp
 }
 
-/** Mirrors the dotted key hierarchy, the key `trick.level` lives at `messages.trick.level` */
-export interface UiMessageTree { [key: string]: UiMessageTree | UiMessageLeaf }
-
 /**
  * The public site's interface strings in a single language, the document ID is
  * the language tag. English is the source language and lives in the site's own
@@ -113,7 +110,8 @@ export interface UiMessageTree { [key: string]: UiMessageTree | UiMessageLeaf }
 export interface UiMessagesDoc extends DocBase {
   readonly collection: 'ui-messages'
 
-  messages: UiMessageTree
+  /** keyed like the site's en.json, `trick.level`, one field per message so saves merge per key */
+  messages: Record<string, UiMessageLeaf>
 }
 export function isUiMessages (t: any): t is UiMessagesDoc { return t?.collection === 'ui-messages' }
 

@@ -60,9 +60,9 @@ const typeDefs = gql`
     languages: [Language!]! @cacheControl(maxAge: 3600)
 
     """
-    The public site's interface messages in a language, nested the way the
-    dotted keys are (\`trick.level\` is \`{ trick: { level: "..." } }\`), ready to
-    be handed to vue-i18n. Empty for a language nobody has translated yet.
+    The public site's interface messages in a language as a flat map keyed like
+    its en.json (\`{ "trick.level": "..." }\`). Empty for a language nobody has
+    translated yet.
     """
     uiMessages (lang: String!): JSONObject! @cacheControl(maxAge: 3600)
     """Every translated interface message of a language, with who last set it"""

@@ -1,6 +1,6 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
-import { flattenUiMessages, nestUiMessage, uiMessageValues } from '../services/uiMessages.js'
+import { uiMessageEntries, uiMessageValues } from '../services/uiMessages.js'
 import { langSchema, uiMessagesSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
@@ -12,14 +12,14 @@ export const uiMessageResolvers: Resolvers = {
       const parsedLang = langSchema.parse(lang)
 
       const uiMessages = await dataSources.uiMessages.findOneById(parsedLang, { ttl: 3600 })
-      return uiMessages ? uiMessageValues(uiMessages.messages) : {}
+      return uiMessageValues(uiMessages?.messages)
     },
     async uiMessageEntries (_, { lang }, { dataSources, allowUser }) {
       const parsedLang = langSchema.parse(lang)
       allowUser.uiMessages(parsedLang).edit.assert()
 
       const uiMessages = await dataSources.uiMessages.findOneById(parsedLang)
-      return uiMessages ? flattenUiMessages(uiMessages.messages) : []
+      return uiMessageEntries(uiMessages?.messages)
     }
   },
   Mutation: {
@@ -33,20 +33,17 @@ export const uiMessageResolvers: Resolvers = {
       const language = await dataSources.languages.findOneById(parsedLang)
       if (!language) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
 
-      // one merging set, so keys nobody touched are kept and two translators
-      // saving different keys at the same time don't overwrite each other
+      // one merging set of only the keys sent, so keys nobody touched are kept
+      // and two translators saving different keys at the same time don't
+      // overwrite each other
       const updatedAt = Timestamp.now()
-      const patch: Record<string, any> = {}
-      for (const entry of parsedEntries) {
-        nestUiMessage(
-          entry.key,
-          entry.value ? { value: entry.value, updatedBy: user.id, updatedAt } : FieldValue.delete(),
-          patch
-        )
-      }
+      const patch = Object.fromEntries(parsedEntries.map(entry => [
+        entry.key,
+        entry.value ? { value: entry.value, updatedBy: user.id, updatedAt } : FieldValue.delete()
+      ]))
 
       const uiMessages = await (dataSources.uiMessages.updateOnePartial(parsedLang, { messages: patch }) as Promise<UiMessagesDoc>)
-      return flattenUiMessages(uiMessages.messages ?? {})
+      return uiMessageEntries(uiMessages.messages)
     }
   },
   UiMessageEntry: {
