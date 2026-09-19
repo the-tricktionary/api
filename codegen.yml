@@ -4,6 +4,7 @@ schema:
 config:
   scalars:
     Timestamp: Timestamp
+    JSONObject: Record<string, unknown>
 generates:
   graphql.schema.json:
     plugins:
@@ -24,6 +25,7 @@ generates:
         SpeedResult: ../store/schema.js#SpeedResultDoc
         SpeedMark: ../store/schema.js#SpeedMark as SpeedMarkModel
         EventDefinition: ../store/schema.js#EventDefinitionDoc
+        UiMessageEntry: ../services/uiMessages.js#UiMessageEntry as UiMessageEntryModel
     plugins:
       - typescript
       - typescript-resolvers

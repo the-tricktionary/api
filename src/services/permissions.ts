@@ -82,6 +82,16 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       return { edit }
     },
 
+    uiMessages (lang: string) {
+      // the site's english interface strings live in the site's own repository,
+      // so unlike trick localisations english is never edited through the API
+      const edit = enrich(function editUiMessages () {
+        return isSuperAdmin() || grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
+      })
+
+      return { edit }
+    },
+
     ruleset (rulesId: string) {
       const editLevels = enrich(function editLevels () {
         return isSuperAdmin() || grants.some(grant => grant.type === GrantType.LevelEditor && grant.rulesId === rulesId)
