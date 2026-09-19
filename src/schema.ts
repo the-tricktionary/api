@@ -565,7 +565,6 @@ const typeDefs = gql`
     totalDuration: Int!
     """Rulesets competition event lookup code without version, e.g. e.ijru.sp.sr.srss.1.30"""
     lookupCode: String
-    timingTrack: TimingTrackInput
   }
 
   input EventDefinitionUpdateInput {

@@ -184,11 +184,11 @@ export const timingTrackInputSchema = z.object({
     )
 })
 
+/** A track is uploaded against an existing definition, so it can only be attached on update */
 export const eventDefinitionCreateSchema = z.object({
   name: eventDefinitionNameSchema,
   totalDuration: eventDefinitionDurationSchema,
-  lookupCode: eventLookupCodeSchema.nullish(),
-  timingTrack: timingTrackInputSchema.nullish()
+  lookupCode: eventLookupCodeSchema.nullish()
 })
 
 export const eventDefinitionUpdateSchema = z.object({

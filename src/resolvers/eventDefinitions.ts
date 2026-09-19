@@ -58,10 +58,6 @@ export const eventDefinitionResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const data = eventDefinitionCreateSchema.parse(rawData)
 
-      // a track can only be uploaded for an existing definition, so the
-      // definition is created first and the track attached afterwards
-      if (data.timingTrack) throw new ValidationError('Create the event definition first, then upload its timing track')
-
       return await (dataSources.eventDefinitions.createOne({
         name: data.name,
         totalDuration: data.totalDuration,
