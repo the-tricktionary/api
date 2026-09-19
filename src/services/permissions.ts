@@ -46,12 +46,14 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const grants: Grant[] = user?.grants ?? []
   const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === GrantType.SuperAdmin) })
   const editTricks = enrich(function editTricks () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.TrickEditor) })
+  const editEventDefinitions = enrich(function editEventDefinitions () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.SpeedEditor) })
 
   return {
     getTricks: everyone,
     editTrickCompletions: isAuthenticated,
     createSpeedResult: isAuthenticated,
     setUserLang: isAuthenticated,
+    editEventDefinitions,
     makePurchase: everyone,
 
     createTrick: editTricks,

@@ -1,9 +1,20 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { createMarkReducer, filterMarkStream, simpleReducer } from '@ropescore/rulesets'
-import type { SpeedMark, SpeedResultDoc } from '../store/schema.js'
+import { TimingCueType } from '../generated/graphql.js'
+import type { SpeedMark, SpeedResultDoc, TimingTrack } from '../store/schema.js'
 
 /** Gaps between steps longer than this many median gaps count as a miss */
 const MISS_THRESHOLD = 1.5
+
+export interface SpeedSegment {
+  index: number
+  label?: string
+  /** Seconds from the start of the event */
+  start: number
+  end: number
+  count: number
+  stepsPerSecond: number
+}
 
 export interface SpeedAnalysis {
   duration: number
@@ -12,6 +23,7 @@ export interface SpeedAnalysis {
   misses: number
   stepsLost: number
   stepsPerSecondSeries: number[]
+  segments: SpeedSegment[]
 }
 
 function toMillis (ts: Timestamp | { _seconds: number, _nanoseconds: number }) {
@@ -102,6 +114,43 @@ export function assertValidMarkStream (marks: readonly SpeedMark[]) {
 }
 
 /**
+ * Where the event's clock starts, in absolute milliseconds.
+ *
+ * The 'start' mark is the moment the athlete pressed start, or the moment the
+ * timing track started playing. With a track the clock starts at its start
+ * cue instead, since the track usually has a "ready, set" lead-in.
+ */
+function eventStart (marks: ReadonlyArray<{ schema: string, timestamp: number }>, firstStep: number, timingTrack?: TimingTrack | null) {
+  const startMark = marks.find(mark => mark.schema === 'start')
+  if (startMark == null) return firstStep
+  const startCue = timingTrack?.cues.find(cue => cue.type === TimingCueType.Start)
+  return startMark.timestamp + (startCue?.offset ?? 0)
+}
+
+/**
+ * The segments of the event in seconds from its start: one per stretch
+ * between the track's start, switch and end cues, or a single one spanning
+ * the whole event when there is no track.
+ */
+function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
+  const startCue = timingTrack?.cues.find(cue => cue.type === TimingCueType.Start)
+  const switches = timingTrack?.cues.filter(cue => cue.type === TimingCueType.Switch) ?? []
+  if (startCue == null || switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]
+
+  const bounds: Array<{ start: number, end: number, label?: string }> = []
+  let previous: { offset: number, label?: string } = startCue
+  for (const cue of [...switches, { type: TimingCueType.End, offset: startCue.offset + durationSeconds * 1000, label: undefined }]) {
+    bounds.push({
+      start: (previous.offset - startCue.offset) / 1000,
+      end: Math.min(durationSeconds, (cue.offset - startCue.offset) / 1000),
+      ...(previous.label ? { label: previous.label } : {})
+    })
+    previous = cue
+  }
+  return bounds
+}
+
+/**
  * Derives pacing statistics from a mark stream.
  *
  * Only step marks with a positive value are considered, the optional start
@@ -109,7 +158,7 @@ export function assertValidMarkStream (marks: readonly SpeedMark[]) {
  * When the event has a total duration that is used as the duration, otherwise
  * the time from the start to the last step is used.
  */
-export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: number): SpeedAnalysis | null {
+export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: number, timingTrack?: TimingTrack | null): SpeedAnalysis | null {
   const marks = filterMarkStream(rawMarks as Parameters<typeof filterMarkStream>[0])
   const steps = marks
     .filter(mark => mark.schema === 'step' && (mark.value ?? 1) > 0)
@@ -117,7 +166,7 @@ export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: num
     .sort((a, b) => a.timestamp - b.timestamp)
   if (steps.length === 0) return null
 
-  const start = marks.find(mark => mark.schema === 'start')?.timestamp ?? steps[0].timestamp
+  const start = eventStart(marks, steps[0].timestamp, timingTrack)
   const end = steps[steps.length - 1].timestamp
   const duration = totalDuration > 0 ? totalDuration : (end - start) / 1000
   const count = steps.reduce((acc, step) => acc + step.value, 0)
@@ -161,12 +210,30 @@ export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: num
     if (idx >= 0 && idx < buckets) stepsPerSecondSeries[idx] += step.value
   }
 
+  const segments: SpeedSegment[] = segmentBounds(duration, timingTrack).map((bounds, index) => {
+    const from = start + bounds.start * 1000
+    const to = start + bounds.end * 1000
+    const segmentCount = steps
+      .filter(step => step.timestamp >= from && step.timestamp < to)
+      .reduce((acc, step) => acc + step.value, 0)
+    const seconds = bounds.end - bounds.start
+    return {
+      index,
+      ...(bounds.label ? { label: bounds.label } : {}),
+      start: round2(bounds.start),
+      end: round2(bounds.end),
+      count: segmentCount,
+      stepsPerSecond: seconds > 0 ? round2(segmentCount / seconds) : 0
+    }
+  })
+
   return {
     duration: round2(duration),
     stepsPerSecond: round2(stepsPerSecond),
     maxStepsPerSecond: round2(maxStepsPerSecond),
     misses,
     stepsLost,
-    stepsPerSecondSeries
+    stepsPerSecondSeries,
+    segments
   }
 }

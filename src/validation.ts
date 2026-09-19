@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { GrantType, VerificationLevel } from './generated/graphql.js'
+import { GrantType, TimingCueType, VerificationLevel } from './generated/graphql.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -83,12 +83,14 @@ const levelEditorGrantSchema = z.strictObject({
   rulesId: rulesIdSchema,
   verificationLevel: z.enum(VerificationLevel).nullish()
 })
+const speedEditorGrantSchema = z.strictObject({ type: z.literal(GrantType.SpeedEditor) })
 
 const grantInputSchema = z.discriminatedUnion('type', [
   superAdminGrantSchema,
   trickEditorGrantSchema,
   translatorGrantSchema,
-  levelEditorGrantSchema
+  levelEditorGrantSchema,
+  speedEditorGrantSchema
 ])
 
 export const grantsSchema = z.array(grantInputSchema)
@@ -135,6 +137,7 @@ export const speedResultCreateSchema = z.object({
   name: speedResultNameSchema.nullish(),
   count: speedResultCountSchema.nullish(),
   marks: z.array(speedMarkSchema).max(MAX_MARKS).nullish(),
+  withTimingTrack: z.boolean().nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
   eventDefinition: eventDefinitionInputSchema.nullish()
 })
@@ -144,4 +147,54 @@ export const speedResultUpdateSchema = z.object({
   count: speedResultCountSchema.nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
   eventDefinition: eventDefinitionInputSchema.nullish()
+})
+
+// Event definitions and timing tracks
+
+/** Rulesets competition event lookup codes look like e.ijru.sp.sr.srss.1.30 */
+export const eventLookupCodeSchema = z.string().trim()
+  .regex(/^e\.[a-z0-9-]+\.(fs|sp|oa)\.(sr|dd|wh|ts|xd)\.[a-z0-9-]+\.\d+\.(\d+x)?\d+$/, 'A lookup code looks like e.ijru.sp.sr.srss.1.30')
+
+const eventDefinitionNameSchema = z.string().trim().min(1, 'A name is required').max(120)
+const eventDefinitionDurationSchema = z.number().int().min(0).max(3_600)
+
+const timingCueSchema = z.object({
+  type: z.enum(TimingCueType),
+  // an hour of audio, same cap as an event
+  offset: z.number().int().min(0).max(3_600_000),
+  label: z.string().trim().max(40).nullish()
+})
+
+export const timingTrackInputSchema = z.object({
+  audioUrl: z.url(),
+  cues: z.array(timingCueSchema).max(50)
+    .refine(cues => cues.filter(cue => cue.type === TimingCueType.Start).length <= 1, 'A track can only have one start cue')
+    .refine(cues => cues.filter(cue => cue.type === TimingCueType.End).length <= 1, 'A track can only have one end cue')
+    .refine(cues => {
+      const start = cues.find(cue => cue.type === TimingCueType.Start)?.offset ?? -Infinity
+      const end = cues.find(cue => cue.type === TimingCueType.End)?.offset ?? Infinity
+      return start < end && cues.every(cue => cue.type !== TimingCueType.Switch || (cue.offset > start && cue.offset < end))
+    }, 'Switch cues must lie between the start and end cues')
+    .transform(cues => [...cues]
+      .sort((a, b) => a.offset - b.offset)
+      .map(cue => ({
+        type: cue.type,
+        offset: cue.offset,
+        ...(cue.label ? { label: cue.label } : {})
+      }))
+    )
+})
+
+/** A track is uploaded against an existing definition, so it can only be attached on update */
+export const eventDefinitionCreateSchema = z.object({
+  name: eventDefinitionNameSchema,
+  totalDuration: eventDefinitionDurationSchema,
+  lookupCode: eventLookupCodeSchema.nullish()
+})
+
+export const eventDefinitionUpdateSchema = z.object({
+  name: eventDefinitionNameSchema.optional(),
+  totalDuration: eventDefinitionDurationSchema.optional(),
+  lookupCode: eventLookupCodeSchema.nullish(),
+  timingTrack: timingTrackInputSchema.nullish()
 })

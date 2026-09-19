@@ -87,6 +87,19 @@ const typeDefs = gql`
     updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult!
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
 
+    # Event definitions (speed editors)
+    createEventDefinition (data: EventDefinitionCreateInput!): EventDefinition!
+    """Omitted fields are left alone, a null timingTrack removes the track"""
+    updateEventDefinition (eventDefinitionId: ID!, data: EventDefinitionUpdateInput!): EventDefinition!
+    """Refused while any speed result refers to the event"""
+    deleteEventDefinition (eventDefinitionId: ID!): EventDefinition!
+    """
+    Starts an upload of a timing track audio file. PUT the file, with the same
+    Content-Type, to the returned \`url\` and then save the returned
+    \`audioUrl\` on the event definition with updateEventDefinition.
+    """
+    createTimingTrackUpload (eventDefinitionId: ID!, contentType: String!): TimingTrackUpload!
+
     # Shop
     createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
 
@@ -338,7 +351,8 @@ const typeDefs = gql`
     # friends: [User!]! # maybe in the future?
 
     checklist: [TrickCompletion!]!
-    speedResults (limit: Int, startAfter: Timestamp): [SpeedResult!]!
+    """Newest first. eventDefinitionId narrows the list to one event."""
+    speedResults (limit: Int, startAfter: Timestamp, eventDefinitionId: ID): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
 
     # store fcm tokens in db? don't expose if so
@@ -352,6 +366,8 @@ const typeDefs = gql`
     TrickEditor
     Translator
     LevelEditor
+    """May manage speed event definitions and their timing tracks"""
+    SpeedEditor
   }
 
   type Grant {
@@ -410,6 +426,11 @@ const typeDefs = gql`
     that were entered as a plain count.
     """
     marks: [SpeedMark!]!
+    """
+    The event's timing track as it was when the result was recorded with it,
+    the result's 'start' mark is the moment the audio started playing
+    """
+    timingTrack: TimingTrack
     """Derived from the marks, null for results without any step marks"""
     analysis: SpeedAnalysis
   }
@@ -447,6 +468,23 @@ const typeDefs = gql`
     second after the start. Handy for plotting the whole duration.
     """
     stepsPerSecondSeries: [Int!]!
+    """
+    The event split at its timing track's switch cues, so a relay's steps can
+    be attributed to each athlete. A single segment when there is no track.
+    """
+    segments: [SpeedSegment!]!
+  }
+
+  type SpeedSegment {
+    """Zero-based position of the segment in the event"""
+    index: Int!
+    """The label of the cue that opens the segment, if it has one"""
+    label: String
+    """Seconds from the start of the event"""
+    start: Float!
+    end: Float!
+    count: Int!
+    stepsPerSecond: Float!
   }
 
   input SpeedMarkInput {
@@ -463,6 +501,11 @@ const typeDefs = gql`
     count: Int
     """Rulesets-compatible mark stream, see SpeedResult.marks"""
     marks: [SpeedMarkInput!]
+    """
+    Store the event definition's current timing track with the result. The
+    marks should then contain a 'start' mark for the moment the audio started.
+    """
+    withTimingTrack: Boolean
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput
@@ -490,6 +533,70 @@ const typeDefs = gql`
     totalDuration: Int!
     """The rulesets competition event lookup code (without version) when this is a known competition event"""
     eventDefinitionLookupCode: String
+    """The official audio track of the event, when one has been uploaded"""
+    timingTrack: TimingTrack
+  }
+
+  enum TimingCueType {
+    """The go signal, the event's clock starts here"""
+    Start
+    """An athlete switch in a relay"""
+    Switch
+    """The stop signal"""
+    End
+  }
+
+  """A moment in a timing track that matters for counting"""
+  type TimingCue {
+    type: TimingCueType!
+    """Milliseconds from the start of the audio"""
+    offset: Int!
+    """e.g. the name of the athlete position that starts here"""
+    label: String
+  }
+
+  """The official audio of an event, with the moments that matter in it"""
+  type TimingTrack {
+    """Publicly readable URL of the audio file"""
+    audioUrl: String!
+    cues: [TimingCue!]!
+  }
+
+  input TimingCueInput {
+    type: TimingCueType!
+    offset: Int!
+    label: String
+  }
+
+  input TimingTrackInput {
+    """The audioUrl returned by createTimingTrackUpload"""
+    audioUrl: String!
+    cues: [TimingCueInput!]!
+  }
+
+  type TimingTrackUpload {
+    """PUT the audio file here with the Content-Type the upload was created with"""
+    url: String!
+    """Where the file will be readable once uploaded, pass it on to updateEventDefinition"""
+    audioUrl: String!
+    expiresAt: Timestamp!
+  }
+
+  input EventDefinitionCreateInput {
+    name: String!
+    """Seconds, 0 for events without a time limit"""
+    totalDuration: Int!
+    """Rulesets competition event lookup code without version, e.g. e.ijru.sp.sr.srss.1.30"""
+    lookupCode: String
+  }
+
+  input EventDefinitionUpdateInput {
+    name: String
+    totalDuration: Int
+    """Null clears it"""
+    lookupCode: String
+    """Null removes the track, and its audio file"""
+    timingTrack: TimingTrackInput
   }
 
   type Product {

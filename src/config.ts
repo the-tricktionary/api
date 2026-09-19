@@ -30,7 +30,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   // The origin a Mux direct upload is created for when the request's own
   // origin isn't one we allow
-  MUX_UPLOAD_CORS_ORIGIN: z.url().default('https://admin.the-tricktionary.com')
+  MUX_UPLOAD_CORS_ORIGIN: z.url().default('https://admin.the-tricktionary.com'),
+  // The publicly readable Cloud Storage bucket timing track audio is uploaded to
+  TIMING_TRACK_BUCKET: z.string().default('tricktionary-timing-tracks')
 })
 
 export const {
@@ -40,5 +42,6 @@ export const {
   GCP_PROJECT,
   ALGOLIA_APP_ID,
   PORT,
-  MUX_UPLOAD_CORS_ORIGIN
+  MUX_UPLOAD_CORS_ORIGIN,
+  TIMING_TRACK_BUCKET
 } = envSchema.parse(process.env)
