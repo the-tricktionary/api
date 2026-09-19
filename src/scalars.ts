@@ -1,5 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
-import { GraphQLScalarType, Kind } from 'graphql'
+import { GraphQLScalarType, Kind, valueFromASTUntyped } from 'graphql'
+import { ValidationError } from './errors.js'
 
 export const TimestampScalar = new GraphQLScalarType<Timestamp | null, number>({
   name: 'Timestamp',
@@ -18,5 +19,27 @@ export const TimestampScalar = new GraphQLScalarType<Timestamp | null, number>({
       return Timestamp.fromMillis(parseInt(ast.value, 10))
     }
     return null
+  }
+})
+
+function asPlainObject (value: unknown) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new ValidationError('The `JSONObject` scalar only accepts objects')
+  }
+  return value as Record<string, unknown>
+}
+
+export const JSONObjectScalar = new GraphQLScalarType<Record<string, unknown>, Record<string, unknown>>({
+  name: 'JSONObject',
+  description: 'The `JSONObject` scalar represents an arbitrarily nested JSON object',
+  serialize (value) {
+    return asPlainObject(value)
+  },
+  parseValue (value) {
+    return asPlainObject(value)
+  },
+  parseLiteral (ast) {
+    if (ast.kind !== Kind.OBJECT) throw new ValidationError('The `JSONObject` scalar only accepts objects')
+    return valueFromASTUntyped(ast) as Record<string, unknown>
   }
 })

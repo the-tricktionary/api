@@ -5,7 +5,7 @@ import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc } from './schema.js'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc } from './schema.js'
 import type { CollectionReference, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
@@ -47,6 +47,9 @@ export class LanguageDataSource extends FirestoreDataSource<LanguageDoc> {
   }
 }
 export const languageDataSource = (cache: KeyValueCache) => new LanguageDataSource(firestore.collection('languages') as CollectionReference<LanguageDoc>, { logger: logger.child({ name: 'language-data-source' }), cache })
+
+export class UiMessagesDataSource extends FirestoreDataSource<UiMessagesDoc> {}
+export const uiMessagesDataSource = (cache: KeyValueCache) => new UiMessagesDataSource(firestore.collection('ui-messages') as CollectionReference<UiMessagesDoc>, { logger: logger.child({ name: 'ui-messages-data-source' }), cache })
 
 export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   async findAll (options?: QueryFindArgs) {
@@ -124,6 +127,7 @@ export function createDataSources () {
     trickLevels: trickLevelDataSource(dataSourceCache),
     trickCompletions: trickCompletionDataSource(dataSourceCache),
     trickVideoUploads: trickVideoUploadDataSource(dataSourceCache),
+    uiMessages: uiMessagesDataSource(dataSourceCache),
     users: userDataSource(dataSourceCache)
   }
 }
