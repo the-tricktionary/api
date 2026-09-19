@@ -42,23 +42,25 @@ async function eventDefinitionOf (speedResult: SpeedResultDoc, { dataSources }: 
 
 /**
  * Validates the event definition part of an input, returning the fields to
- * write on the result document. `required` decides whether omitting both is
- * an error (create) or means "leave as is" (update).
+ * write on the result document. On create omitting both is an error and the
+ * unused field is simply left out; on update omitting both means "leave as
+ * is" and the field the result no longer uses is deleted, which Firestore
+ * only allows in an update.
  */
-async function eventDefinitionFields (data: { eventDefinitionId?: string | null, eventDefinition?: { name: string, totalDuration: number } | null }, { dataSources }: Pick<ApolloContext, 'dataSources'>, { required }: { required: boolean }) {
+async function eventDefinitionFields (data: { eventDefinitionId?: string | null, eventDefinition?: { name: string, totalDuration: number } | null }, { dataSources }: Pick<ApolloContext, 'dataSources'>, { mode }: { mode: 'create' | 'update' }) {
   if (data.eventDefinitionId) {
     const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
     if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
     return {
       eventDefinitionId: eventDefinition.id,
-      eventDefinition: FieldValue.delete() as unknown as undefined
+      ...(mode === 'update' ? { eventDefinition: FieldValue.delete() as unknown as undefined } : {})
     }
   } else if (data.eventDefinition) {
     return {
-      eventDefinitionId: FieldValue.delete() as unknown as undefined,
+      ...(mode === 'update' ? { eventDefinitionId: FieldValue.delete() as unknown as undefined } : {}),
       eventDefinition: data.eventDefinition
     }
-  } else if (required) {
+  } else if (mode === 'create') {
     throw new ValidationError('No event definition or event definition id specified')
   }
   return {}
@@ -81,7 +83,7 @@ export const speedResultResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
 
       const data = speedResultCreateSchema.parse(rawData)
-      const eventFields = await eventDefinitionFields(data, { dataSources }, { required: true })
+      const eventFields = await eventDefinitionFields(data, { dataSources }, { mode: 'create' })
 
       let timingTrack = {}
       if (data.withTimingTrack) {
@@ -120,7 +122,7 @@ export const speedResultResolvers: Resolvers = {
     async updateSpeedResult (_, { speedResultId, data: rawData }, context) {
       const speedResult = await ownedSpeedResult(speedResultId, context, 'edit')
       const data = speedResultUpdateSchema.parse(rawData)
-      const eventFields = await eventDefinitionFields(data, context, { required: false })
+      const eventFields = await eventDefinitionFields(data, context, { mode: 'update' })
 
       let countFields = {}
       if (typeof data.count === 'number') {
