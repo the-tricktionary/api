@@ -46,7 +46,7 @@ async function discardAudio (audioUrl: string | undefined, eventDefinitionId: st
   }
 }
 
-/** The order events are listed in everywhere: shortest first, then by name */
+/** Shortest first, then by name */
 export function byEventOrder (a: EventDefinitionDoc, b: EventDefinitionDoc) {
   return a.totalDuration - b.totalDuration || a.name.localeCompare(b.name)
 }

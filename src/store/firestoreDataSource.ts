@@ -11,7 +11,7 @@ import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
 import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
 
-/** Exported so a resolver can run a transaction across several collections */
+/** For transactions spanning collections */
 export const firestore = new Firestore()
 
 // the collection type is only ever what the document type says it is
@@ -95,14 +95,13 @@ export class UserDataSource extends FirestoreDataSource<UserDoc> {
     return await this.findManyByQuery(c => c.where('grants', '!=', []), options)
   }
 
-  /** A username is held by at most one user, see UsernameDataSource */
   async findOneByUsername (username: string, options?: QueryFindArgs) {
     return (await this.findManyByQuery(c => c.where('username', '==', username), options))[0]
   }
 }
 export const userDataSource = (cache: KeyValueCache) => new UserDataSource(collection<UserDoc>('users'), { logger: logger.child({ name: 'user-data-source' }), cache })
 
-/** The reservations that make usernames unique, the document ID is the username */
+/** Username reservations, keyed by the username */
 export class UsernameDataSource extends FirestoreDataSource<UsernameDoc> {}
 export const usernameDataSource = (cache: KeyValueCache) => new UsernameDataSource(collection<UsernameDoc>('usernames'), { logger: logger.child({ name: 'username-data-source' }), cache })
 
@@ -125,7 +124,7 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
     }, { ttl })
   }
 
-  /** The user's highest score in a single event, undefined when they have none */
+  /** The user's highest score in an event */
   async findBestByUserAndEvent (userId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
     return (await this.findManyByQuery(c => c
       .where('userId', '==', userId)

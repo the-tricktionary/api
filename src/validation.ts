@@ -258,14 +258,10 @@ export const eventDefinitionUpdateSchema = z.object({
 
 // Users
 
-/**
- * The handle a profile is reachable at, e.g. `jane.doe`. Stored lowercase, so
- * a username typed with capitals claims (and finds) the same handle.
- */
+/** A profile's handle, e.g. `jane.doe`, lowercased */
 export const usernameSchema = z.string().trim().toLowerCase()
   .regex(/^[a-z0-9][a-z0-9._-]{1,28}[a-z0-9]$/, 'A username is 3 to 30 characters of lowercase letters, digits, dots, dashes or underscores, and starts and ends with a letter or digit')
 
-/** The display name shown on a profile and next to contributions */
 export const userNameSchema = z.string().trim()
   .min(1, 'A name is required')
   .max(120, 'A name can be at most 120 characters')
@@ -276,13 +272,12 @@ export const profileOptionsSchema = z.object({
   speed: z.boolean()
 }).transform(options => ({
   public: options.public,
-  // nothing is shown on a profile nobody may see, so the details of a private
-  // profile are stored switched off rather than kept for later
+  // a private profile shows nothing, so its details are stored off
   checklist: options.public && options.checklist,
   speed: options.public && options.speed
 }))
 
-/** Every field is set on each update, a missing username means none */
+/** Sets every field, a missing username means none */
 export const userProfileInputSchema = z.object({
   name: userNameSchema,
   username: usernameSchema.nullish().transform(username => username ?? null)

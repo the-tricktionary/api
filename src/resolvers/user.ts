@@ -11,19 +11,14 @@ import type { DataSources } from '../store/firestoreDataSource.js'
 import type { UserDoc } from '../store/schema.js'
 
 /**
- * Moves the user to a username, or off one when it's null, and returns the
- * user as they are afterwards. Firestore can only keep a field unique through
- * a document per value, so a claim is a document in `usernames` named after
- * the handle: claiming the new one, releasing the old one and updating the
- * user happen in one transaction, so a handle is never held by two users and
- * never left reserved by a user who gave it up.
+ * Claims `username` (null releases the current one) and sets the name in one
+ * transaction, the `usernames` documents being what keeps a handle unique.
  */
 async function moveUsername (user: UserDoc, username: string | null, name: string, dataSources: DataSources): Promise<UserDoc> {
   const usernames = dataSources.usernames.collection
   const users = dataSources.users.collection
 
   await firestore.runTransaction(async tx => {
-    // a transaction reads everything it needs before it writes anything
     const claim = username != null ? await tx.get(usernames.doc(username)) : undefined
     if (claim?.exists && claim.data()?.userId !== user.id) {
       throw new ValidationError('That username is taken', { extensions: { field: 'username', reason: 'taken' } })
@@ -33,17 +28,15 @@ async function moveUsername (user: UserDoc, username: string | null, name: strin
     if (username != null && !claim?.exists) {
       tx.create(usernames.doc(username), { id: username, collection: 'usernames', userId: user.id, createdAt: now, updatedAt: now })
     }
-    // the handle the user is leaving is free for anyone else to take
     if (user.username != null && user.username !== username) tx.delete(usernames.doc(user.username))
 
-    // update skips the converter, so the timestamps stay Firestore's own
     tx.update(users.doc(user.id), {
       name,
       username: username ?? FieldValue.delete()
     })
   })
 
-  // the transaction wrote past the data source, so its copy is stale
+  // the transaction bypassed the data source cache
   await dataSources.users.deleteFromCacheById(user.id)
   const updated = await dataSources.users.findOneById(user.id)
   if (!updated) throw new NotFoundError(`User ${user.id} not found`, { extensions: { entity: 'user', id: user.id } })
@@ -59,11 +52,8 @@ export const userResolvers: Resolvers = {
       const query = usernameOrId.trim()
       if (!query) return null
 
-      // usernames are lowercase while uids are case sensitive, so only the
-      // username lookup gets the lowercased argument, and only when the
-      // argument could be a username at all. Both are looked up and the id
-      // wins, so nobody can claim an all-lowercase uid as their username and
-      // sit in front of its owner's profile.
+      // uids are case sensitive, so only the username lookup is lowercased;
+      // the id wins so a lowercase uid can't be claimed as somebody's username
       const username = usernameSchema.safeParse(query)
       const [byId, byUsername] = await Promise.all([
         dataSources.users.findOneById(query, { ttl: 60 }),
@@ -71,7 +61,7 @@ export const userResolvers: Resolvers = {
       ])
       const found = byId ?? byUsername
 
-      // a profile that isn't public reads the same as a user that isn't there
+      // private reads the same as missing
       if (!found || !allowUser.user(found).getProfile()) return null
 
       return found
@@ -119,8 +109,6 @@ export const userResolvers: Resolvers = {
 
       const data = userProfileInputSchema.parse(rawData)
 
-      // only a change of username needs the reservations, and with them a
-      // transaction
       if (data.username === (user.username ?? null)) {
         return await (dataSources.users.updateOnePartial(user.id, { name: data.name }) as Promise<UserDoc>)
       }
@@ -179,9 +167,7 @@ export const userResolvers: Resolvers = {
     async checklistStats (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getChecklistStats.assert()
 
-      // both carry the trick id, so the tricks themselves are never read; a
-      // completion of a trick that has since been deleted still counts, which
-      // is a fair reflection of what the user did
+      // completions of deleted tricks still count
       const [completions, trickLevels] = await Promise.all([
         dataSources.trickCompletions.findManyByUser(user.id, { ttl: 60 }),
         dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID, { ttl: 3600 })
@@ -195,7 +181,7 @@ export const userResolvers: Resolvers = {
       const completedPerLevel = new Map<string, number>()
       for (const completion of completions) {
         const level = levelOfTrick.get(completion.trickId)
-        // tricks without a tricktionary level only count towards the total
+        // unlevelled tricks only count towards completed
         if (level == null) continue
         completedPerLevel.set(level, (completedPerLevel.get(level) ?? 0) + 1)
       }
@@ -222,8 +208,7 @@ export const userResolvers: Resolvers = {
     async speedPersonalBests (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedPersonalBests.assert()
 
-      // a custom event is one result's own, only the predefined events are
-      // comparable enough to have a personal best
+      // custom events have no personal best
       const eventDefinitions = (await dataSources.eventDefinitions.findManyByQuery(c => c, { ttl: 3600 }))
         .sort(byEventOrder)
 

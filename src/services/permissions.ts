@@ -169,7 +169,6 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         getProfile: isMeOrHasPublicProfile,
         getChecklist: isMeOrHasPublicChecklist,
         getChecklistStats: isMeOrHasPublicProfile,
-        // the full list is the user's own, everyone else gets the personal bests
         getSpeedResults: isMe,
         getSpeedPersonalBests: isMeOrHasPublicSpeed,
         getGrants: isMeOrIsSuperAdmin,
