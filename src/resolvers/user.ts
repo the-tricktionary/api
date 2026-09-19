@@ -18,7 +18,7 @@ import type { UserDoc } from '../store/schema.js'
  * user happen in one transaction, so a handle is never held by two users and
  * never left reserved by a user who gave it up.
  */
-async function moveUsername (user: UserDoc, username: string | null, name: string | undefined, dataSources: DataSources): Promise<UserDoc> {
+async function moveUsername (user: UserDoc, username: string | null, name: string, dataSources: DataSources): Promise<UserDoc> {
   const usernames = dataSources.usernames.collection
   const users = dataSources.users.collection
 
@@ -38,7 +38,7 @@ async function moveUsername (user: UserDoc, username: string | null, name: strin
 
     // update skips the converter, so the timestamps stay Firestore's own
     tx.update(users.doc(user.id), {
-      ...(name !== undefined ? { name } : {}),
+      name,
       username: username ?? FieldValue.delete()
     })
   })
@@ -118,16 +118,14 @@ export const userResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
 
       const data = userProfileInputSchema.parse(rawData)
-      // an absent username keeps the current one, null releases it
-      const keepsUsername = data.username === undefined || (data.username ?? undefined) === user.username
 
-      // only a username needs the reservations, and with them a transaction
-      if (keepsUsername) {
-        if (data.name === undefined) return user
+      // only a change of username needs the reservations, and with them a
+      // transaction
+      if (data.username === (user.username ?? null)) {
         return await (dataSources.users.updateOnePartial(user.id, { name: data.name }) as Promise<UserDoc>)
       }
 
-      return await moveUsername(user, data.username ?? null, data.name, dataSources)
+      return await moveUsername(user, data.username, data.name, dataSources)
     },
     async setProfileOptions (_, { data: rawData }, { dataSources, allowUser, user }) {
       allowUser.editProfile.assert()

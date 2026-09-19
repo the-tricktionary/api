@@ -142,7 +142,7 @@ const typeDefs = gql`
     # Users
     """The signed in user's language, null clears it"""
     setUserLang (lang: String): User!
-    """The signed in user's name and username, omitted fields are left alone"""
+    """The signed in user's name and username, both are set on every update"""
     updateUserProfile (data: UserProfileInput!): User!
     """What others get to see of the signed in user's profile"""
     setProfileOptions (data: ProfileOptionsInput!): User!
@@ -430,13 +430,13 @@ const typeDefs = gql`
   }
 
   input UserProfileInput {
-    """Shown on the profile and next to contributions, omit to keep the current name"""
-    name: String
+    """Shown on the profile and next to contributions"""
+    name: String!
     """
     The handle the profile is reachable at, as /profile/<username>. 3 to 30
     lowercase letters, digits, dots, dashes or underscores, starting and
-    ending with a letter or digit; uppercase is lowercased on save. Omit to
-    keep the current username, null or empty releases it.
+    ending with a letter or digit; uppercase is lowercased on save. Null or
+    omitted releases the current username, an empty string is rejected.
     """
     username: String
   }

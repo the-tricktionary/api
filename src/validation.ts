@@ -282,12 +282,8 @@ export const profileOptionsSchema = z.object({
   speed: options.public && options.speed
 }))
 
+/** Every field is set on each update, a missing username means none */
 export const userProfileInputSchema = z.object({
-  name: userNameSchema.optional(),
-  // a blank username releases the handle, so it becomes null before the
-  // pattern (which a blank string would never match) gets to judge it
-  username: z.preprocess(
-    value => typeof value === 'string' && value.trim() === '' ? null : value,
-    usernameSchema.nullable()
-  ).nullish()
+  name: userNameSchema,
+  username: usernameSchema.nullish().transform(username => username ?? null)
 })
