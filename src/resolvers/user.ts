@@ -193,6 +193,25 @@ export const userResolvers: Resolvers = {
           .map(([level, total]) => ({ level, completed: completedPerLevel.get(level) ?? 0, total }))
       }
     },
+    async groups (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getGroups.assert()
+
+      const memberships = await dataSources.groupMembers.findManyByUser(user.id, { ttl: 60 })
+      const groups = await Promise.all(memberships.map(async membership =>
+        await dataSources.groups.findOneById(membership.groupId, { ttl: 60 })
+      ))
+
+      return groups
+        .filter(group => group != null)
+        .sort((a, b) => a.name.localeCompare(b.name))
+    },
+    async groupInvites (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getGroupInvites.assert()
+
+      const invites = await dataSources.groupInvites.findManyPendingByUser(user.id, { ttl: 60 })
+      // newest first, sorted here because `createdAt` is not a stored field
+      return invites.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
+    },
     async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 

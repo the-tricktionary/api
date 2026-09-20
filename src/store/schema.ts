@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import type { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -198,6 +198,61 @@ export interface UsernameDoc extends DocBase {
   userId: UserDoc['id']
 }
 export function isUsername (t: any): t is UsernameDoc { return t?.collection === 'usernames' }
+
+/** A squad: a coach and their athletes */
+export interface GroupDoc extends DocBase {
+  readonly collection: 'groups'
+  name: string
+  createdBy: UserDoc['id']
+  /** The active join code, absent while the group has none */
+  joinCode?: string
+}
+export function isGroup (t: any): t is GroupDoc { return t?.collection === 'groups' }
+
+/**
+ * A person in a group.
+ *
+ * A row without a `userId` is an athlete the group manages but who has no
+ * account yet. Accepting an invite claims such a row by setting `userId` on
+ * it, rather than creating a second one, so everything ever recorded against
+ * the athlete carries over to them.
+ *
+ * Athletes are the rows that are not observers. An observer is in the group to
+ * watch: they see everything it holds and never compete in it.
+ */
+export interface GroupMemberDoc extends DocBase {
+  readonly collection: 'group-members'
+  groupId: GroupDoc['id']
+  /** Absent for an athlete the group manages */
+  userId?: UserDoc['id']
+  /** What the group calls them, used while there is no user behind the row */
+  name?: string
+  /** Only consulted once `userId` is set */
+  role: GroupRole
+  /** In the group to watch rather than to compete, never true without a `userId` */
+  observer: boolean
+}
+export function isGroupMember (t: any): t is GroupMemberDoc { return t?.collection === 'group-members' }
+
+/**
+ * Both an admin's invitation and a person's request to join, told apart by
+ * `kind`. They resolve into the same thing, a member row, and an admin wants
+ * one list of the people waiting at the door.
+ */
+export interface GroupInviteDoc extends DocBase {
+  readonly collection: 'group-invites'
+  groupId: GroupDoc['id']
+  userId: UserDoc['id']
+  kind: GroupInviteKind
+  role: GroupRole
+  observer: boolean
+  /** The athlete row this hands over, if any */
+  memberId?: GroupMemberDoc['id']
+  /** The admin who invited, absent on a request to join */
+  invitedBy?: UserDoc['id']
+  status: GroupInviteStatus
+}
+export function isGroupInvite (t: any): t is GroupInviteDoc { return t?.collection === 'group-invites' }
 
 export interface TrickCompletionDoc extends DocBase {
   readonly collection: 'trick-completions'

@@ -5,7 +5,8 @@ import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import { GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
@@ -105,6 +106,67 @@ export const userDataSource = (cache: KeyValueCache) => new UserDataSource(colle
 export class UsernameDataSource extends FirestoreDataSource<UsernameDoc> {}
 export const usernameDataSource = (cache: KeyValueCache) => new UsernameDataSource(collection<UsernameDoc>('usernames'), { logger: logger.child({ name: 'username-data-source' }), cache })
 
+export class GroupDataSource extends FirestoreDataSource<GroupDoc> {
+  async findOneByJoinCode (joinCode: string, options?: QueryFindArgs) {
+    return (await this.findManyByQuery(c => c.where('joinCode', '==', joinCode).limit(1), options))[0]
+  }
+}
+export const groupDataSource = (cache: KeyValueCache) => new GroupDataSource(collection<GroupDoc>('groups'), { logger: logger.child({ name: 'group-data-source' }), cache })
+
+export class GroupMemberDataSource extends FirestoreDataSource<GroupMemberDoc> {
+  async findManyByGroup (groupId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('groupId', '==', groupId), options)
+  }
+
+  async findManyByUser (userId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('userId', '==', userId), options)
+  }
+
+  /** Nobody holds two rows in one group, see `respondToGroupInvite` */
+  async findOneByGroupAndUser (groupId: string, userId: string, options?: QueryFindArgs) {
+    return (await this.findManyByQuery(c => c
+      .where('groupId', '==', groupId)
+      .where('userId', '==', userId)
+      .limit(1), options))[0]
+  }
+
+  async findManyAdminsByGroup (groupId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c
+      .where('groupId', '==', groupId)
+      .where('role', '==', GroupRole.Admin), options)
+  }
+}
+export const groupMemberDataSource = (cache: KeyValueCache) => new GroupMemberDataSource(collection<GroupMemberDoc>('group-members'), { logger: logger.child({ name: 'group-member-data-source' }), cache })
+
+/**
+ * Invitations and requests to join. Both lists are small enough to sort in
+ * memory, which is also the only way to order them by `createdAt`: the data
+ * source's converter derives that from the document's own create time rather
+ * than storing a field, so Firestore has nothing to order by.
+ */
+export class GroupInviteDataSource extends FirestoreDataSource<GroupInviteDoc> {
+  async findManyPendingByUser (userId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c
+      .where('userId', '==', userId)
+      .where('status', '==', GroupInviteStatus.Pending), options)
+  }
+
+  async findManyPendingByGroup (groupId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c
+      .where('groupId', '==', groupId)
+      .where('status', '==', GroupInviteStatus.Pending), options)
+  }
+
+  async findOnePendingByGroupAndUser (groupId: string, userId: string, options?: QueryFindArgs) {
+    return (await this.findManyByQuery(c => c
+      .where('groupId', '==', groupId)
+      .where('userId', '==', userId)
+      .where('status', '==', GroupInviteStatus.Pending)
+      .limit(1), options))[0]
+  }
+}
+export const groupInviteDataSource = (cache: KeyValueCache) => new GroupInviteDataSource(collection<GroupInviteDoc>('group-invites'), { logger: logger.child({ name: 'group-invite-data-source' }), cache })
+
 export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc> {
   async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
     return await this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
@@ -147,6 +209,9 @@ export const dataSourceCache = new InMemoryLRUCache()
 export function createDataSources () {
   return {
     eventDefinitions: eventDefinitionDataSource(dataSourceCache),
+    groups: groupDataSource(dataSourceCache),
+    groupInvites: groupInviteDataSource(dataSourceCache),
+    groupMembers: groupMemberDataSource(dataSourceCache),
     languages: languageDataSource(dataSourceCache),
     rulesets: rulesetDataSource(dataSourceCache),
     speedResults: speedResultDataSource(dataSourceCache),
