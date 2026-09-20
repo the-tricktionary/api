@@ -1,9 +1,9 @@
 import * as Sentry from '@sentry/node'
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { VideoHost, VideoUploadStatus } from '../generated/graphql.js'
-import { mux } from './mux.js'
-import { getSecret } from './secrets.js'
-import { logger as baseLogger } from './logger.js'
+import { mux } from '../services/mux.js'
+import { getSecret } from '../services/secrets.js'
+import { logger as baseLogger } from '../services/logger.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
 
 import type Mux from '@mux/mux-node'

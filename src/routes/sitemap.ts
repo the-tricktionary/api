@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node'
 import { WEB_URL } from '../config.js'
 import { firestore } from '../store/firestoreDataSource.js'
-import { logger as baseLogger } from './logger.js'
+import { logger as baseLogger } from '../services/logger.js'
 import { Discipline } from '../generated/graphql.js'
 
 import type { RequestHandler } from 'express'
