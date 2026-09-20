@@ -13,16 +13,47 @@ import { TIMING_TRACK_BUCKET } from '../config.js'
  * the admin origin, see the README.
  */
 
-/** Only formats every current browser can play */
+/** Only formats every current browser can play, canonical type to file extension */
 export const TIMING_TRACK_CONTENT_TYPES: Record<string, string> = {
   'audio/mpeg': 'mp3',
   'audio/mp4': 'm4a',
   'audio/aac': 'aac',
   'audio/ogg': 'ogg',
   'audio/wav': 'wav',
-  'audio/x-wav': 'wav',
   'audio/webm': 'webm',
   'audio/flac': 'flac'
+}
+
+/**
+ * The same formats under the other names browsers and operating systems give
+ * them: a wav picked on Windows often arrives as audio/vnd.wave, an m4a as
+ * audio/x-m4a. They name a format we already accept, so they are no reason to
+ * refuse the file. The upload is still signed for the name the uploader sent,
+ * since that is the Content-Type it will PUT, and only the extension we store
+ * the object under comes from the canonical name.
+ */
+export const TIMING_TRACK_CONTENT_TYPE_ALIASES: Record<string, string> = {
+  'audio/mp3': 'audio/mpeg',
+  'audio/mpeg3': 'audio/mpeg',
+  'audio/x-mpeg': 'audio/mpeg',
+  'audio/m4a': 'audio/mp4',
+  'audio/x-m4a': 'audio/mp4',
+  'audio/x-aac': 'audio/aac',
+  'audio/vnd.wave': 'audio/wav',
+  'audio/wave': 'audio/wav',
+  'audio/x-wav': 'audio/wav',
+  'audio/x-pn-wav': 'audio/wav',
+  'audio/x-flac': 'audio/flac'
+}
+
+/**
+ * The name we know a content type by, or null when it is not a format we take.
+ * Parameters and casing are not part of the name, a browser may send either.
+ */
+export function canonicalTimingTrackContentType (contentType: string): string | null {
+  const name = contentType.split(';')[0].trim().toLowerCase()
+  const canonical = TIMING_TRACK_CONTENT_TYPE_ALIASES[name] ?? name
+  return canonical in TIMING_TRACK_CONTENT_TYPES ? canonical : null
 }
 
 /** 50 MB is a few times the largest lossless three minute track */
@@ -61,8 +92,9 @@ export function timingTrackObjectName (audioUrl: string, eventDefinitionId: stri
 }
 
 export async function createTimingTrackUpload (eventDefinitionId: string, contentType: string) {
-  const extension = TIMING_TRACK_CONTENT_TYPES[contentType]
-  if (extension == null) throw new RangeError(`Unsupported content type ${contentType}`)
+  const canonical = canonicalTimingTrackContentType(contentType)
+  if (canonical == null) throw new RangeError(`Unsupported content type ${contentType}`)
+  const extension = TIMING_TRACK_CONTENT_TYPES[canonical]
 
   const objectName = `${OBJECT_PREFIX}/${eventDefinitionId}/${randomUUID()}.${extension}`
   const expires = Date.now() + UPLOAD_URL_LIFETIME_MS
