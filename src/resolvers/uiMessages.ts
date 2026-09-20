@@ -1,6 +1,6 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
-import { uiMessageEntries, uiMessageValues } from '../services/uiMessages.js'
+import { uiMessageEntries, uiMessageValues } from '../helpers/uiMessages.js'
 import { langSchema, uiMessagesSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'

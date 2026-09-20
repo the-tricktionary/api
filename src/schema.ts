@@ -194,6 +194,12 @@ const typeDefs = gql`
     """Pass a \`memberId\` to hand the newcomer an athlete the group manages"""
     respondToGroupJoinRequest (inviteId: ID!, accept: Boolean!, memberId: ID): GroupInvite!
 
+    """
+    Ticks or unticks a trick for a member of a group, admins only. Null when the
+    trick was unticked.
+    """
+    setGroupMemberTrickCompletion (memberId: ID!, trickId: ID!, completed: Boolean!): TrickCompletion
+
     # Users
     """The signed in user's language, null clears it"""
     setUserLang (lang: String): User!
@@ -534,6 +540,12 @@ const typeDefs = gql`
     role: GroupRole!
     """In the group to watch rather than to compete"""
     observer: Boolean!
+    """
+    The athlete's completed tricks. Their own once they have an account, else
+    the group's record of them, which becomes theirs when they claim the row.
+    """
+    checklist: [TrickCompletion!]!
+    checklistStats: ChecklistStats!
     createdAt: Timestamp!
   }
 
@@ -578,6 +590,8 @@ const typeDefs = gql`
   type TrickCompletion {
     id: ID!
     trick: Trick!
+    """The group admin who ticked this off, null when the athlete did it themselves"""
+    recordedBy: User
     createdAt: Timestamp!
   }
 

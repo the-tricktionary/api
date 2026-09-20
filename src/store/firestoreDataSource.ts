@@ -5,9 +5,9 @@ import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole } from '../generated/graphql.js'
-import type { CollectionReference, DocumentData, DocumentReference, Query } from 'firebase-admin/firestore'
+import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
 import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
@@ -16,14 +16,18 @@ import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
 export const firestore = new Firestore()
 
 /** Firestore takes 500 writes to a batch */
-const DELETE_CHUNK = 400
+const WRITE_CHUNK = 400
 
-export async function deleteInChunks (refs: Array<DocumentReference<any>>) {
-  for (let idx = 0; idx < refs.length; idx += DELETE_CHUNK) {
+export async function writeInChunks<T> (items: readonly T[], apply: (batch: WriteBatch, item: T) => void) {
+  for (let idx = 0; idx < items.length; idx += WRITE_CHUNK) {
     const batch = firestore.batch()
-    for (const ref of refs.slice(idx, idx + DELETE_CHUNK)) batch.delete(ref)
+    for (const item of items.slice(idx, idx + WRITE_CHUNK)) apply(batch, item)
     await batch.commit()
   }
+}
+
+export async function deleteInChunks (refs: Array<DocumentReference<any>>) {
+  await writeInChunks(refs, (batch, ref) => { batch.delete(ref) })
 }
 
 // the collection type is only ever what the document type says it is
@@ -181,6 +185,23 @@ export const groupInviteDataSource = (cache: KeyValueCache) => new GroupInviteDa
 export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompletionDoc> {
   async findManyByUser (userId: string, { ttl }: FindArgs = {}) {
     return await this.findManyByQuery(c => c.where('userId', '==', userId), { ttl })
+  }
+
+  async findManyByMember (memberId: string, { ttl }: FindArgs = {}) {
+    return await this.findManyByQuery(c => c.where('memberId', '==', memberId), { ttl })
+  }
+
+  async findManyByAthlete (athlete: ChecklistAthlete, { ttl }: FindArgs = {}) {
+    return athlete.userId != null
+      ? await this.findManyByUser(athlete.userId, { ttl })
+      : await this.findManyByMember(athlete.memberId, { ttl })
+  }
+
+  async findOneByAthleteAndTrick (athlete: ChecklistAthlete, trickId: string) {
+    return (await this.findManyByQuery(c => (athlete.userId != null
+      ? c.where('userId', '==', athlete.userId)
+      : c.where('memberId', '==', athlete.memberId)
+    ).where('trickId', '==', trickId).limit(1)))[0]
   }
 }
 export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(collection<TrickCompletionDoc>('trick-completions'), { logger: logger.child({ name: 'trick-completion-source' }), cache })

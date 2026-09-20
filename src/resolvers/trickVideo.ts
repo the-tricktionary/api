@@ -5,7 +5,7 @@ import { AuthorizationError, NotFoundError, UpstreamError } from '../errors.js'
 import { VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import { MUX_UPLOAD_CORS_ORIGIN } from '../config.js'
 import { mux } from '../services/mux.js'
-import { isAllowedOrigin } from '../services/cors.js'
+import { isAllowedOrigin } from '../helpers/cors.js'
 import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'

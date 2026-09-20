@@ -28,7 +28,7 @@ generates:
         Group: ../store/schema.js#GroupDoc
         GroupMember: ../store/schema.js#GroupMemberDoc
         GroupInvite: ../store/schema.js#GroupInviteDoc
-        UiMessageEntry: ../services/uiMessages.js#UiMessageEntry as UiMessageEntryModel
+        UiMessageEntry: ../helpers/uiMessages.js#UiMessageEntry as UiMessageEntryModel
     plugins:
       - typescript
       - typescript-resolvers
