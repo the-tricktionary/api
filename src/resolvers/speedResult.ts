@@ -7,7 +7,7 @@ import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/sch
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import type { speedMarkSchema } from '../validation.js'
 import { speedResultCreateSchema, speedResultUpdateSchema } from '../validation.js'
-import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../services/speedMarks.js'
+import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../helpers/speedMarks.js'
 
 function toMark (mark: z.infer<typeof speedMarkSchema>): SpeedMark {
   return {

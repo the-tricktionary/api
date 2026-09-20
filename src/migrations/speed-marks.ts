@@ -1,6 +1,6 @@
 /**
  * Converts the legacy speed result formats into rulesets-compatible mark
- * streams, see src/services/speedMarks.ts for the conversions.
+ * streams, see src/helpers/speedMarks.ts for the conversions.
  *
  * - `clicks`: absolute click timestamps written by the first v4 API
  * - `graphData`: pairwise averaged step offsets mirrored from the v2 app
@@ -11,7 +11,7 @@
 import '../config.js'
 import { Firestore } from '@google-cloud/firestore'
 import { logger } from '../services/logger.js'
-import { marksOf } from '../services/speedMarks.js'
+import { marksOf } from '../helpers/speedMarks.js'
 import type { SpeedResultDoc } from '../store/schema.js'
 
 const firestore = new Firestore()

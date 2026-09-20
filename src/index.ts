@@ -5,7 +5,7 @@
 import { PORT } from './config.js'
 import { initApollo } from './apollo.js'
 import { logger } from './services/logger.js'
-import { allowedOrigins } from './services/cors.js'
+import { allowedOrigins } from './helpers/cors.js'
 import { muxWebhookHandler } from './routes/muxWebhook.js'
 import { sitemapHandler } from './routes/sitemap.js'
 import express from 'express'
