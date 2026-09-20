@@ -32,7 +32,9 @@ const envSchema = z.object({
   // origin isn't one we allow
   MUX_UPLOAD_CORS_ORIGIN: z.url().default('https://admin.the-tricktionary.com'),
   // The publicly readable Cloud Storage bucket timing track audio is uploaded to
-  TIMING_TRACK_BUCKET: z.string().default('tricktionary-timing-tracks')
+  TIMING_TRACK_BUCKET: z.string().default('tricktionary-timing-tracks'),
+  // The public site, whose sitemap this serves
+  WEB_URL: z.url().default('https://the-tricktionary.com')
 })
 
 export const {
@@ -43,5 +45,6 @@ export const {
   ALGOLIA_APP_ID,
   PORT,
   MUX_UPLOAD_CORS_ORIGIN,
-  TIMING_TRACK_BUCKET
+  TIMING_TRACK_BUCKET,
+  WEB_URL
 } = envSchema.parse(process.env)

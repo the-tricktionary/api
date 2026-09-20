@@ -6,7 +6,10 @@ Configuration comes from the environment, and a `.env` file in the project root
 is loaded automatically; `src/config.ts` is the whole list. Secrets are not in
 there — they live in Google Secret Manager and are read through `getSecret()`
 in `src/services/secrets.ts`. Set `GSM_<secret-name>` in the environment, most
-easily in `.env`, to override one locally; `.env.example` lists them.
+easily in `.env`, to override one locally; `.env.example` lists them. It has to
+be `.env` rather than an exported variable if you start the API through an npm
+script: the names contain hyphens, and npm drops variables whose names are not
+valid shell identifiers from the environment it passes on.
 
 ## Speed event definitions and timing tracks
 
