@@ -1,0 +1,16 @@
+[
+  {
+    "origin": [
+      "https://admin.the-tricktionary.com",
+      "http://localhost:5173"
+    ],
+    "method": [
+      "PUT"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "x-goog-content-length-range"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
