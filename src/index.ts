@@ -6,7 +6,8 @@ import { PORT } from './config.js'
 import { initApollo } from './apollo.js'
 import { logger } from './services/logger.js'
 import { allowedOrigins } from './services/cors.js'
-import { muxWebhookHandler } from './services/muxWebhook.js'
+import { muxWebhookHandler } from './routes/muxWebhook.js'
+import { sitemapHandler } from './routes/sitemap.js'
 import express from 'express'
 import cors from 'cors'
 import http from 'node:http'
@@ -26,6 +27,9 @@ app.use(cors({
 // Mux signs the raw request body, so this has to be mounted before any body
 // parser turns it into an object
 app.post('/webhooks/mux', express.raw({ type: 'application/json' }), muxWebhookHandler)
+
+// Reached through the public site's Firebase Hosting rewrite, not directly
+app.get('/sitemap.xml', sitemapHandler)
 
 initApollo(httpServer)
   .then(async middleware => {

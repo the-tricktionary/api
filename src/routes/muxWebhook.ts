@@ -1,9 +1,9 @@
 import * as Sentry from '@sentry/node'
-import { FieldValue } from '@google-cloud/firestore'
+import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { VideoHost, VideoUploadStatus } from '../generated/graphql.js'
-import { mux } from './mux.js'
-import { getSecret } from './secrets.js'
-import { logger as baseLogger } from './logger.js'
+import { mux } from '../services/mux.js'
+import { getSecret } from '../services/secrets.js'
+import { logger as baseLogger } from '../services/logger.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
 
 import type Mux from '@mux/mux-node'
@@ -16,9 +16,28 @@ type MuxWebhookEvent = Mux.Webhooks.UnwrapWebhookEvent
 
 const webhookSecret = await getSecret('tricktionary-api-mux-webhook-secret')
 
+/** How long a finished upload is kept before the collection's TTL policy deletes it */
+const FINISHED_UPLOAD_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
 interface MuxWebhookContext {
   dataSources: DataSources
   logger: Pino.Logger
+}
+
+/**
+ * Moves an upload to a final status. The TTL policy on `trick-video-uploads`
+ * acts on `expiresAt`, so the two are set together rather than at each of the
+ * call sites below.
+ */
+async function finishUpload (
+  uploadId: string,
+  update: Partial<TrickVideoUploadDoc> & Pick<TrickVideoUploadDoc, 'status'>,
+  { dataSources }: MuxWebhookContext
+) {
+  await dataSources.trickVideoUploads.updateOnePartial(uploadId, {
+    ...update,
+    expiresAt: Timestamp.fromMillis(Date.now() + FINISHED_UPLOAD_TTL_MS)
+  })
 }
 
 /**
@@ -82,7 +101,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
       if (playbackId == null) throw new Error(`Mux asset ${event.data.id} of upload ${upload.id} has no public playback ID`)
 
       await addAssetToTrick(upload, { id: event.data.id, playbackId }, context)
-      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Ready, assetId: event.data.id })
+      await finishUpload(upload.id, { status: VideoUploadStatus.Ready, assetId: event.data.id }, context)
       logger.info({ uploadId: upload.id, trickId: upload.trickId, assetId: event.data.id, playbackId }, 'Added a Mux video to a trick')
       break
     }
@@ -92,7 +111,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
 
       const errors = event.data.errors
       const error = [errors?.type, ...(errors?.messages ?? [])].filter(part => part != null && part !== '').join(': ')
-      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Errored, error: error === '' ? 'Mux could not process the video' : error })
+      await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: error === '' ? 'Mux could not process the video' : error }, context)
       logger.warn({ uploadId: upload.id, trickId: upload.trickId, assetId: event.data.id, error }, 'A Mux asset errored')
       break
     }
@@ -100,7 +119,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
       const upload = await findUpload(event.data.id, event.type, context)
       if (!upload) break
 
-      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Errored, error: 'The upload timed out or failed before Mux received the file' })
+      await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: 'The upload timed out or failed before Mux received the file' }, context)
       logger.warn({ uploadId: upload.id, trickId: upload.trickId }, 'A Mux upload errored')
       break
     }
@@ -108,7 +127,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
       const upload = await findUpload(event.data.id, event.type, context)
       if (!upload) break
 
-      await dataSources.trickVideoUploads.updateOnePartial(upload.id, { status: VideoUploadStatus.Cancelled })
+      await finishUpload(upload.id, { status: VideoUploadStatus.Cancelled }, context)
       break
     }
     default:

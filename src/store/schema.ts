@@ -64,6 +64,11 @@ export interface TrickVideoUploadDoc extends DocBase {
   assetId?: string
   /** why the upload failed, only set while the status is `Errored` */
   error?: string
+  /**
+   * When the Firestore TTL policy on the collection deletes this document. Set
+   * once the upload reaches a final status, absent while it is still running.
+   */
+  expiresAt?: Timestamp
 }
 export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t?.collection === 'trick-video-uploads' }
 
