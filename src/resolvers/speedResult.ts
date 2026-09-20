@@ -130,7 +130,7 @@ export const speedResultResolvers: Resolvers = {
       return await (dataSources.speedResults.createOne({
         ...(data.name ? { name: data.name } : {}),
         userId: user.id,
-        createdAt: Timestamp.now(),
+        recordedAt: Timestamp.now(),
         count,
         ...eventFields,
         ...(marks ? { marks } : {}),
@@ -168,6 +168,9 @@ export const speedResultResolvers: Resolvers = {
     }
   },
   SpeedResult: {
+    createdAt (speedResult) {
+      return speedResult.recordedAt ?? speedResult.createdAt
+    },
     async creator (speedResult, _, { dataSources, allowUser }) {
       const creator = await dataSources.users.findOneById(speedResult.userId, { ttl: 60 })
       if (!creator) throw new NotFoundError('User not found', { extensions: { entity: 'user', id: speedResult.userId } })

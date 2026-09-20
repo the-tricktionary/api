@@ -292,6 +292,14 @@ export interface SpeedResultDoc extends DocBase {
   name?: string
   userId: UserDoc['id']
 
+  /**
+   * When the score was recorded. `createdAt` cannot be used: the data source's
+   * converter strips it on write and derives it from the document's own create
+   * time on read, so it is not a stored field and Firestore cannot order by it.
+   * Absent until the backfill in `migrations/speed-recorded-at.ts` has run.
+   */
+  recordedAt?: Timestamp
+
   count: number
 
   // either we link this to an event definition

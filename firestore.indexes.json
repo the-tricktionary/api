@@ -9,7 +9,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
+          "fieldPath": "recordedAt",
           "order": "DESCENDING"
         }
       ]
@@ -41,7 +41,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
+          "fieldPath": "recordedAt",
           "order": "DESCENDING"
         }
       ]

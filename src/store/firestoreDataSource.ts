@@ -211,7 +211,7 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
     return await this.findManyByQuery(c => {
       let q = c.where('userId', '==', userId)
       if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
-      q = q.orderBy('createdAt', 'desc')
+      q = q.orderBy('recordedAt', 'desc')
       if (startAfter) q = q.startAfter(startAfter)
       if (limit) q = q.limit(limit)
       return q
