@@ -7,13 +7,24 @@ import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 import type { Discipline } from '../generated/graphql.js'
 import type { TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole } from '../generated/graphql.js'
-import type { CollectionReference, DocumentData, Query } from 'firebase-admin/firestore'
+import type { CollectionReference, DocumentData, DocumentReference, Query } from 'firebase-admin/firestore'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
 import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
 
 /** For transactions spanning collections */
 export const firestore = new Firestore()
+
+/** Firestore takes 500 writes to a batch */
+const DELETE_CHUNK = 400
+
+export async function deleteInChunks (refs: Array<DocumentReference<any>>) {
+  for (let i = 0; i < refs.length; i += DELETE_CHUNK) {
+    const batch = firestore.batch()
+    for (const ref of refs.slice(i, i + DELETE_CHUNK)) batch.delete(ref)
+    await batch.commit()
+  }
+}
 
 // the collection type is only ever what the document type says it is
 function collection<T extends DocumentData> (name: string) {

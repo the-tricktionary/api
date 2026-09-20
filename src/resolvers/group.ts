@@ -3,10 +3,9 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, CollisionError, NotFoundError, UnexpectedError, ValidationError } from '../errors.js'
 import { GroupInviteKind, GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import { generateJoinCode } from '../services/joinCode.js'
-import { firestore } from '../store/firestoreDataSource.js'
+import { deleteInChunks, firestore } from '../store/firestoreDataSource.js'
 import { groupAthleteNameSchema, groupMemberInputSchema, groupNameSchema, joinCodeSchema, usernameSchema } from '../validation.js'
 
-import type { DocumentReference } from '@google-cloud/firestore'
 import type { ApolloContext } from '../apollo.js'
 import type { Resolvers } from '../generated/graphql.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
@@ -177,16 +176,6 @@ async function acceptInvite (invite: GroupInviteDoc, memberId: string | null | u
   return await reloadInvite(invite.id, { dataSources })
 }
 
-/** Firestore takes 500 writes to a batch */
-async function deleteAll (refs: Array<DocumentReference<any>>) {
-  const CHUNK = 400
-  for (let i = 0; i < refs.length; i += CHUNK) {
-    const batch = firestore.batch()
-    for (const ref of refs.slice(i, i + CHUNK)) batch.delete(ref)
-    await batch.commit()
-  }
-}
-
 async function uniqueJoinCode (dataSources: DataSources) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateJoinCode()
@@ -272,7 +261,7 @@ export const groupResolvers: Resolvers = {
         dataSources.groupInvites.findManyByQuery(c => c.where('groupId', '==', group.id))
       ])
 
-      await deleteAll([
+      await deleteInChunks([
         ...members.map(member => dataSources.groupMembers.collection.doc(member.id)),
         ...invites.map(invite => dataSources.groupInvites.collection.doc(invite.id)),
         dataSources.groups.collection.doc(group.id)
