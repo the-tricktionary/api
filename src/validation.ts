@@ -302,9 +302,8 @@ export const joinCodeSchema = z.string()
   .transform(code => code.replace(/[\s-]/g, '').toUpperCase())
   .refine(code => /^[A-HJKMNP-Z2-9]{8}$/.test(code), 'A join code is 8 letters and digits')
 
-/** Omitted fields are left as they are */
 export const groupMemberInputSchema = z.object({
   name: groupAthleteNameSchema.nullish(),
-  role: z.enum(GroupRole).nullish(),
-  observer: z.boolean().nullish()
+  role: z.enum(GroupRole),
+  observer: z.boolean()
 })

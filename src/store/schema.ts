@@ -1,5 +1,5 @@
 import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
-import type { Timestamp } from '@google-cloud/firestore'
+import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
   readonly id: string
@@ -234,6 +234,19 @@ export interface GroupInviteDoc extends DocBase {
   /** The admin who invited, absent on a request to join */
   invitedBy?: UserDoc['id']
   status: GroupInviteStatus
+  /** Firestore's TTL policy deletes the document once this passes */
+  expiresAt: Timestamp
+}
+
+export const GROUP_INVITE_TTL_DAYS = 30
+
+export function groupInviteExpiry () {
+  return Timestamp.fromMillis(Date.now() + (GROUP_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000))
+}
+
+/** TTL deletion can lag by a day, so an expired invite is refused on its own terms too */
+export function groupInviteExpired (invite: GroupInviteDoc) {
+  return invite.expiresAt.toMillis() <= Date.now()
 }
 export function isGroupInvite (t: any): t is GroupInviteDoc { return t?.collection === 'group-invites' }
 

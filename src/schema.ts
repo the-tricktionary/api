@@ -171,7 +171,7 @@ const typeDefs = gql`
 
     """Adds an athlete the group manages, who has no account of their own"""
     addGroupAthlete (groupId: ID!, name: String!): GroupMember!
-    """Omitted fields are left alone"""
+    """The member as it should be once the update is applied"""
     updateGroupMember (memberId: ID!, data: GroupMemberInput!): GroupMember!
     """One who has competed in a score the group holds is kept as an athlete it manages"""
     removeGroupMember (memberId: ID!): GroupMember!
@@ -550,14 +550,16 @@ const typeDefs = gql`
     """The admin who invited. Null on a request, and when they no longer exist."""
     invitedBy: User
     status: GroupInviteStatus!
+    """Answering is refused once this passes, and the invitation is deleted soon after"""
+    expiresAt: Timestamp!
     createdAt: Timestamp!
   }
 
   input GroupMemberInput {
-    """Only used while the member has no account of their own"""
+    """Required for an athlete the group manages, rejected for a member with an account"""
     name: String
-    role: GroupRole
-    observer: Boolean
+    role: GroupRole!
+    observer: Boolean!
   }
 
   type ChecklistStats {

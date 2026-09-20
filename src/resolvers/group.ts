@@ -4,6 +4,7 @@ import { AuthorizationError, CollisionError, NotFoundError, UnexpectedError, Val
 import { GroupInviteKind, GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import { generateJoinCode } from '../services/joinCode.js'
 import { deleteInChunks, firestore } from '../store/firestoreDataSource.js'
+import { groupInviteExpired, groupInviteExpiry } from '../store/schema.js'
 import { groupAthleteNameSchema, groupMemberInputSchema, groupNameSchema, joinCodeSchema, usernameSchema } from '../validation.js'
 
 import type { ApolloContext } from '../apollo.js'
@@ -295,21 +296,22 @@ export const groupResolvers: Resolvers = {
 
       const data = groupMemberInputSchema.parse(rawData)
 
-      const observer = data.observer ?? member.observer
-      if (observer && member.userId == null) {
-        throw new ValidationError('An athlete with no account of their own cannot be an observer')
-      }
-      if (data.role != null && data.role !== member.role && member.role === GroupRole.Admin) {
-        await assertNotLastAdmin(member, context.dataSources)
-      }
-      if (data.name != null && member.userId != null) {
+      if (member.userId == null) {
+        if (data.observer) throw new ValidationError('An athlete with no account of their own cannot be an observer')
+        if (data.role !== GroupRole.Member) throw new ValidationError('An athlete with no account of their own cannot be an admin')
+        if (data.name == null) throw new ValidationError('An athlete with no account of their own needs a name')
+      } else if (data.name != null) {
         throw new ValidationError('That member has an account, so their name is theirs to set')
+      }
+
+      if (member.role === GroupRole.Admin && data.role !== GroupRole.Admin) {
+        await assertNotLastAdmin(member, context.dataSources)
       }
 
       return await (context.dataSources.groupMembers.updateOnePartial(member.id, {
         ...(data.name != null ? { name: data.name } : {}),
-        ...(data.role != null ? { role: data.role } : {}),
-        ...(data.observer != null ? { observer: data.observer } : {})
+        role: data.role,
+        observer: data.observer
       }) as Promise<GroupMemberDoc>)
     },
     async removeGroupMember (_, { memberId }, context) {
@@ -350,7 +352,7 @@ export const groupResolvers: Resolvers = {
       if (alreadyIn) {
         throw new CollisionError('That user is already in the group', { extensions: { entity: 'group', id: group.id } })
       }
-      if (alreadyAsked) {
+      if (alreadyAsked && !groupInviteExpired(alreadyAsked)) {
         throw new CollisionError('That user already has an invitation or a request waiting', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
       }
 
@@ -364,7 +366,8 @@ export const groupResolvers: Resolvers = {
         observer,
         ...(memberId != null ? { memberId } : {}),
         invitedBy: user.id,
-        status: GroupInviteStatus.Pending
+        status: GroupInviteStatus.Pending,
+        expiresAt: groupInviteExpiry()
       }) as Promise<GroupInviteDoc>)
     },
     async cancelGroupInvite (_, { inviteId }, context) {
@@ -391,6 +394,7 @@ export const groupResolvers: Resolvers = {
       if (invite.status !== GroupInviteStatus.Pending) {
         throw new ValidationError('That invitation has already been answered')
       }
+      if (groupInviteExpired(invite)) throw new ValidationError('That invitation has expired')
 
       if (!accept) {
         return await (context.dataSources.groupInvites.updateOnePartial(invite.id, { status: GroupInviteStatus.Declined }) as Promise<GroupInviteDoc>)
@@ -427,7 +431,7 @@ export const groupResolvers: Resolvers = {
       if (alreadyIn) {
         throw new CollisionError('You are already in that group', { extensions: { entity: 'group', id: group.id } })
       }
-      if (alreadyAsked) {
+      if (alreadyAsked && !groupInviteExpired(alreadyAsked)) {
         throw new CollisionError('You already have an invitation or a request waiting for that group', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
       }
 
@@ -437,7 +441,8 @@ export const groupResolvers: Resolvers = {
         kind: GroupInviteKind.Requested,
         role: GroupRole.Member,
         observer: false,
-        status: GroupInviteStatus.Pending
+        status: GroupInviteStatus.Pending,
+        expiresAt: groupInviteExpiry()
       }) as Promise<GroupInviteDoc>)
     },
     async respondToGroupJoinRequest (_, { inviteId, accept, memberId }, context) {
@@ -451,6 +456,7 @@ export const groupResolvers: Resolvers = {
       if (invite.status !== GroupInviteStatus.Pending) {
         throw new ValidationError('That request has already been answered')
       }
+      if (groupInviteExpired(invite)) throw new ValidationError('That request has expired')
 
       if (!accept) {
         return await (context.dataSources.groupInvites.updateOnePartial(invite.id, { status: GroupInviteStatus.Declined }) as Promise<GroupInviteDoc>)
@@ -476,7 +482,7 @@ export const groupResolvers: Resolvers = {
       if (!context.allowUser.group(group, membership).manageMembers()) return []
 
       const invites = await context.dataSources.groupInvites.findManyPendingByGroup(group.id)
-      return invites.sort(byNewest)
+      return invites.filter(invite => !groupInviteExpired(invite)).sort(byNewest)
     },
     async joinCode (group, _, context) {
       const membership = await membershipOf(group.id, context)
