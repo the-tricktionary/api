@@ -137,7 +137,7 @@ function eventStart (marks: ReadonlyArray<{ schema: string, timestamp: number }>
  * custom event's switches are offsets into the event itself, so both start
  * from zero.
  */
-function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
+export function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
   const startCue = timingTrack?.cues.find(cue => cue.type === TimingCueType.Start)
   const switches = timingTrack?.cues.filter(cue => cue.type === TimingCueType.Switch) ?? []
   if (switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]

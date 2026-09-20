@@ -145,6 +145,24 @@ export async function claimChecklist (memberId: string, userId: string, dataSour
   }))
 }
 
+/** The scores the group recorded against an athlete become that athlete's own */
+export async function claimSpeedResults (memberId: string, userId: string, dataSources: DataSources) {
+  const recorded = await dataSources.speedResults.findManyByQuery(c => c.where('athleteMemberIds', 'array-contains', memberId))
+  if (!recorded.length) return
+
+  const collection = dataSources.speedResults.collection
+  await writeInChunks(recorded, (batch, speedResult) => {
+    batch.update(collection.doc(speedResult.id), {
+      athleteUserIds: FieldValue.arrayUnion(userId),
+      ...(speedResult.soleAthleteMemberId === memberId ? { soleAthleteUserId: userId } : {})
+    })
+  })
+
+  await Promise.all(recorded.map(async speedResult => {
+    await dataSources.speedResults.deleteFromCacheById(speedResult.id)
+  }))
+}
+
 /** The transaction is what keeps two invitations answered at once from leaving a user with two rows */
 export async function acceptInvite (invite: GroupInviteDoc, memberId: string | null | undefined, { dataSources }: Pick<Context, 'dataSources'>) {
   const members = dataSources.groupMembers.collection
@@ -194,6 +212,7 @@ export async function acceptInvite (invite: GroupInviteDoc, memberId: string | n
   if (claimedId) {
     await dataSources.groupMembers.deleteFromCacheById(claimedId)
     await claimChecklist(claimedId, invite.userId, dataSources)
+    await claimSpeedResults(claimedId, invite.userId, dataSources)
   }
   return await reloadInvite(invite.id, { dataSources })
 }

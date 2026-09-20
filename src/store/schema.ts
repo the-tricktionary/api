@@ -330,6 +330,38 @@ export interface SpeedResultDoc extends DocBase {
   graphData?: number[]
   /** Key of the mirrored v2 realtime database entry, kept so deletes propagate */
   rtdKey?: string
+
+  /** The group this result is shared with */
+  groupId?: GroupDoc['id']
+  /**
+   * Who competed. One entry without a `segmentIndex` covers the whole result,
+   * otherwise one entry per segment of the event.
+   */
+  participants?: SpeedParticipant[]
+
+  // Derived from `participants` on every write, never taken from the input
+  /** Every member row that competed, in any segment */
+  athleteMemberIds: string[]
+  /** The member row that competed the whole result */
+  soleAthleteMemberId?: GroupMemberDoc['id']
+  /** The accounts behind `athleteMemberIds`, or the creator when there is no group */
+  athleteUserIds: string[]
+  /** The account that competed the whole result, or the creator when there is no group */
+  soleAthleteUserId?: UserDoc['id']
+  /** Set while the result is in a group and nobody has been assigned yet */
+  needsParticipants?: boolean
+  /**
+   * The distinct member ids that competed, sorted and joined with `|`. A set
+   * rather than a running order, so the same four athletes in a different
+   * running order are one constellation.
+   */
+  constellationKey?: string
+}
+
+export interface SpeedParticipant {
+  /** Absent when the entry covers the whole result */
+  segmentIndex?: number
+  memberId: GroupMemberDoc['id']
 }
 export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed-results' }
 

@@ -5,9 +5,12 @@ import type { ApolloContext } from '../apollo.js'
 import type { Resolvers } from '../generated/graphql.js'
 import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/schema.js'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
-import type { speedMarkSchema } from '../validation.js'
+import type { speedMarkSchema, speedParticipantSchema } from '../validation.js'
 import { speedResultCreateSchema, speedResultUpdateSchema } from '../validation.js'
-import { analyseMarks, assertValidMarkStream, countSteps, marksOf } from '../helpers/speedMarks.js'
+import { analyseMarks, assertValidMarkStream, countSteps, marksOf, segmentBounds } from '../helpers/speedMarks.js'
+import { existingGroup, existingMember, groupAndMembership, membershipOf } from '../helpers/groups.js'
+import type { DerivedParticipants } from '../helpers/speedParticipants.js'
+import { assertValidParticipants, deriveParticipants, ownParticipants, participantUpdate } from '../helpers/speedParticipants.js'
 
 function toMark (mark: z.infer<typeof speedMarkSchema>): SpeedMark {
   return {
@@ -34,62 +37,155 @@ function customEventDefinitionId (eventDefinition: NonNullable<SpeedResultDoc['e
 }
 
 /**
- * Resolves the event definition of a result, either the linked document or
- * the custom one embedded in the result. A custom event's switches become a
- * track of cues without audio, so everything downstream can treat the two
- * kinds of event alike.
+ * A custom event's switches become a track of cues without audio, so
+ * everything downstream can treat the two kinds of event alike.
  */
-async function eventDefinitionOf (speedResult: SpeedResultDoc, { dataSources }: Pick<ApolloContext, 'dataSources'>): Promise<EventDefinitionDoc> {
+function customEventDefinition (eventDefinition: NonNullable<SpeedResultDoc['eventDefinition']>): EventDefinitionDoc {
+  const { name, totalDuration, cues } = eventDefinition
+  return {
+    name,
+    totalDuration,
+    collection: 'event-definitions',
+    ...(cues?.length ? { timingTrack: { cues } } : {}),
+    id: customEventDefinitionId(eventDefinition)
+  } as EventDefinitionDoc
+}
+
+/** Either the linked document or the custom one embedded in the result */
+async function eventDefinitionOf (speedResult: Pick<SpeedResultDoc, 'id' | 'eventDefinitionId' | 'eventDefinition'>, { dataSources }: Pick<ApolloContext, 'dataSources'>): Promise<EventDefinitionDoc> {
   if (speedResult.eventDefinitionId) {
     const eventDefinition = await dataSources.eventDefinitions.findOneById(speedResult.eventDefinitionId, { ttl: 3600 })
     if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.eventDefinitionId } })
     return eventDefinition
   } else if (speedResult.eventDefinition) {
-    const { name, totalDuration, cues } = speedResult.eventDefinition
-    return {
-      name,
-      totalDuration,
-      collection: 'event-definitions',
-      ...(cues?.length ? { timingTrack: { cues } } : {}),
-      id: customEventDefinitionId(speedResult.eventDefinition)
-    } as EventDefinitionDoc
+    return customEventDefinition(speedResult.eventDefinition)
   } else {
     throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: speedResult.id } })
   }
 }
 
+type ParticipantInput = z.infer<typeof speedParticipantSchema>
+
+interface EventDefinitionInput {
+  eventDefinitionId?: string | null
+  eventDefinition?: NonNullable<SpeedResultDoc['eventDefinition']> | null
+}
+
 /**
  * Validates the event definition part of an input, returning the fields to
- * write on the result document. On create omitting both is an error and the
- * unused field is simply left out; on update omitting both means "leave as
- * is" and the field the result no longer uses is deleted, which Firestore
- * only allows in an update.
+ * write on the result document alongside the event they resolve to. On create
+ * omitting both is an error and the unused field is simply left out; on update
+ * omitting both means "leave as is" and the field the result no longer uses is
+ * deleted, which Firestore only allows in an update.
  */
-async function eventDefinitionFields (data: { eventDefinitionId?: string | null, eventDefinition?: { name: string, totalDuration: number } | null }, { dataSources }: Pick<ApolloContext, 'dataSources'>, { mode }: { mode: 'create' | 'update' }) {
+async function eventDefinitionFields (data: EventDefinitionInput, context: Pick<ApolloContext, 'dataSources'>, options: { mode: 'create' }): Promise<{ fields: Partial<SpeedResultDoc>, event: EventDefinitionDoc }>
+async function eventDefinitionFields (data: EventDefinitionInput, context: Pick<ApolloContext, 'dataSources'>, options: { mode: 'update' }): Promise<{ fields: Partial<SpeedResultDoc>, event?: EventDefinitionDoc }>
+async function eventDefinitionFields (data: EventDefinitionInput, { dataSources }: Pick<ApolloContext, 'dataSources'>, { mode }: { mode: 'create' | 'update' }): Promise<{ fields: Partial<SpeedResultDoc>, event?: EventDefinitionDoc }> {
   if (data.eventDefinitionId) {
     const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
     if (!eventDefinition) throw new NotFoundError('Event definition not found', { extensions: { entity: 'event-definition', id: data.eventDefinitionId } })
     return {
-      eventDefinitionId: eventDefinition.id,
-      ...(mode === 'update' ? { eventDefinition: FieldValue.delete() as unknown as undefined } : {})
+      event: eventDefinition,
+      fields: {
+        eventDefinitionId: eventDefinition.id,
+        ...(mode === 'update' ? { eventDefinition: FieldValue.delete() as unknown as undefined } : {})
+      }
     }
   } else if (data.eventDefinition) {
     return {
-      ...(mode === 'update' ? { eventDefinitionId: FieldValue.delete() as unknown as undefined } : {}),
-      eventDefinition: data.eventDefinition
+      event: customEventDefinition(data.eventDefinition),
+      fields: {
+        ...(mode === 'update' ? { eventDefinitionId: FieldValue.delete() as unknown as undefined } : {}),
+        eventDefinition: data.eventDefinition
+      }
     }
   } else if (mode === 'create') {
     throw new ValidationError('No event definition or event definition id specified')
   }
-  return {}
+  return { fields: {} }
 }
 
-async function ownedSpeedResult (speedResultId: string, { dataSources, allowUser }: Pick<ApolloContext, 'dataSources' | 'allowUser'>, action: 'edit' | 'delete') {
+/**
+ * How many segments there are to assign athletes to. The event's own switches
+ * decide, the snapshot on the result stands in when it has none.
+ */
+function segmentCountOf (eventDefinition: EventDefinitionDoc, timingTrack?: SpeedResultDoc['timingTrack']) {
+  return segmentBounds(eventDefinition.totalDuration, eventDefinition.timingTrack ?? timingTrack).length
+}
+
+/** Who competed, derived rather than taken from the input */
+async function derivedParticipants (
+  data: { groupId?: string | null, participants?: readonly ParticipantInput[] | null },
+  { creatorId, segmentCount }: { creatorId: string, segmentCount: number },
+  context: Pick<ApolloContext, 'dataSources' | 'user' | 'allowUser'>
+): Promise<DerivedParticipants> {
+  if (!data.groupId) {
+    if (data.participants?.length) throw new ValidationError('Only a score shared with a group can name who competed')
+    return ownParticipants(creatorId)
+  }
+
+  const { group, membership } = await groupAndMembership(data.groupId, context)
+  context.allowUser.group(group, membership).get.assert('You can only share a score with a group you are in')
+
+  const members = new Map((await context.dataSources.groupMembers.findManyByGroup(group.id, { ttl: 60 })).map(member => [member.id, member]))
+  const participants = (data.participants ?? []).map(participant => ({
+    ...(participant.segmentIndex != null ? { segmentIndex: participant.segmentIndex } : {}),
+    memberId: participant.memberId
+  }))
+  assertValidParticipants(participants, members, segmentCount)
+  return deriveParticipants(participants, members)
+}
+
+/**
+ * Sharing and who competed move together: unsharing hands the score back to
+ * its creator alone, and moving it to another group drops athletes that group
+ * does not have.
+ */
+async function groupFields (
+  speedResult: SpeedResultDoc,
+  data: { groupId?: string | null, participants?: readonly ParticipantInput[] | null },
+  event: EventDefinitionDoc | undefined,
+  context: Pick<ApolloContext, 'dataSources' | 'user' | 'allowUser'>
+) {
+  if (data.groupId === undefined && data.participants === undefined) return {}
+
+  const groupId = data.groupId === undefined ? speedResult.groupId : data.groupId
+  if (!groupId) {
+    return {
+      groupId: FieldValue.delete() as unknown as undefined,
+      ...participantUpdate(ownParticipants(speedResult.userId))
+    }
+  }
+
+  const moved = groupId !== speedResult.groupId
+  const participants = data.participants === undefined
+    ? (moved ? [] : speedResult.participants ?? [])
+    : (data.participants ?? [])
+  const eventDefinition = event ?? await eventDefinitionOf(speedResult, context)
+  const derived = await derivedParticipants(
+    { groupId, participants },
+    { creatorId: speedResult.userId, segmentCount: segmentCountOf(eventDefinition, speedResult.timingTrack) },
+    context
+  )
+  return { groupId, ...participantUpdate(derived) }
+}
+
+/** The group side of a score is for the group, a public profile only shows the score itself */
+async function sharedWithCaller (speedResult: SpeedResultDoc, { dataSources, allowUser, user }: Pick<ApolloContext, 'dataSources' | 'allowUser' | 'user'>) {
+  if (!speedResult.groupId) return false
+  const creator = await dataSources.users.findOneById(speedResult.userId, { ttl: 60 })
+  if (!creator) return false
+  const membership = await membershipOf(speedResult.groupId, { dataSources, user })
+  return allowUser.user(creator).speedResult(speedResult, membership).getGroup()
+}
+
+async function manageableSpeedResult (speedResultId: string, { dataSources, allowUser, user }: Pick<ApolloContext, 'dataSources' | 'allowUser' | 'user'>, action: 'edit' | 'delete') {
   const speedResult = await dataSources.speedResults.findOneById(speedResultId)
   if (!speedResult) throw new NotFoundError('Speed result not found', { extensions: { entity: 'speed-result', id: speedResultId } })
   const speedResultUser = await dataSources.users.findOneById(speedResult.userId, { ttl: 3600 })
   if (!speedResultUser) throw new NotFoundError('Speed result user not found', { extensions: { entity: 'user', id: speedResult.userId } })
-  allowUser.user(speedResultUser).speedResult(speedResult)[action].assert()
+  const membership = speedResult.groupId ? await membershipOf(speedResult.groupId, { dataSources, user }) : undefined
+  allowUser.user(speedResultUser).speedResult(speedResult, membership)[action].assert()
   return speedResult
 }
 
@@ -101,7 +197,7 @@ export const speedResultResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
 
       const data = speedResultCreateSchema.parse(rawData)
-      const eventFields = await eventDefinitionFields(data, { dataSources }, { mode: 'create' })
+      const { fields: eventFields, event } = await eventDefinitionFields(data, { dataSources }, { mode: 'create' })
 
       let timingTrack = {}
       if (data.withTimingTrack) {
@@ -127,6 +223,8 @@ export const speedResultResolvers: Resolvers = {
         throw new ValidationError('A count is required when no marks are provided')
       }
 
+      const derived = await derivedParticipants(data, { creatorId: user.id, segmentCount: segmentCountOf(event) }, { dataSources, allowUser, user })
+
       return await (dataSources.speedResults.createOne({
         ...(data.name ? { name: data.name } : {}),
         userId: user.id,
@@ -134,13 +232,15 @@ export const speedResultResolvers: Resolvers = {
         count,
         ...eventFields,
         ...(marks ? { marks } : {}),
-        ...timingTrack
+        ...timingTrack,
+        ...(data.groupId ? { groupId: data.groupId } : {}),
+        ...derived
       }, { ttl: 60 }) as Promise<SpeedResultDoc>)
     },
     async updateSpeedResult (_, { speedResultId, data: rawData }, context) {
-      const speedResult = await ownedSpeedResult(speedResultId, context, 'edit')
+      const speedResult = await manageableSpeedResult(speedResultId, context, 'edit')
       const data = speedResultUpdateSchema.parse(rawData)
-      const eventFields = await eventDefinitionFields(data, context, { mode: 'update' })
+      const { fields: eventFields, event } = await eventDefinitionFields(data, context, { mode: 'update' })
 
       let countFields = {}
       if (typeof data.count === 'number') {
@@ -158,11 +258,12 @@ export const speedResultResolvers: Resolvers = {
       return await (context.dataSources.speedResults.updateOnePartial(speedResult.id, {
         ...nameFields,
         ...countFields,
-        ...eventFields
+        ...eventFields,
+        ...(await groupFields(speedResult, data, event, context))
       }) as Promise<SpeedResultDoc>)
     },
     async deleteSpeedResult (_, { speedResultId }, context) {
-      const speedResult = await ownedSpeedResult(speedResultId, context, 'delete')
+      const speedResult = await manageableSpeedResult(speedResultId, context, 'delete')
       await context.dataSources.speedResults.deleteOne(speedResult.id)
       return speedResult
     }
@@ -171,11 +272,20 @@ export const speedResultResolvers: Resolvers = {
     createdAt (speedResult) {
       return speedResult.recordedAt ?? speedResult.createdAt
     },
-    async creator (speedResult, _, { dataSources, allowUser }) {
+    async creator (speedResult, _, { dataSources, allowUser, user }) {
       const creator = await dataSources.users.findOneById(speedResult.userId, { ttl: 60 })
       if (!creator) throw new NotFoundError('User not found', { extensions: { entity: 'user', id: speedResult.userId } })
-      allowUser.user(creator).speedResult(speedResult).getCreator.assert()
+      const membership = speedResult.groupId ? await membershipOf(speedResult.groupId, { dataSources, user }) : undefined
+      allowUser.user(creator).speedResult(speedResult, membership).getCreator.assert()
       return creator
+    },
+    async group (speedResult, _, context) {
+      if (!speedResult.groupId || !await sharedWithCaller(speedResult, context)) return null
+      return await existingGroup(speedResult.groupId, context)
+    },
+    async participants (speedResult, _, context) {
+      if (!speedResult.participants?.length || !await sharedWithCaller(speedResult, context)) return []
+      return speedResult.participants
     },
     async eventDefinition (speedResult, _, context) {
       return await eventDefinitionOf(speedResult, context)
@@ -202,6 +312,14 @@ export const speedResultResolvers: Resolvers = {
       // later, and that must not rewrite how an old result was segmented.
       const timing = speedResult.timingTrack ?? (speedResult.eventDefinitionId ? null : eventDefinition.timingTrack)
       return analyseMarks(marks, eventDefinition.totalDuration, timing)
+    }
+  },
+  SpeedParticipant: {
+    segmentIndex (participant) {
+      return participant.segmentIndex ?? null
+    },
+    async member (participant, _, { dataSources }) {
+      return await existingMember(participant.memberId, { dataSources })
     }
   }
 }
