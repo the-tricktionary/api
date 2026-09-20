@@ -197,9 +197,7 @@ export const userResolvers: Resolvers = {
       allowUser.user(user).getGroups.assert()
 
       const memberships = await dataSources.groupMembers.findManyByUser(user.id, { ttl: 60 })
-      const groups = await Promise.all(memberships.map(async membership =>
-        await dataSources.groups.findOneById(membership.groupId, { ttl: 60 })
-      ))
+      const groups = await dataSources.groups.findManyByIds(memberships.map(membership => membership.groupId), { ttl: 60 })
 
       return groups
         .filter(group => group != null)
@@ -209,7 +207,6 @@ export const userResolvers: Resolvers = {
       allowUser.user(user).getGroupInvites.assert()
 
       const invites = await dataSources.groupInvites.findManyPendingByUser(user.id, { ttl: 60 })
-      // newest first, sorted here because `createdAt` is not a stored field
       return invites.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
     },
     async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {

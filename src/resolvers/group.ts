@@ -14,17 +14,10 @@ import type { GroupDoc, GroupInviteDoc, GroupMemberDoc } from '../store/schema.j
 
 type Context = Pick<ApolloContext, 'dataSources' | 'user'>
 
-/**
- * Newest first. `createdAt` is the document's own create time, handed over by
- * the data source's converter rather than stored as a field, so Firestore has
- * nothing to order by and these lists are sorted here. They are all small: one
- * person's invitations, or one group's.
- */
 function byNewest (a: { createdAt: Timestamp }, b: { createdAt: Timestamp }) {
   return b.createdAt.toMillis() - a.createdAt.toMillis()
 }
 
-/** Athletes before observers, and within each, the order they joined */
 function byMemberOrder (a: GroupMemberDoc, b: GroupMemberDoc) {
   if (a.observer !== b.observer) return a.observer ? 1 : -1
   return a.createdAt.toMillis() - b.createdAt.toMillis()
@@ -48,14 +41,6 @@ async function existingInvite (inviteId: string, { dataSources }: Pick<Context, 
   return invite
 }
 
-/**
- * The caller's own row in a group, which is what every permission here turns on.
- *
- * Deliberately not memoised per request: a query selecting `members`, `invites`
- * and `joinCode` looks the same membership up three times, which is three small
- * indexed reads, and a memo would go stale the moment a mutation in the same
- * request changed the caller's own membership.
- */
 async function membershipOf (groupId: string, { dataSources, user }: Context) {
   if (!user) return undefined
   return await dataSources.groupMembers.findOneByGroupAndUser(groupId, user.id)
@@ -72,14 +57,7 @@ async function reloadInvite (inviteId: string, { dataSources }: Pick<Context, 'd
   return await existingInvite(inviteId, { dataSources })
 }
 
-/**
- * Looks somebody up to invite them, by username or id.
- *
- * Unlike `Query.user` this ignores whether the profile is public, because a
- * private profile is the default and a coach would otherwise be unable to
- * invite most of their athletes. It discloses only that a username is taken,
- * which the settings page already answers for anyone who asks.
- */
+/** Unlike `Query.user`, finds a user whether or not their profile is public */
 async function findUserToInvite (usernameOrId: string, dataSources: DataSources) {
   const query = usernameOrId.trim()
   if (!query) return undefined
@@ -105,14 +83,7 @@ async function claimableMember (memberId: string, groupId: string, { dataSources
   return member
 }
 
-/**
- * Whether one of the group's scores still names this athlete, in which case
- * removing them has to keep the row so those scores still say who was in them.
- *
- * Speed scores gain `athleteMemberIds` with the group speed work. Until then
- * this matches nothing, which is the right answer: no score can name an
- * athlete yet.
- */
+/** `athleteMemberIds` arrives with the group speed work, so this matches nothing yet */
 async function hasCompeted (memberId: string, dataSources: DataSources) {
   const [result] = await dataSources.speedResults.findManyByQuery(c => c
     .where('athleteMemberIds', 'array-contains', memberId)
@@ -120,7 +91,6 @@ async function hasCompeted (memberId: string, dataSources: DataSources) {
   return result != null
 }
 
-/** A group always has somebody who can manage it */
 async function assertNotLastAdmin (member: GroupMemberDoc, dataSources: DataSources) {
   if (member.role !== GroupRole.Admin || member.userId == null) return
   const admins = await dataSources.groupMembers.findManyAdminsByGroup(member.groupId)
@@ -130,11 +100,7 @@ async function assertNotLastAdmin (member: GroupMemberDoc, dataSources: DataSour
   }
 }
 
-/**
- * Takes somebody's access to a group away. One who has competed in a score the
- * group holds is kept as an athlete it manages, carrying the name they were
- * known by, so those scores still say who was in them.
- */
+/** Somebody who has competed is kept as an athlete the group manages, so its scores still name them */
 async function detachMember (member: GroupMemberDoc, { dataSources }: Pick<Context, 'dataSources'>) {
   await assertNotLastAdmin(member, dataSources)
 
@@ -162,12 +128,7 @@ async function detachMember (member: GroupMemberDoc, { dataSources }: Pick<Conte
   return member
 }
 
-/**
- * Turns a pending invitation or request into a membership, claiming the athlete
- * row it names when it names one. The transaction is what keeps somebody from
- * ending up with two rows in one group, which two invitations answered at once
- * would otherwise produce.
- */
+/** The transaction is what keeps two invitations answered at once from leaving a user with two rows */
 async function acceptInvite (invite: GroupInviteDoc, memberId: string | null | undefined, { dataSources }: Pick<Context, 'dataSources'>) {
   const members = dataSources.groupMembers.collection
   const invites = dataSources.groupInvites.collection
@@ -217,7 +178,7 @@ async function acceptInvite (invite: GroupInviteDoc, memberId: string | null | u
   return await reloadInvite(invite.id, { dataSources })
 }
 
-/** Firestore takes 500 writes to a batch, and a group can hold more than that */
+/** Firestore takes 500 writes to a batch */
 async function deleteAll (refs: Array<DocumentReference<any>>) {
   const CHUNK = 400
   for (let i = 0; i < refs.length; i += CHUNK) {
@@ -242,12 +203,10 @@ export const groupResolvers: Resolvers = {
       const group = await context.dataSources.groups.findOneById(groupId, { ttl: 60 })
       if (!group) return null
       const membership = await membershipOf(group.id, context)
-      // a group you are not in reads the same as one that does not exist
       if (!context.allowUser.group(group, membership).get()) return null
       return group
     },
     async groupByJoinCode (_, { joinCode }, { dataSources, allowUser }) {
-      // signing in to look a code up keeps codes from being probed anonymously
       allowUser.requestToJoinGroup.assert()
       const code = joinCodeSchema.parse(joinCode)
       return await dataSources.groups.findOneByJoinCode(code) ?? null
@@ -275,7 +234,6 @@ export const groupResolvers: Resolvers = {
         name,
         createdBy: user.id
       })
-      // whoever makes a group runs it
       batch.create(memberRef, {
         id: memberRef.id,
         collection: 'group-members',
@@ -349,7 +307,6 @@ export const groupResolvers: Resolvers = {
 
       const data = groupMemberInputSchema.parse(rawData)
 
-      // a row with nobody behind it cannot watch, and cannot be given a role
       const observer = data.observer ?? member.observer
       if (observer && member.userId == null) {
         throw new ValidationError('An athlete with no account of their own cannot be an observer')
@@ -458,7 +415,6 @@ export const groupResolvers: Resolvers = {
       const { group, membership } = await groupAndMembership(groupId, context)
       context.allowUser.group(group, membership).manageJoinCode.assert()
 
-      // replacing the code is how a leaked one is revoked
       const joinCode = await uniqueJoinCode(context.dataSources)
       return await (context.dataSources.groups.updateOnePartial(group.id, { joinCode }) as Promise<GroupDoc>)
     },
@@ -488,9 +444,6 @@ export const groupResolvers: Resolvers = {
         throw new CollisionError('You already have an invitation or a request waiting for that group', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
       }
 
-      // redeeming a code asks to join rather than joining: the group hands
-      // everyone in it the other athletes' completed tricks, so a code that has
-      // leaked must not let a stranger read them
       return await (dataSources.groupInvites.createOne({
         groupId: group.id,
         userId: user.id,
@@ -516,7 +469,6 @@ export const groupResolvers: Resolvers = {
         return await (context.dataSources.groupInvites.updateOnePartial(invite.id, { status: GroupInviteStatus.Declined }) as Promise<GroupInviteDoc>)
       }
 
-      // approving is where a squad set up in advance gets stitched to real accounts
       if (memberId != null) await claimableMember(memberId, group.id, context)
       return await acceptInvite(invite, memberId ?? invite.memberId, context)
     }
@@ -530,7 +482,6 @@ export const groupResolvers: Resolvers = {
       return members.sort(byMemberOrder)
     },
     async myMembership (group, _, context) {
-      // not being in the group is an answer, not an error
       return await membershipOf(group.id, context) ?? null
     },
     async invites (group, _, context) {
@@ -556,7 +507,6 @@ export const groupResolvers: Resolvers = {
     },
     async name (member, _, { dataSources }) {
       if (member.userId == null) return member.name ?? ''
-      // their own name wins once they have an account: it is theirs to set
       const user = await dataSources.users.findOneById(member.userId, { ttl: 60 })
       return user?.name ?? member.name ?? user?.username ?? ''
     }

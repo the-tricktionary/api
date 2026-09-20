@@ -199,33 +199,20 @@ export interface UsernameDoc extends DocBase {
 }
 export function isUsername (t: any): t is UsernameDoc { return t?.collection === 'usernames' }
 
-/** A squad: a coach and their athletes */
 export interface GroupDoc extends DocBase {
   readonly collection: 'groups'
   name: string
   createdBy: UserDoc['id']
-  /** The active join code, absent while the group has none */
   joinCode?: string
 }
 export function isGroup (t: any): t is GroupDoc { return t?.collection === 'groups' }
 
-/**
- * A person in a group.
- *
- * A row without a `userId` is an athlete the group manages but who has no
- * account yet. Accepting an invite claims such a row by setting `userId` on
- * it, rather than creating a second one, so everything ever recorded against
- * the athlete carries over to them.
- *
- * Athletes are the rows that are not observers. An observer is in the group to
- * watch: they see everything it holds and never compete in it.
- */
 export interface GroupMemberDoc extends DocBase {
   readonly collection: 'group-members'
   groupId: GroupDoc['id']
-  /** Absent for an athlete the group manages */
+  /** Absent for an athlete the group manages, set when an invite claims the row */
   userId?: UserDoc['id']
-  /** What the group calls them, used while there is no user behind the row */
+  /** Used while there is no user behind the row */
   name?: string
   /** Only consulted once `userId` is set */
   role: GroupRole
@@ -234,11 +221,7 @@ export interface GroupMemberDoc extends DocBase {
 }
 export function isGroupMember (t: any): t is GroupMemberDoc { return t?.collection === 'group-members' }
 
-/**
- * Both an admin's invitation and a person's request to join, told apart by
- * `kind`. They resolve into the same thing, a member row, and an admin wants
- * one list of the people waiting at the door.
- */
+/** Both an admin's invitation and a person's request to join, told apart by `kind` */
 export interface GroupInviteDoc extends DocBase {
   readonly collection: 'group-invites'
   groupId: GroupDoc['id']

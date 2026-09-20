@@ -157,15 +157,6 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       return { verificationRank, setLevel, setVerification }
     },
 
-    /**
-     * A group is private to the people in it, so every check here is about the
-     * caller's own membership. That membership is a Firestore read, so the
-     * resolver fetches it and hands it in, the way `user().speedResult()` takes
-     * the result it is asked about.
-     *
-     * A super admin is deliberately given nothing: an administrative grant over
-     * the Tricktionary is not a reason to read somebody's squad.
-     */
     group (group: GroupDoc, membership?: GroupMemberDoc) {
       const isMember = enrich(function isGroupMember () {
         return !!user && !!membership && membership.groupId === group.id && membership.userId === user.id

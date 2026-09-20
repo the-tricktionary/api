@@ -39,7 +39,6 @@ const typeDefs = gql`
   enum GroupRole {
     """May manage the group, the people in it and the scores shared with it"""
     Admin
-    """An ordinary member of the group"""
     Member
   }
 
@@ -70,10 +69,7 @@ const typeDefs = gql`
 
     """Null when there is no such group, and when you are not in it"""
     group (groupId: ID!): Group
-    """
-    The group a join code belongs to, so a code can be shown before it is
-    redeemed. Only \`id\` and \`name\` resolve for somebody outside the group.
-    """
+    """Only \`id\` and \`name\` resolve for somebody outside the group"""
     groupByJoinCode (joinCode: String!): Group
 
     trick (id: ID!): Trick
@@ -177,11 +173,7 @@ const typeDefs = gql`
     addGroupAthlete (groupId: ID!, name: String!): GroupMember!
     """Omitted fields are left alone"""
     updateGroupMember (memberId: ID!, data: GroupMemberInput!): GroupMember!
-    """
-    Removes somebody from the group. One who has competed in a score the group
-    holds is kept as an athlete the group manages, so those scores still say
-    who was in them.
-    """
+    """One who has competed in a score the group holds is kept as an athlete it manages"""
     removeGroupMember (memberId: ID!): GroupMember!
     leaveGroup (groupId: ID!): Group!
 
@@ -197,15 +189,9 @@ const typeDefs = gql`
     """Generates a join code, replacing and invalidating any previous one"""
     setGroupJoinCode (groupId: ID!): Group!
     clearGroupJoinCode (groupId: ID!): Group!
-    """
-    Asks to join the group a code belongs to. An admin still has to approve,
-    because the group hands everyone in it the other athletes' completed tricks.
-    """
+    """Asks to join the group a code belongs to. An admin still has to approve."""
     requestToJoinGroup (joinCode: String!): GroupInvite!
-    """
-    An admin answers a request to join. Pass a \`memberId\` to hand the newcomer
-    an athlete the group manages.
-    """
+    """Pass a \`memberId\` to hand the newcomer an athlete the group manages"""
     respondToGroupJoinRequest (inviteId: ID!, accept: Boolean!, memberId: ID): GroupInvite!
 
     # Users
@@ -428,9 +414,9 @@ const typeDefs = gql`
     """The groups the user is in. Only visible to the user themselves."""
     groups: [Group!]! @cacheControl(maxAge: 0, scope: PRIVATE)
     """
-    Invitations waiting for the user's answer, and join requests they have made
-    and are waiting on, newest first. Only the \`Invited\` ones need anything from
-    them. Only visible to the user themselves.
+    Invitations waiting for the user's answer, and join requests they have made,
+    newest first. Only the \`Invited\` ones need an answer from them. Only visible
+    to the user themselves.
     """
     groupInvites: [GroupInvite!]! @cacheControl(maxAge: 0, scope: PRIVATE)
 
@@ -526,10 +512,7 @@ const typeDefs = gql`
     members: [GroupMember!]!
     """The caller's own membership, null when they are not in the group"""
     myMembership: GroupMember
-    """
-    Invitations sent and requests waiting, newest first. Admins only, and empty
-    for everyone else.
-    """
+    """Invitations sent and requests waiting, newest first. Admins only, empty for everyone else."""
     invites: [GroupInvite!]!
     """The active join code. Admins only, and null for everyone else and when there is none."""
     joinCode: String
@@ -538,19 +521,15 @@ const typeDefs = gql`
   }
 
   """
-  A person in a group. One without a \`user\` is an athlete the group manages who
-  has no account yet; an invite hands such a row over, and what was recorded
-  against it becomes that user's own.
+  One without a \`user\` is an athlete the group manages. An invite hands such a
+  row over, and what was recorded against it becomes that user's own.
   """
   type GroupMember @cacheControl(maxAge: 0, scope: PRIVATE) {
     id: ID!
     group: Group!
     """Null for an athlete the group manages who has no account yet"""
     user: User
-    """
-    Their own name once they have an account, else the one the group gave them,
-    else their username. Empty when they have none of the three.
-    """
+    """Their own name, else the one the group gave them, else their username"""
     name: String!
     role: GroupRole!
     """In the group to watch rather than to compete"""
