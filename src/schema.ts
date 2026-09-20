@@ -36,6 +36,25 @@ const typeDefs = gql`
     sek
   }
 
+  enum GroupRole {
+    """May manage the group, the people in it and the scores shared with it"""
+    Admin
+    Member
+  }
+
+  enum GroupInviteStatus {
+    Pending
+    Accepted
+    Declined
+  }
+
+  enum GroupInviteKind {
+    """An admin asked this person to join"""
+    Invited
+    """This person redeemed the join code and is waiting to be let in"""
+    Requested
+  }
+
   type Query {
     me: User
     """
@@ -47,6 +66,11 @@ const typeDefs = gql`
     findUsers (query: String!): [User!]!
     """Every user that holds at least one grant. Super admins only."""
     usersWithGrants: [User!]!
+
+    """Null when there is no such group, and when you are not in it"""
+    group (groupId: ID!): Group
+    """Only \`id\` and \`name\` resolve for somebody outside the group"""
+    groupByJoinCode (joinCode: String!): Group
 
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick
@@ -138,6 +162,37 @@ const typeDefs = gql`
     alone. English is the site's source language and cannot be set here.
     """
     setUiMessages (lang: String!, entries: [UiMessageInput!]!): [UiMessageEntry!]!
+
+    # Groups
+    createGroup (name: String!): Group!
+    updateGroup (groupId: ID!, name: String!): Group!
+    """Refused while any speed score is shared with the group"""
+    deleteGroup (groupId: ID!): Group!
+
+    """Adds an athlete the group manages, who has no account of their own"""
+    addGroupAthlete (groupId: ID!, name: String!): GroupMember!
+    """The member as it should be once the update is applied"""
+    updateGroupMember (memberId: ID!, data: GroupMemberInput!): GroupMember!
+    """One who has competed in a score the group holds is kept as an athlete it manages"""
+    removeGroupMember (memberId: ID!): GroupMember!
+    leaveGroup (groupId: ID!): Group!
+
+    """
+    Invites a user, found by username or id whether or not their profile is
+    public. Pass a \`memberId\` to hand over an athlete the group manages.
+    """
+    inviteToGroup (groupId: ID!, usernameOrId: ID!, role: GroupRole!, observer: Boolean!, memberId: ID): GroupInvite!
+    cancelGroupInvite (inviteId: ID!): GroupInvite!
+    """The invited user accepts or declines"""
+    respondToGroupInvite (inviteId: ID!, accept: Boolean!): GroupInvite!
+
+    """Generates a join code, replacing and invalidating any previous one"""
+    setGroupJoinCode (groupId: ID!): Group!
+    clearGroupJoinCode (groupId: ID!): Group!
+    """Asks to join the group a code belongs to. An admin still has to approve."""
+    requestToJoinGroup (joinCode: String!): GroupInvite!
+    """Pass a \`memberId\` to hand the newcomer an athlete the group manages"""
+    respondToGroupJoinRequest (inviteId: ID!, accept: Boolean!, memberId: ID): GroupInvite!
 
     # Users
     """The signed in user's language, null clears it"""
@@ -356,7 +411,15 @@ const typeDefs = gql`
 
     profile: ProfileOptions!
 
-    # groups: [Group!]! # Only top-level groups?
+    """The groups the user is in. Only visible to the user themselves."""
+    groups: [Group!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+    """
+    Invitations waiting for the user's answer, and join requests they have made,
+    newest first. Only the \`Invited\` ones need an answer from them. Only visible
+    to the user themselves.
+    """
+    groupInvites: [GroupInvite!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+
     # friends: [User!]! # maybe in the future?
 
     """Visible to the user themselves, and to everyone on a public profile that shows its checklist"""
@@ -439,6 +502,64 @@ const typeDefs = gql`
     omitted releases the current username, an empty string is rejected.
     """
     username: String
+  }
+
+  """A squad: a coach and their athletes"""
+  type Group @cacheControl(maxAge: 0, scope: PRIVATE) {
+    id: ID!
+    name: String!
+    """Everybody in the group, athletes and observers alike"""
+    members: [GroupMember!]!
+    """The caller's own membership, null when they are not in the group"""
+    myMembership: GroupMember
+    """Invitations sent and requests waiting, newest first. Admins only, empty for everyone else."""
+    invites: [GroupInvite!]!
+    """The active join code. Admins only, and null for everyone else and when there is none."""
+    joinCode: String
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
+  """
+  One without a \`user\` is an athlete the group manages. An invite hands such a
+  row over, and what was recorded against it becomes that user's own.
+  """
+  type GroupMember @cacheControl(maxAge: 0, scope: PRIVATE) {
+    id: ID!
+    group: Group!
+    """Null for an athlete the group manages who has no account yet"""
+    user: User
+    """Their own name, else the one the group gave them, else their username"""
+    name: String!
+    role: GroupRole!
+    """In the group to watch rather than to compete"""
+    observer: Boolean!
+    createdAt: Timestamp!
+  }
+
+  """An invitation from a group, or a request to join one, told apart by \`kind\`"""
+  type GroupInvite @cacheControl(maxAge: 0, scope: PRIVATE) {
+    id: ID!
+    group: Group!
+    user: User!
+    kind: GroupInviteKind!
+    role: GroupRole!
+    observer: Boolean!
+    """The athlete the group manages that this hands over, if any"""
+    member: GroupMember
+    """The admin who invited. Null on a request, and when they no longer exist."""
+    invitedBy: User
+    status: GroupInviteStatus!
+    """Answering is refused once this passes, and the invitation is deleted soon after"""
+    expiresAt: Timestamp!
+    createdAt: Timestamp!
+  }
+
+  input GroupMemberInput {
+    """Required for an athlete the group manages, rejected for a member with an account"""
+    name: String
+    role: GroupRole!
+    observer: Boolean!
   }
 
   type ChecklistStats {

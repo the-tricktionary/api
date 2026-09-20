@@ -25,6 +25,9 @@ generates:
         SpeedResult: ../store/schema.js#SpeedResultDoc
         SpeedMark: ../store/schema.js#SpeedMark as SpeedMarkModel
         EventDefinition: ../store/schema.js#EventDefinitionDoc
+        Group: ../store/schema.js#GroupDoc
+        GroupMember: ../store/schema.js#GroupMemberDoc
+        GroupInvite: ../store/schema.js#GroupInviteDoc
         UiMessageEntry: ../services/uiMessages.js#UiMessageEntry as UiMessageEntryModel
     plugins:
       - typescript

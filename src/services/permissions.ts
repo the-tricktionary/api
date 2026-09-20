@@ -1,7 +1,7 @@
 import { AuthorizationError } from '../errors.js'
-import { GrantType, VerificationLevel } from '../generated/graphql.js'
+import { GrantType, GroupRole, VerificationLevel } from '../generated/graphql.js'
 import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
-import type { Grant, SpeedResultDoc, TrickLevelDoc, UserDoc } from '../store/schema.js'
+import type { Grant, GroupDoc, GroupMemberDoc, SpeedResultDoc, TrickLevelDoc, UserDoc } from '../store/schema.js'
 import type Pino from 'pino'
 
 interface AllowUserContext { logger: Pino.Logger }
@@ -52,6 +52,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     getTricks: everyone,
     editTrickCompletions: isAuthenticated,
     createSpeedResult: isAuthenticated,
+    createGroup: isAuthenticated,
+    requestToJoinGroup: isAuthenticated,
     setUserLang: isAuthenticated,
     editProfile: isAuthenticated,
     editEventDefinitions,
@@ -155,6 +157,24 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       return { verificationRank, setLevel, setVerification }
     },
 
+    group (group: GroupDoc, membership?: GroupMemberDoc) {
+      const isMember = enrich(function isGroupMember () {
+        return !!user && !!membership && membership.groupId === group.id && membership.userId === user.id
+      })
+      const isAdmin = enrich(function isGroupAdmin () {
+        return isMember() && membership?.role === GroupRole.Admin
+      })
+
+      return {
+        get: isMember,
+        edit: isAdmin,
+        delete: isAdmin,
+        manageMembers: isAdmin,
+        invite: isAdmin,
+        manageJoinCode: isAdmin
+      }
+    },
+
     user (subUser: UserDoc) {
       const isMe = enrich(function isMe () { return !!user && user.id === subUser.id })
       const hasPublicProfile = enrich(function hasPublicProfile () { return subUser.profile.public })
@@ -173,6 +193,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         getSpeedPersonalBests: isMeOrHasPublicSpeed,
         getGrants: isMeOrIsSuperAdmin,
         getEmail: isMeOrIsSuperAdmin,
+        getGroups: isMe,
+        getGroupInvites: isMe,
 
         speedResult (speedResult: SpeedResultDoc) {
           const isMine = enrich(function isMine () { return !!user && speedResult.userId === user.id })

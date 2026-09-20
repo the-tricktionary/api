@@ -2,7 +2,7 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { GrantType } from '../generated/graphql.js'
 import { firestore } from '../store/firestoreDataSource.js'
-import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
+import { groupInviteExpired, TRICKTIONARY_RULES_ID } from '../store/schema.js'
 import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema, usernameSchema } from '../validation.js'
 import { byEventOrder } from './eventDefinitions.js'
 
@@ -192,6 +192,24 @@ export const userResolvers: Resolvers = {
           .sort(([a], [b]) => Number(a) - Number(b))
           .map(([level, total]) => ({ level, completed: completedPerLevel.get(level) ?? 0, total }))
       }
+    },
+    async groups (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getGroups.assert()
+
+      const memberships = await dataSources.groupMembers.findManyByUser(user.id, { ttl: 60 })
+      const groups = await dataSources.groups.findManyByIds(memberships.map(membership => membership.groupId), { ttl: 60 })
+
+      return groups
+        .filter(group => group != null)
+        .sort((a, b) => a.name.localeCompare(b.name))
+    },
+    async groupInvites (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getGroupInvites.assert()
+
+      const invites = await dataSources.groupInvites.findManyPendingByUser(user.id, { ttl: 60 })
+      return invites
+        .filter(invite => !groupInviteExpired(invite))
+        .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
     },
     async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()

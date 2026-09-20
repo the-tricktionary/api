@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { GrantType, TimingCueType, VerificationLevel } from './generated/graphql.js'
+import { GrantType, GroupRole, TimingCueType, VerificationLevel } from './generated/graphql.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -281,4 +281,29 @@ export const profileOptionsSchema = z.object({
 export const userProfileInputSchema = z.object({
   name: userNameSchema,
   username: usernameSchema.nullish().transform(username => username ?? null)
+})
+
+// Groups
+
+export const groupNameSchema = z.string().trim()
+  .min(1, 'A name is required')
+  .max(60, 'A name can be at most 60 characters')
+
+/** The name of an athlete a group manages, who has no account to carry one */
+export const groupAthleteNameSchema = z.string().trim()
+  .min(1, 'A name is required')
+  .max(80, 'A name can be at most 80 characters')
+
+/**
+ * A join code as somebody types it back in: case and any spaces or dashes they
+ * added to make it readable are forgiven, the alphabet is not.
+ */
+export const joinCodeSchema = z.string()
+  .transform(code => code.replace(/[\s-]/g, '').toUpperCase())
+  .refine(code => /^[A-HJKMNP-Z2-9]{8}$/.test(code), 'A join code is 8 letters and digits')
+
+export const groupMemberInputSchema = z.object({
+  name: groupAthleteNameSchema.nullish(),
+  role: z.enum(GroupRole),
+  observer: z.boolean()
 })

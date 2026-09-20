@@ -1,5 +1,5 @@
-import type { Discipline, GrantType, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
-import type { Timestamp } from '@google-cloud/firestore'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
   readonly id: string
@@ -203,6 +203,57 @@ export interface UsernameDoc extends DocBase {
   userId: UserDoc['id']
 }
 export function isUsername (t: any): t is UsernameDoc { return t?.collection === 'usernames' }
+
+export interface GroupDoc extends DocBase {
+  readonly collection: 'groups'
+  name: string
+  createdBy: UserDoc['id']
+  joinCode?: string
+}
+export function isGroup (t: any): t is GroupDoc { return t?.collection === 'groups' }
+
+export interface GroupMemberDoc extends DocBase {
+  readonly collection: 'group-members'
+  groupId: GroupDoc['id']
+  /** Absent for an athlete the group manages, set when an invite claims the row */
+  userId?: UserDoc['id']
+  /** Used while there is no user behind the row */
+  name?: string
+  /** Only consulted once `userId` is set */
+  role: GroupRole
+  /** In the group to watch rather than to compete, never true without a `userId` */
+  observer: boolean
+}
+export function isGroupMember (t: any): t is GroupMemberDoc { return t?.collection === 'group-members' }
+
+/** Both an admin's invitation and a person's request to join, told apart by `kind` */
+export interface GroupInviteDoc extends DocBase {
+  readonly collection: 'group-invites'
+  groupId: GroupDoc['id']
+  userId: UserDoc['id']
+  kind: GroupInviteKind
+  role: GroupRole
+  observer: boolean
+  /** The athlete row this hands over, if any */
+  memberId?: GroupMemberDoc['id']
+  /** The admin who invited, absent on a request to join */
+  invitedBy?: UserDoc['id']
+  status: GroupInviteStatus
+  /** Firestore's TTL policy deletes the document once this passes */
+  expiresAt: Timestamp
+}
+
+export const GROUP_INVITE_TTL_DAYS = 30
+
+export function groupInviteExpiry () {
+  return Timestamp.fromMillis(Date.now() + (GROUP_INVITE_TTL_DAYS * 24 * 60 * 60 * 1000))
+}
+
+/** TTL deletion can lag by a day, so an expired invite is refused on its own terms too */
+export function groupInviteExpired (invite: GroupInviteDoc) {
+  return invite.expiresAt.toMillis() <= Date.now()
+}
+export function isGroupInvite (t: any): t is GroupInviteDoc { return t?.collection === 'group-invites' }
 
 export interface TrickCompletionDoc extends DocBase {
   readonly collection: 'trick-completions'
