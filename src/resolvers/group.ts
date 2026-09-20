@@ -124,7 +124,6 @@ async function detachMember (member: GroupMemberDoc, { dataSources }: Pick<Conte
   }
 
   await dataSources.groupMembers.deleteOne(member.id)
-  await dataSources.groupMembers.deleteFromCacheById(member.id)
   return member
 }
 
@@ -389,7 +388,6 @@ export const groupResolvers: Resolvers = {
       }
 
       await context.dataSources.groupInvites.deleteOne(invite.id)
-      await context.dataSources.groupInvites.deleteFromCacheById(invite.id)
       return invite
     },
     async respondToGroupInvite (_, { inviteId, accept }, context) {
