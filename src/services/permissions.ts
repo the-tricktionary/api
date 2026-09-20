@@ -171,7 +171,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         delete: isAdmin,
         manageMembers: isAdmin,
         invite: isAdmin,
-        manageJoinCode: isAdmin
+        manageJoinCode: isAdmin,
+        editMemberChecklist: isAdmin
       }
     },
 

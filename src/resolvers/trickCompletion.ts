@@ -29,6 +29,10 @@ export const trickCompletionResolvers: Resolvers = {
   TrickCompletion: {
     async trick (trickCompletion, _, { dataSources }) {
       return await (dataSources.tricks.findOneById(trickCompletion.trickId) as Promise<TrickDoc>)
+    },
+    async recordedBy (trickCompletion, _, { dataSources }) {
+      if (trickCompletion.recordedBy == null) return null
+      return await dataSources.users.findOneById(trickCompletion.recordedBy, { ttl: 60 }) ?? null
     }
   }
 }

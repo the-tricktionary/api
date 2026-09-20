@@ -2,7 +2,8 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { GrantType } from '../generated/graphql.js'
 import { firestore } from '../store/firestoreDataSource.js'
-import { groupInviteExpired, TRICKTIONARY_RULES_ID } from '../store/schema.js'
+import { checklistStats } from '../services/checklist.js'
+import { groupInviteExpired } from '../store/schema.js'
 import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema, usernameSchema } from '../validation.js'
 import { byEventOrder } from './eventDefinitions.js'
 
@@ -167,31 +168,8 @@ export const userResolvers: Resolvers = {
     async checklistStats (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getChecklistStats.assert()
 
-      // completions of deleted tricks still count
-      const [completions, trickLevels] = await Promise.all([
-        dataSources.trickCompletions.findManyByUser(user.id, { ttl: 60 }),
-        dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID, { ttl: 3600 })
-      ])
-
-      const levelOfTrick = new Map(trickLevels.map(trickLevel => [trickLevel.trickId, trickLevel.level]))
-
-      const totals = new Map<string, number>()
-      for (const level of levelOfTrick.values()) totals.set(level, (totals.get(level) ?? 0) + 1)
-
-      const completedPerLevel = new Map<string, number>()
-      for (const completion of completions) {
-        const level = levelOfTrick.get(completion.trickId)
-        // unlevelled tricks only count towards completed
-        if (level == null) continue
-        completedPerLevel.set(level, (completedPerLevel.get(level) ?? 0) + 1)
-      }
-
-      return {
-        completed: completions.length,
-        levels: [...totals.entries()]
-          .sort(([a], [b]) => Number(a) - Number(b))
-          .map(([level, total]) => ({ level, completed: completedPerLevel.get(level) ?? 0, total }))
-      }
+      const completions = await dataSources.trickCompletions.findManyByUser(user.id, { ttl: 60 })
+      return await checklistStats(completions, dataSources)
     },
     async groups (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getGroups.assert()

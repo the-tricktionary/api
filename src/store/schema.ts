@@ -255,10 +255,22 @@ export function groupInviteExpired (invite: GroupInviteDoc) {
 }
 export function isGroupInvite (t: any): t is GroupInviteDoc { return t?.collection === 'group-invites' }
 
+/** Named by `userId` for an athlete with an account, and by `memberId` for one without */
 export interface TrickCompletionDoc extends DocBase {
   readonly collection: 'trick-completions'
-  userId: UserDoc['id']
+  userId?: UserDoc['id']
+  memberId?: GroupMemberDoc['id']
   trickId: TrickDoc['id']
+  /** The group admin who ticked it off, absent when the athlete did it themselves */
+  recordedBy?: UserDoc['id']
+}
+
+export type ChecklistAthlete =
+  | { userId: string, memberId?: undefined }
+  | { userId?: undefined, memberId: string }
+
+export function checklistAthlete (member: GroupMemberDoc): ChecklistAthlete {
+  return member.userId != null ? { userId: member.userId } : { memberId: member.id }
 }
 export function isTrickCompletion (t: any): t is TrickDoc { return t?.collection === 'trick-completions' }
 

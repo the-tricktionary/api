@@ -3,14 +3,15 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, CollisionError, NotFoundError, UnexpectedError, ValidationError } from '../errors.js'
 import { GroupInviteKind, GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import { generateJoinCode } from '../services/joinCode.js'
-import { deleteInChunks, firestore } from '../store/firestoreDataSource.js'
-import { groupInviteExpired, groupInviteExpiry } from '../store/schema.js'
+import { checklistStats } from '../services/checklist.js'
+import { deleteInChunks, firestore, writeInChunks } from '../store/firestoreDataSource.js'
+import { checklistAthlete, groupInviteExpired, groupInviteExpiry } from '../store/schema.js'
 import { groupAthleteNameSchema, groupMemberInputSchema, groupNameSchema, joinCodeSchema, usernameSchema } from '../validation.js'
 
 import type { ApolloContext } from '../apollo.js'
 import type { Resolvers } from '../generated/graphql.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
-import type { GroupDoc, GroupInviteDoc, GroupMemberDoc } from '../store/schema.js'
+import type { GroupDoc, GroupInviteDoc, GroupMemberDoc, TrickCompletionDoc } from '../store/schema.js'
 
 type Context = Pick<ApolloContext, 'dataSources' | 'user'>
 
@@ -127,6 +128,26 @@ async function detachMember (member: GroupMemberDoc, { dataSources }: Pick<Conte
   return member
 }
 
+async function claimChecklist (memberId: string, userId: string, dataSources: DataSources) {
+  const recorded = await dataSources.trickCompletions.findManyByMember(memberId)
+  if (!recorded.length) return
+
+  const own = await dataSources.trickCompletions.findManyByUser(userId)
+  const ownTricks = new Set(own.map(completion => completion.trickId))
+  const collection = dataSources.trickCompletions.collection
+
+  await writeInChunks(recorded, (batch, completion) => {
+    const ref = collection.doc(completion.id)
+    // a trick they had already ticked themselves would otherwise be counted twice
+    if (ownTricks.has(completion.trickId)) batch.delete(ref)
+    else batch.update(ref, { userId, memberId: FieldValue.delete() })
+  })
+
+  await Promise.all(recorded.map(async completion => {
+    await dataSources.trickCompletions.deleteFromCacheById(completion.id)
+  }))
+}
+
 /** The transaction is what keeps two invitations answered at once from leaving a user with two rows */
 async function acceptInvite (invite: GroupInviteDoc, memberId: string | null | undefined, { dataSources }: Pick<Context, 'dataSources'>) {
   const members = dataSources.groupMembers.collection
@@ -173,7 +194,10 @@ async function acceptInvite (invite: GroupInviteDoc, memberId: string | null | u
   })
 
   // the transaction bypassed the data source cache
-  if (claimedId) await dataSources.groupMembers.deleteFromCacheById(claimedId)
+  if (claimedId) {
+    await dataSources.groupMembers.deleteFromCacheById(claimedId)
+    await claimChecklist(claimedId, invite.userId, dataSources)
+  }
   return await reloadInvite(invite.id, { dataSources })
 }
 
@@ -464,6 +488,31 @@ export const groupResolvers: Resolvers = {
 
       if (memberId != null) await claimableMember(memberId, group.id, context)
       return await acceptInvite(invite, memberId ?? invite.memberId, context)
+    },
+
+    async setGroupMemberTrickCompletion (_, { memberId, trickId, completed }, context) {
+      const { dataSources, user } = context
+      const member = await existingMember(memberId, context)
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).editMemberChecklist.assert()
+      if (!user) throw new AuthorizationError()
+
+      const trick = await dataSources.tricks.findOneById(trickId, { ttl: 3600 })
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      const existing = await dataSources.trickCompletions.findOneByAthleteAndTrick(checklistAthlete(member), trickId)
+
+      if (!completed) {
+        if (existing) await dataSources.trickCompletions.deleteOne(existing.id)
+        return null
+      }
+      if (existing) return existing
+
+      return await (dataSources.trickCompletions.createOne({
+        ...(member.userId != null ? { userId: member.userId } : { memberId: member.id }),
+        trickId,
+        recordedBy: user.id
+      }) as Promise<TrickCompletionDoc>)
     }
   },
   Group: {
@@ -502,6 +551,19 @@ export const groupResolvers: Resolvers = {
       if (member.userId == null) return member.name ?? ''
       const user = await dataSources.users.findOneById(member.userId, { ttl: 60 })
       return user?.name ?? member.name ?? user?.username ?? ''
+    },
+    async checklist (member, _, context) {
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      return await context.dataSources.trickCompletions.findManyByAthlete(checklistAthlete(member), { ttl: 60 })
+    },
+    async checklistStats (member, _, context) {
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      const completions = await context.dataSources.trickCompletions.findManyByAthlete(checklistAthlete(member), { ttl: 60 })
+      return await checklistStats(completions, context.dataSources)
     }
   },
   GroupInvite: {
