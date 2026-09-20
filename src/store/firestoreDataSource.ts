@@ -19,9 +19,9 @@ export const firestore = new Firestore()
 const DELETE_CHUNK = 400
 
 export async function deleteInChunks (refs: Array<DocumentReference<any>>) {
-  for (let i = 0; i < refs.length; i += DELETE_CHUNK) {
+  for (let idx = 0; idx < refs.length; idx += DELETE_CHUNK) {
     const batch = firestore.batch()
-    for (const ref of refs.slice(i, i + DELETE_CHUNK)) batch.delete(ref)
+    for (const ref of refs.slice(idx, idx + DELETE_CHUNK)) batch.delete(ref)
     await batch.commit()
   }
 }

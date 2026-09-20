@@ -6,6 +6,6 @@ const LENGTH = 8
 
 export function generateJoinCode (): string {
   let code = ''
-  for (let i = 0; i < LENGTH; i++) code += ALPHABET[randomInt(ALPHABET.length)]
+  for (let idx = 0; idx < LENGTH; idx++) code += ALPHABET[randomInt(ALPHABET.length)]
   return code
 }
