@@ -3,26 +3,35 @@ import { Storage } from '@google-cloud/storage'
 import { Timestamp } from '@google-cloud/firestore'
 import { TIMING_TRACK_BUCKET } from '../config.js'
 
-/**
- * Timing track audio lives in a Cloud Storage bucket that allows public reads,
- * so athletes' browsers can stream it straight from storage. Uploads go
- * through V4 signed URLs the API hands out to speed editors, the same shape as
- * the Mux direct uploads: the API never sees the file itself.
- *
- * The bucket needs a CORS rule that allows PUT with a Content-Type header from
- * the admin origin, see the README.
- */
-
-/** Only formats every current browser can play */
+/** Only formats every current browser can play, canonical type to file extension */
 export const TIMING_TRACK_CONTENT_TYPES: Record<string, string> = {
   'audio/mpeg': 'mp3',
   'audio/mp4': 'm4a',
   'audio/aac': 'aac',
   'audio/ogg': 'ogg',
   'audio/wav': 'wav',
-  'audio/x-wav': 'wav',
   'audio/webm': 'webm',
   'audio/flac': 'flac'
+}
+
+export const TIMING_TRACK_CONTENT_TYPE_ALIASES: Record<string, string> = {
+  'audio/mp3': 'audio/mpeg',
+  'audio/mpeg3': 'audio/mpeg',
+  'audio/x-mpeg': 'audio/mpeg',
+  'audio/m4a': 'audio/mp4',
+  'audio/x-m4a': 'audio/mp4',
+  'audio/x-aac': 'audio/aac',
+  'audio/vnd.wave': 'audio/wav',
+  'audio/wave': 'audio/wav',
+  'audio/x-wav': 'audio/wav',
+  'audio/x-pn-wav': 'audio/wav',
+  'audio/x-flac': 'audio/flac'
+}
+
+export function canonicalTimingTrackContentType (contentType: string): string | null {
+  const name = contentType.split(';')[0].trim().toLowerCase()
+  const canonical = TIMING_TRACK_CONTENT_TYPE_ALIASES[name] ?? name
+  return canonical in TIMING_TRACK_CONTENT_TYPES ? canonical : null
 }
 
 /** 50 MB is a few times the largest lossless three minute track */
@@ -41,11 +50,6 @@ export function timingTrackPublicUrl (objectName: string) {
   return `https://storage.googleapis.com/${TIMING_TRACK_BUCKET}/${objectName.split('/').map(encodeURIComponent).join('/')}`
 }
 
-/**
- * The object name behind one of our public URLs, or null when the URL points
- * anywhere else. This is what makes an audioUrl an admin sends back
- * trustworthy: it can only ever name an object in our own bucket and prefix.
- */
 export function timingTrackObjectName (audioUrl: string, eventDefinitionId: string): string | null {
   let url: URL
   try {
@@ -61,8 +65,9 @@ export function timingTrackObjectName (audioUrl: string, eventDefinitionId: stri
 }
 
 export async function createTimingTrackUpload (eventDefinitionId: string, contentType: string) {
-  const extension = TIMING_TRACK_CONTENT_TYPES[contentType]
-  if (extension == null) throw new RangeError(`Unsupported content type ${contentType}`)
+  const canonical = canonicalTimingTrackContentType(contentType)
+  if (canonical == null) throw new RangeError(`Unsupported content type ${contentType}`)
+  const extension = TIMING_TRACK_CONTENT_TYPES[canonical]
 
   const objectName = `${OBJECT_PREFIX}/${eventDefinitionId}/${randomUUID()}.${extension}`
   const expires = Date.now() + UPLOAD_URL_LIFETIME_MS

@@ -2,7 +2,7 @@ import { FieldValue } from '@google-cloud/firestore'
 import * as Sentry from '@sentry/node'
 
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
-import { createTimingTrackUpload, deleteTimingTrackObject, timingTrackObjectName, TIMING_TRACK_CONTENT_TYPES } from '../services/storage.js'
+import { canonicalTimingTrackContentType, createTimingTrackUpload, deleteTimingTrackObject, timingTrackObjectName, TIMING_TRACK_CONTENT_TYPES } from '../services/storage.js'
 import { eventDefinitionCreateSchema, eventDefinitionUpdateSchema } from '../validation.js'
 
 import type { ApolloContext } from '../apollo.js'
@@ -119,7 +119,7 @@ export const eventDefinitionResolvers: Resolvers = {
     async createTimingTrackUpload (_, { eventDefinitionId, contentType }, context) {
       context.allowUser.editEventDefinitions.assert()
       const existing = await existingEventDefinition(eventDefinitionId, context)
-      if (!(contentType in TIMING_TRACK_CONTENT_TYPES)) {
+      if (canonicalTimingTrackContentType(contentType) == null) {
         throw new ValidationError(`Unsupported audio type ${contentType}, use one of ${Object.keys(TIMING_TRACK_CONTENT_TYPES).join(', ')}`)
       }
       return await createTimingTrackUpload(existing.id, contentType)
