@@ -256,10 +256,26 @@ export const timingTrackInputSchema = z.object({
         ...(cue.label ? { label: cue.label } : {})
       }))
     )
-}).transform(track => ({
-  ...(track.audioUrl ? { audioUrl: track.audioUrl } : {}),
-  cues: track.cues
-}))
+})
+  // Without audio the offsets are measured from the go signal rather than
+  // into a recording, the same clock a custom event's cues run on, so the
+  // same rules apply
+  .refine(
+    track => track.audioUrl != null || track.cues.every(cue => cue.type !== TimingCueType.End),
+    'A track without audio runs to the total duration of the event, so it has no end cue'
+  )
+  .refine(
+    track => track.audioUrl != null || track.cues.every(cue => cue.type !== TimingCueType.Start || cue.offset === 0),
+    'A track without audio starts at zero, so its start cue can only sit there to name the opening stretch'
+  )
+  .refine(
+    track => track.audioUrl != null || track.cues.every(cue => cue.type !== TimingCueType.Switch || cue.offset >= 1),
+    'A switch cannot happen before the event starts'
+  )
+  .transform(track => ({
+    ...(track.audioUrl ? { audioUrl: track.audioUrl } : {}),
+    cues: track.cues
+  }))
 
 /** A track is uploaded against an existing definition, so it can only be attached on update */
 export const eventDefinitionCreateSchema = z.object({

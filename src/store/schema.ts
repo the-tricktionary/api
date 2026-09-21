@@ -307,7 +307,11 @@ export interface SpeedResultDoc extends DocBase {
 
   /** The mark stream the result was counted from, absent for plain counts */
   marks?: SpeedMark[]
-  /** The event's timing track as it was when the result was recorded with it */
+  /**
+   * The event's timing track as it was when the result was recorded with it,
+   * stripped of its audio and measured from the go signal when the audio was
+   * not played, see helpers/speedMarks.ts trackWithoutAudio
+   */
   timingTrack?: TimingTrack
 
   /**
@@ -346,7 +350,7 @@ export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collecti
 
 export interface TimingCue {
   type: TimingCueType
-  /** Milliseconds from the start of the audio */
+  /** Milliseconds from the start of the audio, or from the go signal when the track has no audio */
   offset: number
   label?: string
 }

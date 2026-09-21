@@ -673,7 +673,10 @@ const typeDefs = gql`
     marks: [SpeedMark!]!
     """
     The event's timing track as it was when the result was recorded with it,
-    the result's 'start' mark is the moment the audio started playing
+    null when the event had none. When its audio was played the offsets are
+    into the audio and the result's 'start' mark is the moment it started
+    playing, otherwise the audio is gone and the cues are measured from the
+    go signal.
     """
     timingTrack: TimingTrack
     """Derived from the marks, null for results without any step marks"""
@@ -785,8 +788,10 @@ const typeDefs = gql`
     """Rulesets-compatible mark stream, see SpeedResult.marks"""
     marks: [SpeedMarkInput!]
     """
-    Store the event definition's current timing track with the result. The
-    marks should then contain a 'start' mark for the moment the audio started.
+    Whether the event definition's audio was played while counting, in which
+    case the marks should contain a 'start' mark for the moment it started. A
+    known event's cues are stored with the result either way, see
+    SpeedResult.timingTrack.
     """
     withTimingTrack: Boolean
 
@@ -866,7 +871,7 @@ const typeDefs = gql`
   """A moment in a timing track that matters for counting"""
   type TimingCue {
     type: TimingCueType!
-    """Milliseconds from the start of the audio"""
+    """Milliseconds from the start of the audio, or from the go signal when the track has no audio"""
     offset: Int!
     """e.g. the name of the athlete position that starts here"""
     label: String
@@ -888,8 +893,9 @@ const typeDefs = gql`
   input TimingTrackInput {
     """
     The audioUrl returned by createTimingTrackUpload. Omit it for an event
-    whose cues are known but which has no audio to play: the clock then
-    starts at the first cue offset, or at zero when there is no start cue.
+    whose cues are known but which has no audio to play: the offsets are then
+    measured from the go signal, so there is no End cue, and a Start cue is
+    only accepted at offset 0, where it names the opening stretch.
     """
     audioUrl: String
     cues: [TimingCueInput!]!
@@ -916,7 +922,10 @@ const typeDefs = gql`
     totalDuration: Int
     """Null clears it"""
     lookupCode: String
-    """Null removes the track, and its audio file"""
+    """
+    Null removes the track, and its audio file. Switch cues must fall inside
+    the event, which then needs a total duration.
+    """
     timingTrack: TimingTrackInput
   }
 
