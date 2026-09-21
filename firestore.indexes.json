@@ -101,7 +101,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "soleAthleteUserId",
+          "fieldPath": "wholeScoreUserId",
           "order": "ASCENDING"
         },
         {
@@ -142,6 +142,24 @@
         },
         {
           "fieldPath": "recordedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "speed-results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "wholeScoreMemberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eventDefinitionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "count",
           "order": "DESCENDING"
         }
       ]

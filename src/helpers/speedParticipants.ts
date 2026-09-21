@@ -4,12 +4,10 @@ import { NotFoundError, ValidationError } from '../errors.js'
 
 import type { GroupMemberDoc, SpeedParticipant, SpeedResultDoc } from '../store/schema.js'
 
-/** Everything the queries read. Derived from the participants, never sent. */
 export type DerivedParticipants = Pick<SpeedResultDoc,
-'participants' | 'athleteMemberIds' | 'soleAthleteMemberId' | 'athleteUserIds' | 'soleAthleteUserId' | 'needsParticipants' | 'constellationKey'
+'participants' | 'athleteMemberIds' | 'wholeScoreMemberId' | 'athleteUserIds' | 'wholeScoreUserId' | 'needsParticipants' | 'constellationKey'
 >
 
-/** Exactly one athlete, with no leg of their own, competed the whole thing */
 function wholeResult (participants: readonly SpeedParticipant[]) {
   return participants.length === 1 && participants[0].segmentIndex == null
 }
@@ -51,12 +49,11 @@ export function assertValidParticipants (
   }
 }
 
-/** A score outside a group is its creator's own */
 export function ownParticipants (creatorId: string): DerivedParticipants {
   return {
     athleteMemberIds: [],
     athleteUserIds: [creatorId],
-    soleAthleteUserId: creatorId,
+    wholeScoreUserId: creatorId,
     needsParticipants: false,
     constellationKey: ''
   }
@@ -68,7 +65,7 @@ export function deriveParticipants (
 ): DerivedParticipants {
   const memberIds = [...new Set(participants.map(participant => participant.memberId))].sort((a, b) => a.localeCompare(b))
   const userOf = (memberId: string) => members.get(memberId)?.userId
-  const sole = wholeResult(participants) ? participants[0].memberId : undefined
+  const whole = wholeResult(participants) ? participants[0].memberId : undefined
 
   return {
     ...(participants.length
@@ -80,24 +77,21 @@ export function deriveParticipants (
         }
       : {}),
     athleteMemberIds: memberIds,
-    ...(sole != null ? { soleAthleteMemberId: sole } : {}),
+    ...(whole != null ? { wholeScoreMemberId: whole } : {}),
     athleteUserIds: memberIds.map(userOf).filter(userId => userId != null),
-    ...(sole != null && userOf(sole) != null ? { soleAthleteUserId: userOf(sole) } : {}),
+    ...(whole != null && userOf(whole) != null ? { wholeScoreUserId: userOf(whole) } : {}),
     needsParticipants: participants.length === 0,
     constellationKey: memberIds.join('|')
   }
 }
 
-/**
- * `updateOnePartial` merges, so a derivation that no longer has a field has to
- * say so rather than leave the old value in place.
- */
+/** `updateOnePartial` merges, so the fields a derivation no longer has must be deleted */
 export function participantUpdate (derived: DerivedParticipants) {
   const clear = FieldValue.delete() as unknown as undefined
   return {
     ...derived,
     participants: derived.participants ?? clear,
-    soleAthleteMemberId: derived.soleAthleteMemberId ?? clear,
-    soleAthleteUserId: derived.soleAthleteUserId ?? clear
+    wholeScoreMemberId: derived.wholeScoreMemberId ?? clear,
+    wholeScoreUserId: derived.wholeScoreUserId ?? clear
   }
 }

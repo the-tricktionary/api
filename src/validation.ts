@@ -187,7 +187,6 @@ export const speedMarkSchema = z.object({
   target: z.number().int().min(0).nullish()
 })
 
-/** One athlete on one leg, or on the whole score when it has no `segmentIndex` */
 export const speedParticipantSchema = z.object({
   segmentIndex: z.number().int().min(0).max(MAX_SEGMENTS - 1).nullish(),
   memberId: z.string().min(1)
@@ -210,7 +209,10 @@ export const speedResultUpdateSchema = z.object({
   name: speedResultNameSchema.nullish(),
   count: speedResultCountSchema.nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
-  eventDefinition: eventDefinitionInputSchema.nullish(),
+  eventDefinition: eventDefinitionInputSchema.nullish()
+})
+
+export const speedResultGroupSchema = z.object({
   groupId: z.string().min(1).nullish(),
   participants: speedParticipantsSchema.nullish()
 })

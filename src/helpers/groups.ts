@@ -145,7 +145,6 @@ export async function claimChecklist (memberId: string, userId: string, dataSour
   }))
 }
 
-/** The scores the group recorded against an athlete become that athlete's own */
 export async function claimSpeedResults (memberId: string, userId: string, dataSources: DataSources) {
   const recorded = await dataSources.speedResults.findManyByQuery(c => c.where('athleteMemberIds', 'array-contains', memberId))
   if (!recorded.length) return
@@ -154,7 +153,7 @@ export async function claimSpeedResults (memberId: string, userId: string, dataS
   await writeInChunks(recorded, (batch, speedResult) => {
     batch.update(collection.doc(speedResult.id), {
       athleteUserIds: FieldValue.arrayUnion(userId),
-      ...(speedResult.soleAthleteMemberId === memberId ? { soleAthleteUserId: userId } : {})
+      ...(speedResult.wholeScoreMemberId === memberId ? { wholeScoreUserId: userId } : {})
     })
   })
 

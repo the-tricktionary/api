@@ -9,10 +9,7 @@
  * without the data source's converter, which is the only way to see that
  * stored `createdAt`: on the converted path it is shadowed by the create time.
  *
- * Idempotent, so it is safe to run again after deploying to catch anything
- * written in between.
- *
- * Run with: npx tsx src/migrations/speed-recorded-at.ts [--dry-run]
+ * Idempotent. Run with: npx tsx src/migrations/speed-recorded-at.ts [--dry-run]
  */
 import '../config.js'
 import { Firestore, Timestamp } from '@google-cloud/firestore'

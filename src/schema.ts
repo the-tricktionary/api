@@ -114,6 +114,8 @@ const typeDefs = gql`
     # Speed
     createSpeedResult (data: SpeedResultInput!): SpeedResult!
     updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult!
+    """Share a score with a group and say who competed, see SpeedResultGroupInput"""
+    setSpeedResultGroup (speedResultId: ID!, data: SpeedResultGroupInput!): SpeedResult!
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
 
     # Event definitions (speed editors)
@@ -738,16 +740,13 @@ const typeDefs = gql`
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput
+  }
 
-    """
-    Omit to keep the current group, pass null to unshare the score, which also
-    clears who competed it
-    """
+  """Both fields state the whole record after the call, neither is a partial edit"""
+  input SpeedResultGroupInput {
+    """The group the score belongs to, null for none, which also clears who competed"""
     groupId: ID
-    """
-    Everyone who competed, replacing whoever was named before. Omit to leave
-    the current assignment alone, pass an empty list to clear it.
-    """
+    """Everyone who competed, replacing whoever was named before"""
     participants: [SpeedParticipantInput!]
   }
 

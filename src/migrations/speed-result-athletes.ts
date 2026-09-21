@@ -1,15 +1,11 @@
 /**
- * Backfills who competed on every speed result recorded before groups existed:
- * its creator, and nobody else. The member arrays stay empty, no old result
- * belongs to a group.
+ * Backfills who competed on every speed result: its creator, and nobody else.
+ * The member arrays stay empty, no result predating groups belongs to one.
  *
- * Until this has run a user's own scores are missing from the participant
- * driven queries, so it runs before anything reads them.
+ * Until this has run a user's own scores are missing from the queries that
+ * read the athlete fields, so it runs before anything reads them.
  *
- * Idempotent, so it is safe to run again after deploying to catch anything
- * written in between.
- *
- * Run with: npx tsx src/migrations/speed-result-athletes.ts [--dry-run]
+ * Idempotent. Run with: npx tsx src/migrations/speed-result-athletes.ts [--dry-run]
  */
 import '../config.js'
 import { Firestore } from '@google-cloud/firestore'
