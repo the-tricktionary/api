@@ -7,9 +7,8 @@ on:
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  PROJECT_NO: ${{ vars.GCP_PROJECT_NO }}
   SERVICE: tricktionary-api
-  REGION: us-central1
+  REGION: ${{ vars.GCP_REGION }}
 
 jobs:
   setup-build-publish-deploy:
@@ -24,9 +23,14 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
 
+    - name: Use Node.js 24
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+
     - uses: google-github-actions/auth@v3
       with:
-        workload_identity_provider: projects/${{ vars.GCP_PROJECT_NO }}/locations/global/workloadIdentityPools/github/providers/github
+        workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
         service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
         project_id: ${{ vars.GCP_PROJECT_ID }}
 
@@ -38,7 +42,7 @@ jobs:
     # Configure Docker to use the gcloud command-line tool as a credential
     # helper for authentication
     - name: Authorize Docker push
-      run: gcloud auth configure-docker us-central1-docker.pkg.dev 
+      run: gcloud auth configure-docker "$REGION-docker.pkg.dev"
 
     # Build the Docker image
     - name: Build
@@ -54,6 +58,18 @@ jobs:
       run: |-
         docker push "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA"
 
+    # Ahead of the Cloud Run deploy, so a revision never goes live expecting an
+    # index that is not there. firebase-tools picks up the credentials
+    # google-github-actions/auth wrote, so this needs no key of its own.
+    #
+    # No --force: it deletes indexes firestore.indexes.json does not name. The
+    # command also returns once index builds are accepted rather than finished,
+    # which matters when the database is new.
+    - name: Deploy Firestore rules and indexes
+      run: npx firebase-tools@15.30.2 deploy --only firestore:indexes,firestore:rules --project "$PROJECT_ID"
+
+    # Image only. Everything else about the service — service account, scaling,
+    # CPU, env vars — is Terraform's, and passing any of it here would fight it.
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v3
@@ -61,16 +77,6 @@ jobs:
         service: ${{ env.SERVICE }}
         image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}
         region: ${{ env.REGION }}
-        # Only non-secret configuration. The API reads its secrets from Secret
-        # Manager itself, so no secret value passes through this workflow or
-        # ends up readable in the service's configuration.
-        # `overwrite` rather than the default `merge`, so the secrets that used
-        # to be set here are removed from the service instead of lingering.
-        env_vars: SENTRY_DSN=${{ secrets.SENTRY_DSN }},GCP_PROJECT=${{ vars.GCP_PROJECT_ID }},ALGOLIA_APP_ID=${{ secrets.ALGOLIA_APP_ID }}
-        env_vars_update_strategy: overwrite
-        secrets: '{}'
-        secrets_update_strategy: overwrite
-        flags: --max-instances=default --service-account=${{ vars.GCP_RUN_SERVICE_ACCOUNT }}
 
     - name: Show Output
       run: echo ${{ steps.deploy.outputs.url }}
@@ -98,8 +104,8 @@ jobs:
       uses: getsentry/action-release@v3
       env:
         SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-        SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+        SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
       with:
         environment: production
         sourcemaps: ./dist
