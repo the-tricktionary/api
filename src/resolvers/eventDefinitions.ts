@@ -2,6 +2,7 @@ import { FieldValue } from '@google-cloud/firestore'
 import * as Sentry from '@sentry/node'
 
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
+import { TimingCueType } from '../generated/graphql.js'
 import { canonicalTimingTrackContentType, createTimingTrackUpload, deleteTimingTrackObject, timingTrackObjectName, TIMING_TRACK_CONTENT_TYPES } from '../services/storage.js'
 import { eventDefinitionCreateSchema, eventDefinitionUpdateSchema } from '../validation.js'
 
@@ -71,6 +72,18 @@ export const eventDefinitionResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const data = eventDefinitionUpdateSchema.parse(rawData)
       const existing = await existingEventDefinition(eventDefinitionId, context)
+
+      // Either field can move a switch out of the event, so they are checked
+      // against each other rather than each on its own
+      if (data.timingTrack !== undefined || data.totalDuration !== undefined) {
+        const track: TimingTrack | undefined = data.timingTrack === undefined ? existing.timingTrack : (data.timingTrack ?? undefined)
+        const duration = data.totalDuration ?? existing.totalDuration
+        const startOffset = track?.cues.find(cue => cue.type === TimingCueType.Start)?.offset ?? 0
+        const switches = track?.cues.filter(cue => cue.type === TimingCueType.Switch) ?? []
+        if (switches.length && (duration === 0 || switches.some(cue => cue.offset - startOffset >= duration * 1000))) {
+          throw new ValidationError('Switch cues must fall inside the event, which needs a total duration')
+        }
+      }
 
       let trackFields = {}
       if (data.timingTrack === null) {

@@ -7,7 +7,7 @@ import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/sch
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import type { speedMarkSchema, speedParticipantSchema } from '../validation.js'
 import { speedResultCreateSchema, speedResultGroupSchema, speedResultUpdateSchema } from '../validation.js'
-import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds } from '../helpers/speedMarks.js'
+import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds, trackWithoutAudio } from '../helpers/speedMarks.js'
 import { existingGroup, existingMember, groupAndMembership, membershipOf } from '../helpers/groups.js'
 import type { DerivedParticipants } from '../helpers/speedParticipants.js'
 import { assertValidParticipants, deriveParticipants, ownParticipants, participantUpdate } from '../helpers/speedParticipants.js'
@@ -155,12 +155,15 @@ export const speedResultResolvers: Resolvers = {
       const data = speedResultCreateSchema.parse(rawData)
       const { fields: eventFields, event } = await eventDefinitionFields(data, { dataSources }, { mode: 'create' })
 
+      // A known event's cues are snapshotted whether or not its audio was
+      // played, so the segments survive a later edit of the event. Without the
+      // audio they are stored as the athlete experienced them: from the tap
+      if (data.withTimingTrack && !data.eventDefinitionId) throw new ValidationError('Only a known event definition can have a timing track')
       let timingTrack = {}
-      if (data.withTimingTrack) {
-        if (!data.eventDefinitionId) throw new ValidationError('Only a known event definition can have a timing track')
-        const eventDefinition = await dataSources.eventDefinitions.findOneById(data.eventDefinitionId, { ttl: 3600 })
-        if (!eventDefinition?.timingTrack) throw new ValidationError('The event definition has no timing track')
-        timingTrack = { timingTrack: eventDefinition.timingTrack }
+      if (data.eventDefinitionId) {
+        const track = event.timingTrack
+        if (data.withTimingTrack && !track) throw new ValidationError('The event definition has no timing track')
+        if (track) timingTrack = { timingTrack: data.withTimingTrack && track.audioUrl ? track : trackWithoutAudio(track) }
       }
 
       let count: number
