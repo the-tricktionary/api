@@ -5,11 +5,13 @@ import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 import { usernameSchema } from '../validation.js'
 import { groupInviteExpired } from './schema.js'
+import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
 import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
+import type { SpeedAthlete } from '../helpers/speedResults.js'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
 import type { Timestamp } from '@google-cloud/firestore'
 import type { KeyValueCache } from '@apollo/utils.keyvaluecache'
@@ -278,19 +280,17 @@ interface SpeedFeedArgs extends FindArgs {
   limit?: number | null
   startAfter?: Timestamp | null
   eventDefinitionId?: string | null
+  groupId?: string | null
 }
 
-function newestFirst (query: Query<SpeedResultDoc>, { limit, startAfter, eventDefinitionId }: SpeedFeedArgs) {
+function newestFirst (query: Query<SpeedResultDoc>, { limit, startAfter, eventDefinitionId, groupId }: SpeedFeedArgs) {
   let q = query
+  if (groupId) q = q.where('groupId', '==', groupId)
   if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
   q = q.orderBy('recordedAt', 'desc')
   if (startAfter) q = q.startAfter(startAfter)
   if (limit) q = q.limit(limit)
   return q
-}
-
-function recordedMillis (result: SpeedResultDoc) {
-  return (result.recordedAt ?? result.createdAt).toMillis()
 }
 
 /** The first `limit` of the union of lists that each hold their own newest `limit` results */
@@ -323,7 +323,7 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
     return mergeNewest([competed, unassigned], feed.limit)
   }
 
-  async findManyByGroup (groupId: string, { ttl, constellationKey, ...feed }: SpeedFeedArgs & { constellationKey?: string | null } = {}) {
+  async findManyByGroup (groupId: string, { ttl, constellationKey, groupId: _ignored, ...feed }: SpeedFeedArgs & { constellationKey?: string | null } = {}) {
     return await this.findManyByQuery(c => {
       let q = c.where('groupId', '==', groupId)
       if (constellationKey != null) q = q.where('constellationKey', '==', constellationKey)
@@ -392,6 +392,22 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
     const bests = await Promise.all(eventDefinitionIds.map(async eventDefinitionId =>
       await this.findBestByMemberAndEvent(memberId, eventDefinitionId, { ttl })))
     return bests.filter(result => result != null)
+  }
+
+  /** Every score the athlete competed in, ranked per event, see helpers/speedResults.ts */
+  private async findBestsByAthlete (athlete: SpeedAthlete, eventDefinitions: readonly EventDefinitionDoc[], { ttl }: FindArgs = {}) {
+    const results = await this.findManyByQuery(c => (athlete.userId != null
+      ? c.where('athleteUserIds', 'array-contains', athlete.userId)
+      : c.where('athleteMemberIds', 'array-contains', athlete.memberId)), { ttl })
+    return bestsOf(results, eventDefinitions, athlete)
+  }
+
+  async findBestsByAthleteUser (userId: string, eventDefinitions: readonly EventDefinitionDoc[], { ttl }: FindArgs = {}) {
+    return await this.findBestsByAthlete({ userId }, eventDefinitions, { ttl })
+  }
+
+  async findBestsByAthleteMember (memberId: string, eventDefinitions: readonly EventDefinitionDoc[], { ttl }: FindArgs = {}) {
+    return await this.findBestsByAthlete({ memberId }, eventDefinitions, { ttl })
   }
 }
 export const speedResultDataSource = (cache: KeyValueCache) => new SpeedResultDataSource(collection<SpeedResultDoc>('speed-results'), { logger: logger.child({ name: 'speed-result-data-source' }), cache })

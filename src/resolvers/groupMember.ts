@@ -107,6 +107,15 @@ export const groupMemberResolvers: Resolvers = {
       const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
       return await context.dataSources.speedResults.findBestsByMember(member.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
     },
+    async speedBests (member, _, context) {
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
+      return member.userId != null
+        ? await context.dataSources.speedResults.findBestsByAthleteUser(member.userId, eventDefinitions, { ttl: 60 })
+        : await context.dataSources.speedResults.findBestsByAthleteMember(member.id, eventDefinitions, { ttl: 60 })
+    },
     async speedProgression (member, { eventDefinitionId }, context) {
       const { group, membership } = await groupAndMembership(member.groupId, context)
       context.allowUser.group(group, membership).get.assert()
@@ -115,7 +124,7 @@ export const groupMemberResolvers: Resolvers = {
       if (!eventDefinition) throw new NotFoundError(`Event definition ${eventDefinitionId} not found`, { extensions: { entity: 'event-definition', id: eventDefinitionId } })
 
       const results = await context.dataSources.speedResults.findManyByAthleteMemberAndEvent(member.id, eventDefinition.id, { ttl: 60 })
-      return results.map(result => segmentResultOf(result, member.id, eventDefinition))
+      return results.map(result => segmentResultOf(result, { memberId: member.id }, eventDefinition))
     }
   },
 }

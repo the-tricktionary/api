@@ -83,10 +83,14 @@ export function deriveParticipants (
   return {
     ...(participants.length
       ? {
-          participants: participants.map(participant => ({
-            ...(participant.segmentIndex != null ? { segmentIndex: participant.segmentIndex } : {}),
-            memberId: participant.memberId
-          }))
+          participants: participants.map(participant => {
+            const userId = userOf(participant.memberId)
+            return {
+              ...(participant.segmentIndex != null ? { segmentIndex: participant.segmentIndex } : {}),
+              memberId: participant.memberId,
+              ...(userId != null ? { userId } : {})
+            }
+          })
         }
       : {}),
     athleteMemberIds: memberIds,

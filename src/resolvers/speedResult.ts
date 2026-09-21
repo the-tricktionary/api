@@ -291,6 +291,13 @@ export const speedResultResolvers: Resolvers = {
         ...participantUpdate(derived)
       }) as Promise<SpeedResultDoc>)
     },
+    async excludeSpeedResultFromPersonalBests (_, { speedResultId, excluded }, context) {
+      const speedResult = await manageableSpeedResult(speedResultId, context, 'edit')
+
+      return await (context.dataSources.speedResults.updateOnePartial(speedResult.id, {
+        excludedFromPersonalBests: excluded ? true : FieldValue.delete()
+      }) as Promise<SpeedResultDoc>)
+    },
     async deleteSpeedResult (_, { speedResultId }, context) {
       const speedResult = await manageableSpeedResult(speedResultId, context, 'delete')
       await context.dataSources.speedResults.deleteOne(speedResult.id)
@@ -330,6 +337,9 @@ export const speedResultResolvers: Resolvers = {
       // the analysis, so a list of results stays cheap. A stream with no step
       // in it has nothing to analyse either, so the two agree.
       return marksOf(speedResult).some(mark => mark.schema === 'step')
+    },
+    excludedFromPersonalBests (speedResult) {
+      return speedResult.excludedFromPersonalBests ?? false
     },
     async analysis (speedResult, _, context) {
       if (!marksOf(speedResult).length) return null
