@@ -459,13 +459,6 @@ const typeDefs = gql`
     ): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
     """
-    The user's highest score in each predefined event they competed whole, in
-    the order the events are listed. A leg of a relay counts for nobody, and
-    custom events are left out. Visible to the user themselves, and to
-    everyone on a public profile that shows its speed scores.
-    """
-    speedPersonalBests: [SpeedResult!]! @deprecated(reason: "Use speedBests")
-    """
     The user's best in each predefined event they have a score in, in the
     order the events are listed. Every score they competed in counts, however
     it was entered and whoever counted it, and custom events are left out.
@@ -595,12 +588,6 @@ const typeDefs = gql`
     """
     checklist: [TrickCompletion!]!
     checklistStats: ChecklistStats!
-    """
-    This athlete's best score in each predefined event among the group's
-    scores, counting only the ones they competed whole. Works for athletes
-    with no account, who have no personal bests of their own.
-    """
-    speedPersonalBests: [SpeedResult!]! @deprecated(reason: "Use speedBests")
     """
     This athlete's best in each predefined event they have a score in. An
     athlete with an account gets their own bests, across every group they are

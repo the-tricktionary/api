@@ -100,13 +100,6 @@ export const groupMemberResolvers: Resolvers = {
       const completions = await context.dataSources.trickCompletions.findManyByAthlete(checklistAthlete(member), { ttl: 60 })
       return await checklistStats(completions, context.dataSources)
     },
-    async speedPersonalBests (member, _, context) {
-      const { group, membership } = await groupAndMembership(member.groupId, context)
-      context.allowUser.group(group, membership).get.assert()
-
-      const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
-      return await context.dataSources.speedResults.findBestsByMember(member.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
-    },
     async speedBests (member, _, context) {
       const { group, membership } = await groupAndMembership(member.groupId, context)
       context.allowUser.group(group, membership).get.assert()
