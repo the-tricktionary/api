@@ -118,6 +118,11 @@ const typeDefs = gql`
     updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult!
     """Share a score with a group and say who competed, see SpeedResultGroupInput"""
     setSpeedResultGroup (speedResultId: ID!, data: SpeedResultGroupInput!): SpeedResult!
+    """
+    Leaves the score out of the bests of everyone who competed in it, or puts
+    it back. Whoever may edit the score may set this.
+    """
+    excludeSpeedResultFromPersonalBests (speedResultId: ID!, excluded: Boolean!): SpeedResult!
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
 
     # Event definitions (speed editors)
@@ -698,6 +703,12 @@ const typeDefs = gql`
     the analysis. True exactly when there is an analysis to show.
     """
     counted: Boolean!
+    """
+    Whether the score is left out of the bests of everyone who competed in it.
+    It still shows in the lists and carries its analysis either way, only the
+    bests skip it.
+    """
+    excludedFromPersonalBests: Boolean!
 
     """Null for a score that is yours alone"""
     group: Group

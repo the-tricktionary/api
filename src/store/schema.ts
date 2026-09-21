@@ -330,6 +330,9 @@ export interface SpeedResultDoc extends DocBase {
   groupId?: GroupDoc['id']
   participants?: SpeedParticipant[]
 
+  /** Skipped when the athlete's bests are worked out, stored only when set */
+  excludedFromPersonalBests?: true
+
   // Derived from `participants` on every write, never taken from the input
   athleteMemberIds: string[]
   wholeScoreMemberId?: GroupMemberDoc['id']
