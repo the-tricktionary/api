@@ -34,13 +34,10 @@ jobs:
         service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
         project_id: ${{ vars.GCP_PROJECT_ID }}
 
-    # Setup gcloud CLI
     - uses: google-github-actions/setup-gcloud@v3
       with:
         project_id: ${{ vars.GCP_PROJECT_ID }}
 
-    # Configure Docker to use the gcloud command-line tool as a credential
-    # helper for authentication
     - name: Authorize Docker push
       run: gcloud auth configure-docker "$REGION-docker.pkg.dev"
 
@@ -58,18 +55,9 @@ jobs:
       run: |-
         docker push "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA"
 
-    # Ahead of the Cloud Run deploy, so a revision never goes live expecting an
-    # index that is not there. firebase-tools picks up the credentials
-    # google-github-actions/auth wrote, so this needs no key of its own.
-    #
-    # No --force: it deletes indexes firestore.indexes.json does not name. The
-    # command also returns once index builds are accepted rather than finished,
-    # which matters when the database is new.
     - name: Deploy Firestore rules and indexes
-      run: npx firebase-tools@15.30.2 deploy --only firestore:indexes,firestore:rules --project "$PROJECT_ID"
+      run: npx firebase-tools@15.30.2 deploy --only firestore:indexes,firestore:rules --project "$PROJECT_ID" --force
 
-    # Image only. Everything else about the service — service account, scaling,
-    # CPU, env vars — is Terraform's, and passing any of it here would fight it.
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v3
@@ -109,4 +97,4 @@ jobs:
       with:
         environment: production
         sourcemaps: ./dist
-        version_prefix: tricktionary-api@
+        release_prefix: tricktionary-api@
