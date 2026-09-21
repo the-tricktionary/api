@@ -7,7 +7,7 @@ import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/sch
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import type { speedMarkSchema, speedParticipantSchema } from '../validation.js'
 import { speedResultCreateSchema, speedResultGroupSchema, speedResultUpdateSchema } from '../validation.js'
-import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds, segmentsOf, trackWithoutAudio } from '../helpers/speedMarks.js'
+import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds, segmentsOf, timingOf, trackWithoutAudio } from '../helpers/speedMarks.js'
 import { existingGroup, existingMember, groupAndMembership, membershipOf } from '../helpers/groups.js'
 import type { DerivedParticipants } from '../helpers/speedParticipants.js'
 import { assertValidParticipants, deriveParticipants, ownParticipants, participantUpdate } from '../helpers/speedParticipants.js'
@@ -105,13 +105,18 @@ async function eventDefinitionFields (data: EventDefinitionInput, { dataSources 
   return { fields: {} }
 }
 
-/** The event's own switches decide, the snapshot on the result stands in when it has none */
-function segmentCountOf (eventDefinition: EventDefinitionDoc, timingTrack?: SpeedResultDoc['timingTrack']) {
-  return segmentBounds(eventDefinition.totalDuration, eventDefinition.timingTrack ?? timingTrack).length
+/** The legs a score written against the event as it is now will have */
+function eventSegmentCount (eventDefinition: EventDefinitionDoc) {
+  return segmentBounds(eventDefinition.totalDuration, eventDefinition.timingTrack).length
+}
+
+/** The legs an existing score has, as its segments resolve */
+function resultSegmentCount (speedResult: SpeedResultDoc, eventDefinition: EventDefinitionDoc) {
+  return segmentBounds(eventDefinition.totalDuration, timingOf(speedResult, eventDefinition)).length
 }
 
 function assertValidSegmentCounts (segmentCounts: readonly number[], count: number, eventDefinition: EventDefinitionDoc) {
-  const segmentCount = segmentCountOf(eventDefinition)
+  const segmentCount = eventSegmentCount(eventDefinition)
   if (segmentCounts.length !== segmentCount) {
     throw new ValidationError(`The event has ${segmentCount} ${segmentCount === 1 ? 'leg' : 'legs'}, so it needs ${segmentCount} segment ${segmentCount === 1 ? 'count' : 'counts'}`)
   }
@@ -120,13 +125,12 @@ function assertValidSegmentCounts (segmentCounts: readonly number[], count: numb
 }
 
 /**
- * The split must not move if the event's track is edited later, so a known
- * event's track is snapshotted with the counts the same way createSpeedResult
- * does for a result counted without its audio. A custom event carries its
- * cues on the result itself, where a snapshot of a previous event would
- * outrank them.
+ * The track a result keeps, the way createSpeedResult stores one counted
+ * without the audio: a known event's, measured from the go signal, so an edit
+ * of the event's track later does not move the split. A custom event carries
+ * its cues on the result itself, where a leftover snapshot would outrank them.
  */
-function segmentTimingFields (eventDefinition: EventDefinitionDoc, known: boolean): Partial<SpeedResultDoc> {
+function trackSnapshot (eventDefinition: EventDefinitionDoc, known: boolean): Partial<SpeedResultDoc> {
   const track = known && eventDefinition.timingTrack ? trackWithoutAudio(eventDefinition.timingTrack) : undefined
   return { timingTrack: track ?? (FieldValue.delete() as unknown as undefined) }
 }
@@ -213,7 +217,7 @@ export const speedResultResolvers: Resolvers = {
         assertValidSegmentCounts(data.segmentCounts, count, event)
       }
 
-      const derived = await derivedParticipants(data, { creatorId: user.id, segmentCount: segmentCountOf(event) }, { dataSources, allowUser, user })
+      const derived = await derivedParticipants(data, { creatorId: user.id, segmentCount: eventSegmentCount(event) }, { dataSources, allowUser, user })
 
       return await (dataSources.speedResults.createOne({
         ...(data.name ? { name: data.name } : {}),
@@ -244,13 +248,19 @@ export const speedResultResolvers: Resolvers = {
           count: data.count,
           // the count and its segments are one record, so an absent split clears the stored one
           segmentCounts: segmentCounts.length ? segmentCounts : (FieldValue.delete() as unknown as undefined),
-          ...(segmentCounts.length ? segmentTimingFields(eventDefinition, !!(event ? data.eventDefinitionId : speedResult.eventDefinitionId)) : {})
+          ...(segmentCounts.length ? trackSnapshot(eventDefinition, !!(event ? data.eventDefinitionId : speedResult.eventDefinitionId)) : {})
         }
       } else if (data.segmentCounts?.length) {
         throw new ValidationError('Segment counts are part of the count, so they can only be given together with it')
       } else if (eventChanged && speedResult.segmentCounts?.length) {
         throw new ValidationError('Changing the event of a result with segment counts needs the count and its segment counts given again')
       }
+
+      // The snapshot follows the event, except for a result counted along to
+      // an event's audio, whose marks are timed against that recording
+      const trackFields = eventChanged && !speedResult.timingTrack?.audioUrl
+        ? trackSnapshot(event, !!data.eventDefinitionId)
+        : {}
 
       // undefined leaves the name alone, null or an empty string clears it
       let nameFields = {}
@@ -261,6 +271,7 @@ export const speedResultResolvers: Resolvers = {
 
       return await (context.dataSources.speedResults.updateOnePartial(speedResult.id, {
         ...nameFields,
+        ...trackFields,
         ...countFields,
         ...eventFields
       }) as Promise<SpeedResultDoc>)
@@ -271,7 +282,7 @@ export const speedResultResolvers: Resolvers = {
       const eventDefinition = await eventDefinitionOf(speedResult, context)
       const derived = await derivedParticipants(
         data,
-        { creatorId: speedResult.userId, segmentCount: segmentCountOf(eventDefinition, speedResult.timingTrack) },
+        { creatorId: speedResult.userId, segmentCount: resultSegmentCount(speedResult, eventDefinition) },
         context
       )
 
