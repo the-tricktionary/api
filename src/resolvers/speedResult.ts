@@ -7,7 +7,7 @@ import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/sch
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import type { speedMarkSchema, speedParticipantSchema } from '../validation.js'
 import { speedResultCreateSchema, speedResultGroupSchema, speedResultUpdateSchema } from '../validation.js'
-import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds } from '../helpers/speedMarks.js'
+import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds, segmentsOf } from '../helpers/speedMarks.js'
 import { existingGroup, existingMember, groupAndMembership, membershipOf } from '../helpers/groups.js'
 import type { DerivedParticipants } from '../helpers/speedParticipants.js'
 import { assertValidParticipants, deriveParticipants, ownParticipants, participantUpdate } from '../helpers/speedParticipants.js'
@@ -45,6 +45,11 @@ function customEventDefinition (eventDefinition: NonNullable<SpeedResultDoc['eve
     ...(cues?.length ? { timingTrack: { cues } } : {}),
     id: customEventDefinitionId(eventDefinition)
   } as EventDefinitionDoc
+}
+
+function eventIdOf (speedResult: Pick<SpeedResultDoc, 'eventDefinitionId' | 'eventDefinition'>): string | undefined {
+  if (speedResult.eventDefinitionId) return speedResult.eventDefinitionId
+  return speedResult.eventDefinition ? customEventDefinitionId(speedResult.eventDefinition) : undefined
 }
 
 async function eventDefinitionOf (speedResult: Pick<SpeedResultDoc, 'id' | 'eventDefinitionId' | 'eventDefinition'>, { dataSources }: Pick<ApolloContext, 'dataSources'>): Promise<EventDefinitionDoc> {
@@ -103,6 +108,26 @@ async function eventDefinitionFields (data: EventDefinitionInput, { dataSources 
 /** The event's own switches decide, the snapshot on the result stands in when it has none */
 function segmentCountOf (eventDefinition: EventDefinitionDoc, timingTrack?: SpeedResultDoc['timingTrack']) {
   return segmentBounds(eventDefinition.totalDuration, eventDefinition.timingTrack ?? timingTrack).length
+}
+
+function assertValidSegmentCounts (segmentCounts: readonly number[], count: number, eventDefinition: EventDefinitionDoc) {
+  const segmentCount = segmentCountOf(eventDefinition)
+  if (segmentCounts.length !== segmentCount) {
+    throw new ValidationError(`The event has ${segmentCount} ${segmentCount === 1 ? 'leg' : 'legs'}, so it needs ${segmentCount} segment ${segmentCount === 1 ? 'count' : 'counts'}`)
+  }
+  const sum = segmentCounts.reduce((acc, segment) => acc + segment, 0)
+  if (sum !== count) throw new ValidationError(`The segment counts add up to ${sum}, which is not the count of ${count}`)
+}
+
+/**
+ * The split must not move if the event's track is edited later, so a known
+ * event's cues are stored with the counts. A custom event carries its cues on
+ * the result itself, where a snapshot of a previous event would outrank them.
+ */
+function segmentTimingFields (eventDefinition: EventDefinitionDoc, known: boolean): Partial<SpeedResultDoc> {
+  if (!known) return { timingTrack: FieldValue.delete() as unknown as undefined }
+  const cues = eventDefinition.timingTrack?.cues
+  return cues ? { timingTrack: { cues } } : {}
 }
 
 async function derivedParticipants (
@@ -179,6 +204,16 @@ export const speedResultResolvers: Resolvers = {
         throw new ValidationError('A count is required when no marks are provided')
       }
 
+      let segmentFields: Partial<SpeedResultDoc> = {}
+      if (data.segmentCounts?.length) {
+        if (marks) throw new ValidationError('The segments of a result recorded from marks are derived from the marks and cannot be given')
+        assertValidSegmentCounts(data.segmentCounts, count, event)
+        segmentFields = {
+          segmentCounts: data.segmentCounts,
+          ...segmentTimingFields(event, !!data.eventDefinitionId)
+        }
+      }
+
       const derived = await derivedParticipants(data, { creatorId: user.id, segmentCount: segmentCountOf(event) }, { dataSources, allowUser, user })
 
       return await (dataSources.speedResults.createOne({
@@ -189,6 +224,7 @@ export const speedResultResolvers: Resolvers = {
         ...eventFields,
         ...(marks ? { marks } : {}),
         ...timingTrack,
+        ...segmentFields,
         ...(data.groupId ? { groupId: data.groupId } : {}),
         ...derived
       }, { ttl: 60 }) as Promise<SpeedResultDoc>)
@@ -196,12 +232,25 @@ export const speedResultResolvers: Resolvers = {
     async updateSpeedResult (_, { speedResultId, data: rawData }, context) {
       const speedResult = await manageableSpeedResult(speedResultId, context, 'edit')
       const data = speedResultUpdateSchema.parse(rawData)
-      const { fields: eventFields } = await eventDefinitionFields(data, context, { mode: 'update' })
+      const { fields: eventFields, event } = await eventDefinitionFields(data, context, { mode: 'update' })
+      const eventChanged = event != null && event.id !== eventIdOf(speedResult)
 
-      let countFields = {}
+      let countFields: Partial<SpeedResultDoc> = {}
       if (typeof data.count === 'number') {
         if (marksOf(speedResult).length) throw new ValidationError('The count of a result recorded from marks is derived from the marks and cannot be changed')
-        countFields = { count: data.count }
+        const eventDefinition = event ?? await eventDefinitionOf(speedResult, context)
+        const segmentCounts = data.segmentCounts ?? []
+        if (segmentCounts.length) assertValidSegmentCounts(segmentCounts, data.count, eventDefinition)
+        countFields = {
+          count: data.count,
+          // the count and its segments are one record, so an absent split clears the stored one
+          segmentCounts: segmentCounts.length ? segmentCounts : (FieldValue.delete() as unknown as undefined),
+          ...(segmentCounts.length ? segmentTimingFields(eventDefinition, !!(event ? data.eventDefinitionId : speedResult.eventDefinitionId)) : {})
+        }
+      } else if (data.segmentCounts?.length) {
+        throw new ValidationError('Segment counts are part of the count, so they can only be given together with it')
+      } else if (eventChanged && speedResult.segmentCounts?.length) {
+        throw new ValidationError('Changing the event of a result with segment counts needs the count and its segment counts given again')
       }
 
       // undefined leaves the name alone, null or an empty string clears it
@@ -275,6 +324,12 @@ export const speedResultResolvers: Resolvers = {
     async analysis (speedResult, _, context) {
       if (!marksOf(speedResult).length) return null
       return analysisOf(speedResult, await eventDefinitionOf(speedResult, context))
+    },
+    async segments (speedResult, _, context) {
+      return segmentsOf(speedResult, await eventDefinitionOf(speedResult, context))
+    },
+    segmentCounts (speedResult) {
+      return speedResult.segmentCounts ?? null
     }
   },
   SpeedParticipant: {

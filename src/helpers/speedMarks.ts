@@ -157,6 +157,25 @@ export function segmentBounds (durationSeconds: number, timingTrack?: TimingTrac
 }
 
 /**
+ * The segments of a score entered as a plain count, its counts laid over the
+ * event's segments in order.
+ */
+export function segmentsFromCounts (counts: readonly number[], durationSeconds: number, timingTrack?: TimingTrack | null): SpeedSegment[] {
+  return segmentBounds(durationSeconds, timingTrack).map((bounds, index) => {
+    const count = counts[index] ?? 0
+    const seconds = bounds.end - bounds.start
+    return {
+      index,
+      ...(bounds.label ? { label: bounds.label } : {}),
+      start: round2(bounds.start),
+      end: round2(bounds.end),
+      count,
+      stepsPerSecond: seconds > 0 ? round2(count / seconds) : 0
+    }
+  })
+}
+
+/**
  * The pace through the event, one value per second.
  *
  * Counting the steps that land in each second can only ever produce whole
@@ -275,14 +294,29 @@ export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: num
 }
 
 /**
- * The snapshot taken when the result was recorded wins. Falling back to the
- * event's own cues is only safe for a custom event, whose cues are stored on
- * the result itself: a known event's track can be edited later, and that must
- * not rewrite how an old result was segmented.
+ * The timing that splits a result into segments. The snapshot taken when the
+ * result was recorded wins. Falling back to the event's own cues is only safe
+ * for a custom event, whose cues are stored on the result itself: a known
+ * event's track can be edited later, and that must not rewrite how an old
+ * result was segmented.
  */
+function timingOf (result: SpeedResultDoc, eventDefinition: EventDefinitionDoc): TimingTrack | null {
+  return result.timingTrack ?? (result.eventDefinitionId ? null : eventDefinition.timingTrack ?? null)
+}
+
 export function analysisOf (result: SpeedResultDoc, eventDefinition: EventDefinitionDoc): SpeedAnalysis | null {
   const marks = marksOf(result)
   if (!marks.length) return null
-  const timing = result.timingTrack ?? (result.eventDefinitionId ? null : eventDefinition.timingTrack)
-  return analyseMarks(marks, eventDefinition.totalDuration, timing)
+  return analyseMarks(marks, eventDefinition.totalDuration, timingOf(result, eventDefinition))
+}
+
+/** The segments a plain count was entered leg by leg into, empty when it was not */
+export function enteredSegments (result: SpeedResultDoc, eventDefinition: EventDefinitionDoc): SpeedSegment[] {
+  if (!result.segmentCounts?.length) return []
+  return segmentsFromCounts(result.segmentCounts, eventDefinition.totalDuration, timingOf(result, eventDefinition))
+}
+
+/** Derived from the marks when the result was counted, from the entered counts otherwise */
+export function segmentsOf (result: SpeedResultDoc, eventDefinition: EventDefinitionDoc): SpeedSegment[] {
+  return analysisOf(result, eventDefinition)?.segments ?? enteredSegments(result, eventDefinition)
 }

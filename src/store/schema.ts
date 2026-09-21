@@ -291,6 +291,8 @@ export interface SpeedResultDoc extends DocBase {
   recordedAt?: Timestamp
 
   count: number
+  /** The steps of each leg of a plain-count relay, one per segment of the event */
+  segmentCounts?: number[]
 
   // either we link this to an event definition
   eventDefinitionId?: EventDefinitionDoc['id']
