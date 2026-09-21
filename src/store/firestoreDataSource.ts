@@ -129,6 +129,13 @@ export class GroupDataSource extends FirestoreDataSource<GroupDoc> {
 export const groupDataSource = (cache: KeyValueCache) => new GroupDataSource(collection<GroupDoc>('groups'), { logger: logger.child({ name: 'group-data-source' }), cache })
 
 export class GroupMemberDataSource extends FirestoreDataSource<GroupMemberDoc> {
+  /** Safe because a data source is made per request, and every write through it clears the memo */
+  private readonly memberships = new Map<string, Promise<GroupMemberDoc | undefined>>()
+
+  forget () {
+    this.memberships.clear()
+  }
+
   async findManyByGroup (groupId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('groupId', '==', groupId), options)
   }
@@ -137,12 +144,17 @@ export class GroupMemberDataSource extends FirestoreDataSource<GroupMemberDoc> {
     return await this.findManyByQuery(c => c.where('userId', '==', userId), options)
   }
 
-  /** Nobody holds two rows in one group, see `respondToGroupInvite` */
   async findOneByGroupAndUser (groupId: string, userId: string, options?: QueryFindArgs) {
-    return (await this.findManyByQuery(c => c
+    const key = `${groupId}:${userId}`
+    const memoised = this.memberships.get(key)
+    if (memoised) return await memoised
+
+    const membership = this.findManyByQuery(c => c
       .where('groupId', '==', groupId)
       .where('userId', '==', userId)
-      .limit(1), options))[0]
+      .limit(1), options).then(members => members[0])
+    this.memberships.set(key, membership)
+    return await membership
   }
 
   async findManyAdminsByGroup (groupId: string, options?: QueryFindArgs) {
@@ -150,15 +162,29 @@ export class GroupMemberDataSource extends FirestoreDataSource<GroupMemberDoc> {
       .where('groupId', '==', groupId)
       .where('role', '==', GroupRole.Admin), options)
   }
+
+  async createOne (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['createOne']>) {
+    this.forget()
+    return await super.createOne(...args)
+  }
+
+  async updateOne (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['updateOne']>) {
+    this.forget()
+    return await super.updateOne(...args)
+  }
+
+  async updateOnePartial (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['updateOnePartial']>) {
+    this.forget()
+    return await super.updateOnePartial(...args)
+  }
+
+  async deleteOne (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['deleteOne']>) {
+    this.forget()
+    return await super.deleteOne(...args)
+  }
 }
 export const groupMemberDataSource = (cache: KeyValueCache) => new GroupMemberDataSource(collection<GroupMemberDoc>('group-members'), { logger: logger.child({ name: 'group-member-data-source' }), cache })
 
-/**
- * Invitations and requests to join. Both lists are small enough to sort in
- * memory, which is also the only way to order them by `createdAt`: the data
- * source's converter derives that from the document's own create time rather
- * than storing a field, so Firestore has nothing to order by.
- */
 export class GroupInviteDataSource extends FirestoreDataSource<GroupInviteDoc> {
   async findManyPendingByUser (userId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c

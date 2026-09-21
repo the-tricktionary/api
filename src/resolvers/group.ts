@@ -88,13 +88,21 @@ export const groupResolvers: Resolvers = {
         dataSources.groupInvites.findManyByQuery(c => c.where('groupId', '==', group.id))
       ])
 
+      // the completions of a member with an account are their own, and stay
+      const completions = (await Promise.all(members
+        .filter(member => member.userId == null)
+        .map(async member => await dataSources.trickCompletions.findManyByMember(member.id))
+      )).flat()
+
       await deleteInChunks([
+        ...completions.map(completion => dataSources.trickCompletions.collection.doc(completion.id)),
         ...members.map(member => dataSources.groupMembers.collection.doc(member.id)),
         ...invites.map(invite => dataSources.groupInvites.collection.doc(invite.id)),
         dataSources.groups.collection.doc(group.id)
       ])
 
       await Promise.all([
+        ...completions.map(async completion => { await dataSources.trickCompletions.deleteFromCacheById(completion.id) }),
         ...members.map(async member => { await dataSources.groupMembers.deleteFromCacheById(member.id) }),
         ...invites.map(async invite => { await dataSources.groupInvites.deleteFromCacheById(invite.id) }),
         dataSources.groups.deleteFromCacheById(group.id)

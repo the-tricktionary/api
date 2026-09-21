@@ -5,8 +5,9 @@ import { firestore } from '../store/firestoreDataSource.js'
 import { checklistStats } from '../helpers/checklist.js'
 import { membershipOf } from '../helpers/groups.js'
 import { mergeNewest, personalBests } from '../helpers/speedResults.js'
+import { findUserByUsernameOrId } from '../helpers/users.js'
 import { groupInviteExpired } from '../store/schema.js'
-import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema, usernameSchema } from '../validation.js'
+import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
@@ -51,17 +52,7 @@ export const userResolvers: Resolvers = {
       return user ?? null
     },
     async user (_, { usernameOrId }, { dataSources, allowUser }) {
-      const query = usernameOrId.trim()
-      if (!query) return null
-
-      // uids are case sensitive, so only the username lookup is lowercased;
-      // the id wins so a lowercase uid can't be claimed as somebody's username
-      const username = usernameSchema.safeParse(query)
-      const [byId, byUsername] = await Promise.all([
-        dataSources.users.findOneById(query, { ttl: 60 }),
-        username.success ? dataSources.users.findOneByUsername(username.data, { ttl: 60 }) : undefined
-      ])
-      const found = byId ?? byUsername
+      const found = await findUserByUsernameOrId(usernameOrId, dataSources)
 
       // private reads the same as missing
       if (!found || !allowUser.user(found).getProfile()) return null

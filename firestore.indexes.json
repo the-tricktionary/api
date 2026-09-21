@@ -1,20 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "speed-results",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "recordedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "trick-video-uploads",
       "queryScope": "COLLECTION",
       "fields": [
@@ -25,24 +11,6 @@
         {
           "fieldPath": "status",
           "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "speed-results",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "eventDefinitionId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "recordedAt",
-          "order": "DESCENDING"
         }
       ]
     },

@@ -795,7 +795,7 @@ const typeDefs = gql`
     """The group the score belongs to, null for none, which also clears who competed"""
     groupId: ID
     """Everyone who competed, replacing whoever was named before"""
-    participants: [SpeedParticipantInput!]
+    participants: [SpeedParticipantInput!]!
   }
 
   input SpeedParticipantInput {

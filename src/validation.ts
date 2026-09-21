@@ -214,7 +214,7 @@ export const speedResultUpdateSchema = z.object({
 
 export const speedResultGroupSchema = z.object({
   groupId: z.string().min(1).nullish(),
-  participants: speedParticipantsSchema.nullish()
+  participants: speedParticipantsSchema
 })
 
 // Event definitions and timing tracks
