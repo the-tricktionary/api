@@ -322,7 +322,13 @@ export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: num
  * event's track can be edited later, and that must not rewrite how an old
  * result was segmented.
  */
-function timingOf (result: SpeedResultDoc, eventDefinition: EventDefinitionDoc): TimingTrack | null {
+/**
+ * The track a result is read against: its own snapshot, so an edit of the
+ * event's track later does not move the split. A known event's result
+ * without one predates the snapshots and is read whole, a custom event's
+ * cues live on the result itself.
+ */
+export function timingOf (result: Pick<SpeedResultDoc, 'eventDefinitionId' | 'timingTrack'>, eventDefinition: EventDefinitionDoc): TimingTrack | null {
   return result.timingTrack ?? (result.eventDefinitionId ? null : eventDefinition.timingTrack ?? null)
 }
 
