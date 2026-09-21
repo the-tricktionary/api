@@ -116,6 +116,8 @@ export interface BookletData {
     height: number
     /** mm */
     margin: number
+    /** mm, how much of the width, height and margin is bleed */
+    bleed: number
     columns: number
     /** pt */
     fontSize: number
@@ -131,8 +133,8 @@ export interface BookletData {
     speedEvent: string
     date: string
     count: string
-    /** The legend for the verified mark, null when no ruleset's levels are shown */
-    verified: string | null
+    /** Which ruleset the levels follow and what the verified mark means, null when no ruleset's levels are shown */
+    levels: string | null
   }
   /** The cover, colophon and back cover of the `print` layout */
   print: {
@@ -147,8 +149,9 @@ export interface BookletData {
     printedBy: string | null
   } | null
   /**
-   * The trick map of the `print` layout, null when there are no prerequisites
-   * to draw. The graph itself reaches the template as `map.svg`.
+   * The trick map of the `print` layout, on the inside of the back cover,
+   * null when there are no prerequisites to draw. The graph itself reaches
+   * the template as `map.svg`.
    */
   map: {
     title: string
@@ -337,7 +340,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
       description: detailed && description !== '' ? description : null,
       descriptionLang,
       level: rulesetLevel && rulesetName != null
-        ? { label: t('trick.level', { ruleset: rulesetName, level: rulesetLevel.level }), verified: rulesetLevel.verificationLevel != null }
+        ? { label: t('home.level', { level: rulesetLevel.level }), verified: rulesetLevel.verificationLevel != null }
         : null
     })
     mapNodes.push({ id: trick.id, name, trickType: trick.trickType })
@@ -353,9 +356,9 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
   const sheet = PAPER_SIZES[paper]
   const bleed = layout === 'print' ? BLEED_MM : 0
   const page = layout === 'pages'
-    ? { width: sheet.width, height: sheet.height, margin: 18, columns: 2, fontSize: 10 }
+    ? { width: sheet.width, height: sheet.height, margin: 18, bleed, columns: 2, fontSize: 10 }
     // half a landscape sheet, so that two fit on one side exactly
-    : { width: sheet.height / 2 + 2 * bleed, height: sheet.width + 2 * bleed, margin: 14 + bleed, columns: 1, fontSize: 10 }
+    : { width: sheet.height / 2 + 2 * bleed, height: sheet.width + 2 * bleed, margin: 14 + bleed, bleed, columns: 1, fontSize: 10 }
 
   const { lang: baseLang, region } = splitLang(lang)
   const year = String(now.getFullYear())
@@ -391,8 +394,8 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     discipline: t(enumKey('discipline', options.discipline)),
     page,
     padToMultipleOf: layout === 'pages' ? 1 : 4,
-    // the map is a spread, and the back cover is the very last page
-    trailingPages: (map ? 2 : 0) + (print ? 1 : 0),
+    // the map is the inside of the back cover, the back cover the very last page
+    trailingPages: (map ? 1 : 0) + (print ? 1 : 0),
     speed: {
       pages: SPEED_PAGES,
       rows: Math.floor((page.height - 2 * page.margin - SPEED_HEADING_MM) / SPEED_ROW_MM)
@@ -403,7 +406,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
       speedEvent: t('booklet.speedEvent'),
       date: t('booklet.date'),
       count: t('booklet.count'),
-      verified: rulesId == null ? null : t('booklet.verified')
+      levels: rulesetName == null ? null : t('booklet.levels', { ruleset: rulesetName })
     },
     print,
     map,

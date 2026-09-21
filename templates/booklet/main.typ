@@ -57,8 +57,8 @@
   #set text(size: 0.9em)
   #s.info
 
-  #if s.verified != none [
-    #sym.checkmark #s.verified
+  #if s.levels != none [
+    #s.levels
   ]
 ]
 
@@ -115,15 +115,17 @@
     column-gutter: 0.5em,
     checkbox,
     [
+      // the name, and the level in the chosen ruleset right after it
       #text(weight: "bold", lang: trick.nameLang)[#trick.name]
+      #if trick.level != none [
+        #h(0.5em)
+        #text(size: 0.9em, fill: luma(35%))[#trick.level.label#if trick.level.verified [ #sym.checkmark]]
+      ]
       #if trick.alternativeNames != none [
         \ #text(style: "italic", size: 0.9em, lang: trick.nameLang)[#trick.alternativeNames]
       ]
       #if trick.description != none [
         \ #text(lang: trick.descriptionLang)[#trick.description]
-      ]
-      #if trick.level != none [
-        \ #text(size: 0.9em)[#trick.level.label #if trick.level.verified [#sym.checkmark]]
       ]
     ]
   )
@@ -177,47 +179,48 @@
 
 // ---------- Trick map ----------
 
-// A spread: the graph, laid out by Graphviz into `map.svg` next to this
-// file, is scaled to fit two pages side by side and each page shows its half.
-// It follows the speed log on an even page, so the two face each other in the
-// bound booklet.
+// The inside of the back cover, turned on its side: the graph, laid out by
+// Graphviz into `map.svg` next to this file, is scaled to fill the page in
+// landscape, with the title and legend along its top, and the whole thing
+// rotated so that the top faces the spine.
 
 #if data.map != none [
-  #let header-height = 20mm
-  #let content-width = (data.page.width - 2 * data.page.margin) * 1mm
-  #let content-height = (data.page.height - 2 * data.page.margin) * 1mm
-  // a little under what is left, so that rounding never pushes it to a new page
-  #let graph-height = content-height - header-height - 2mm
+  // narrower margins than the text pages, the bleed still kept clear
+  #let map-margin = (data.page.bleed + 8) * 1mm
+  #let inner = (
+    width: data.page.height * 1mm - 2 * map-margin,
+    height: data.page.width * 1mm - 2 * map-margin,
+  )
+  #let header-height = 14mm
 
-  // the graph, fitted to the spread and centred on it, shifted by `dx`; its
-  // drawn size comes with the data, measuring an image isn't reliable
+  // fitted to what is left under the header, the drawn size comes with the
+  // data since measuring an image isn't reliable
   #let drawn = (width: data.map.size.width * 1pt, height: data.map.size.height * 1pt)
-  #let factor = calc.min(2 * content-width / drawn.width, graph-height / drawn.height)
+  #let factor = calc.min(inner.width / drawn.width, (inner.height - header-height) / drawn.height)
   #let fitted = (width: drawn.width * factor, height: drawn.height * factor)
-  #let graph-half(dx) = block(width: 100%, height: graph-height, clip: true, place(
-    top + left,
-    dx: dx + (2 * content-width - fitted.width) / 2,
-    dy: (graph-height - fitted.height) / 2,
-    image("map.svg", width: fitted.width, height: fitted.height),
-  ))
 
   #let legend = data.map.legend.map(entry => box[
     #box(width: 0.8em, height: 0.8em, radius: 50%, fill: rgb(entry.colour), baseline: 0.1em)
     #entry.label
   ]).join(h(1em))
 
-  #page(columns: 1)[
+  #let landscape = block(width: inner.width, height: inner.height)[
     #set block(spacing: 0pt)
-    #block(height: header-height, width: 100%)[
-      #heading(level: 1, data.map.title) <in-place>
-      #text(size: 0.9em)[#data.map.explanation]
-    ]
-    #graph-half(0mm)
+    #block(height: header-height, width: 100%, grid(
+      columns: (1fr, auto),
+      column-gutter: 1em,
+      align: (left + top, right + bottom),
+      [
+        #heading(level: 1, data.map.title) <in-place>
+        #text(size: 0.9em)[#data.map.explanation]
+      ],
+      legend,
+    ))
+    #block(height: inner.height - header-height, width: 100%, align(center + horizon, image("map.svg", width: fitted.width, height: fitted.height)))
   ]
-  #page(columns: 1)[
-    #set block(spacing: 0pt)
-    #block(height: header-height, width: 100%, align(bottom, legend))
-    #graph-half(-content-width)
+
+  #page(margin: map-margin, columns: 1, numbering: none)[
+    #place(center + horizon, rotate(-90deg, reflow: true, landscape))
   ]
 ]
 
