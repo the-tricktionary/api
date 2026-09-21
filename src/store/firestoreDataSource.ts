@@ -278,10 +278,12 @@ interface SpeedFeedArgs extends FindArgs {
   limit?: number | null
   startAfter?: Timestamp | null
   eventDefinitionId?: string | null
+  groupId?: string | null
 }
 
-function newestFirst (query: Query<SpeedResultDoc>, { limit, startAfter, eventDefinitionId }: SpeedFeedArgs) {
+function newestFirst (query: Query<SpeedResultDoc>, { limit, startAfter, eventDefinitionId, groupId }: SpeedFeedArgs) {
   let q = query
+  if (groupId) q = q.where('groupId', '==', groupId)
   if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
   q = q.orderBy('recordedAt', 'desc')
   if (startAfter) q = q.startAfter(startAfter)
@@ -323,7 +325,7 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
     return mergeNewest([competed, unassigned], feed.limit)
   }
 
-  async findManyByGroup (groupId: string, { ttl, constellationKey, ...feed }: SpeedFeedArgs & { constellationKey?: string | null } = {}) {
+  async findManyByGroup (groupId: string, { ttl, constellationKey, groupId: _ignored, ...feed }: SpeedFeedArgs & { constellationKey?: string | null } = {}) {
     return await this.findManyByQuery(c => {
       let q = c.where('groupId', '==', groupId)
       if (constellationKey != null) q = q.where('constellationKey', '==', constellationKey)

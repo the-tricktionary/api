@@ -446,10 +446,17 @@ const typeDefs = gql`
     checklistStats: ChecklistStats!
     """
     The scores the user competed in, and the ones they entered and have not
-    yet said who competed in, newest first. eventDefinitionId narrows the list
-    to one event. Only visible to the user themselves.
+    yet said who competed in, newest first. Every filter is optional and they
+    combine. Only visible to the user themselves.
     """
-    speedResults (limit: Int, startAfter: Timestamp, eventDefinitionId: ID): [SpeedResult!]!
+    speedResults (
+      limit: Int
+      startAfter: Timestamp
+      """Only the scores in this event"""
+      eventDefinitionId: ID
+      """Only the scores shared with this group"""
+      groupId: ID
+    ): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
     """
     The user's highest score in each predefined event they competed whole, in

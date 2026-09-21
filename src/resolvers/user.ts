@@ -175,10 +175,10 @@ export const userResolvers: Resolvers = {
 
       return await dataSources.groupInvites.findManyPendingByUser(user.id, { ttl: 60 })
     },
-    async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
+    async speedResults (user, { limit, startAfter, eventDefinitionId, groupId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
-      return await dataSources.speedResults.findManyFeedByUser(user.id, { ttl: 60, limit, startAfter, eventDefinitionId })
+      return await dataSources.speedResults.findManyFeedByUser(user.id, { ttl: 60, limit, startAfter, eventDefinitionId, groupId })
     },
     async speedResult (parent, { speedResultId }, { dataSources, allowUser, user }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })
