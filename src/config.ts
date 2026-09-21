@@ -24,7 +24,7 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().optional(),
   GITHUB_SHA: z.string().optional(),
   GITHUB_REF: z.string().optional(),
-  GCP_PROJECT: z.string().optional(),
+  GOOGLE_CLOUD_PROJECT: z.string().optional(),
   // Not a secret either, it is handed out to search clients
   ALGOLIA_APP_ID: z.string(),
   PORT: z.coerce.number().default(3000),
@@ -44,7 +44,7 @@ export const {
   SENTRY_DSN,
   GITHUB_SHA,
   GITHUB_REF,
-  GCP_PROJECT,
+  GOOGLE_CLOUD_PROJECT,
   ALGOLIA_APP_ID,
   PORT,
   MUX_UPLOAD_CORS_ORIGIN,

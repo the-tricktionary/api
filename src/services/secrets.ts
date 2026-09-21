@@ -1,5 +1,5 @@
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager'
-import { GCP_PROJECT } from '../config.js'
+import { GOOGLE_CLOUD_PROJECT } from '../config.js'
 
 /**
  * The secrets the API reads at runtime, named as they are in Secret Manager.
@@ -35,7 +35,7 @@ function secretManager () {
 async function secretVersionName (name: SecretName) {
   // getProjectId falls back to the application default credentials and the
   // metadata server, which is how this resolves on Cloud Run
-  const project = GCP_PROJECT ?? await secretManager().getProjectId()
+  const project = GOOGLE_CLOUD_PROJECT ?? await secretManager().getProjectId()
   return `projects/${project}/secrets/${name}/versions/latest`
 }
 

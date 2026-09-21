@@ -7,7 +7,7 @@ import { unwrapResolverError } from '@apollo/server/errors'
 import type Pino from 'pino'
 import type { Server } from 'node:http'
 
-import { GCP_PROJECT, SENTRY_DSN } from './config.js'
+import { GOOGLE_CLOUD_PROJECT, SENTRY_DSN } from './config.js'
 import typeDefs from './schema.js'
 import { rootResolver as resolvers } from './resolvers/rootResolver.js'
 import sentryPlugin from './plugins/sentry.js'
@@ -55,7 +55,7 @@ export async function initApollo (httpServer: Server) {
 
       const trace = context.req.get('X-Cloud-Trace-Context')
       const childLogger = logger.child({
-        ...(GCP_PROJECT && trace ? { 'logging.googleapis.com/trace': `project/${GCP_PROJECT}/traces/${trace}` } : {})
+        ...(GOOGLE_CLOUD_PROJECT && trace ? { 'logging.googleapis.com/trace': `project/${GOOGLE_CLOUD_PROJECT}/traces/${trace}` } : {})
       })
       const authHeader = context.req.get('authorization')
       const user = await userFromAuthorizationHeader(authHeader, { logger: childLogger, dataSources })
