@@ -69,6 +69,8 @@ const typeDefs = gql`
 
     """Null when there is no such group, and when you are not in it"""
     group (groupId: ID!): Group
+    """Null when there is no such member, and when you are not in their group"""
+    groupMember (memberId: ID!): GroupMember
     """Only \`id\` and \`name\` resolve for somebody outside the group"""
     groupByJoinCode (joinCode: String!): Group
 
@@ -680,6 +682,17 @@ const typeDefs = gql`
     """Derived from the marks, null for results without any step marks"""
     analysis: SpeedAnalysis
     """
+    The event split leg by leg: derived from the marks when the score was
+    counted, laid out from \`segmentCounts\` when it was entered as a plain
+    count, and empty when the score says nothing about how the event splits.
+    """
+    segments: [SpeedSegment!]!
+    """
+    The steps of each leg as they were entered on a plain count, null when
+    none were, see \`segments\` for the legs they describe
+    """
+    segmentCounts: [Int!]
+    """
     Whether this score was counted step by step rather than entered as a
     total, so a list can tell the two apart without asking for the marks or
     the analysis. True exactly when there is an analysis to show.
@@ -766,6 +779,12 @@ const typeDefs = gql`
     name: String
     """Required when no marks are provided, ignored (derived from the marks) otherwise"""
     count: Int
+    """
+    The steps of each leg of a relay, one per segment of the event and adding
+    up to \`count\`. Only for a score entered as a plain count, the legs of a
+    counted score come from its marks.
+    """
+    segmentCounts: [Int!]
     """Rulesets-compatible mark stream, see SpeedResult.marks"""
     marks: [SpeedMarkInput!]
     """
@@ -790,6 +809,14 @@ const typeDefs = gql`
     name: String
     """Only allowed for results that were entered as a plain count"""
     count: Int
+    """
+    The steps of each leg, one per segment of the event and adding up to
+    \`count\`. One record with \`count\`: whenever a count is given this states
+    the legs in full, and leaving it out leaves the score with no legs. It is
+    never "omit to keep", so changing the event of a score that has legs means
+    giving the count and the legs again.
+    """
+    segmentCounts: [Int!]
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput

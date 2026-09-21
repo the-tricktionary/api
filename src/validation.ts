@@ -194,9 +194,12 @@ export const speedParticipantSchema = z.object({
 
 const speedParticipantsSchema = z.array(speedParticipantSchema).max(MAX_SEGMENTS)
 
+const speedSegmentCountsSchema = z.array(z.number().int().min(0)).min(2).max(MAX_SEGMENTS)
+
 export const speedResultCreateSchema = z.object({
   name: speedResultNameSchema.nullish(),
   count: speedResultCountSchema.nullish(),
+  segmentCounts: speedSegmentCountsSchema.nullish(),
   marks: z.array(speedMarkSchema).max(MAX_MARKS).nullish(),
   withTimingTrack: z.boolean().nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
@@ -208,6 +211,7 @@ export const speedResultCreateSchema = z.object({
 export const speedResultUpdateSchema = z.object({
   name: speedResultNameSchema.nullish(),
   count: speedResultCountSchema.nullish(),
+  segmentCounts: speedSegmentCountsSchema.nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
   eventDefinition: eventDefinitionInputSchema.nullish()
 })
