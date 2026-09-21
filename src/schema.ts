@@ -69,6 +69,8 @@ const typeDefs = gql`
 
     """Null when there is no such group, and when you are not in it"""
     group (groupId: ID!): Group
+    """Null when there is no such member, and when you are not in their group"""
+    groupMember (memberId: ID!): GroupMember
     """Only \`id\` and \`name\` resolve for somebody outside the group"""
     groupByJoinCode (joinCode: String!): Group
 

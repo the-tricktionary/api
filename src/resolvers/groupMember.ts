@@ -10,6 +10,15 @@ import type { Resolvers } from '../generated/graphql.js'
 import type { GroupMemberDoc } from '../store/schema.js'
 
 export const groupMemberResolvers: Resolvers = {
+  Query: {
+    async groupMember (_, { memberId }, context) {
+      const member = await context.dataSources.groupMembers.findOneById(memberId)
+      if (!member) return null
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      if (!context.allowUser.group(group, membership).get()) return null
+      return member
+    }
+  },
   Mutation: {
     async addGroupAthlete (_, { groupId, name: rawName }, context) {
       const { group, membership } = await groupAndMembership(groupId, context)
