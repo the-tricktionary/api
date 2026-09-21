@@ -17,3 +17,12 @@ jobs:
       - run: npm run codegen
       - run: npm run lint
       - run: npm run typecheck
+
+      # The same release the Dockerfile installs, keep the two in step
+      - name: Install Typst
+        run: |
+          curl -fsSL -o typst.tar.xz https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unknown-linux-musl.tar.xz
+          echo "a6d077d0a95eed5a2eba715b2dae06be954f624ccbf85758a03f389ded33118c  typst.tar.xz" | sha256sum -c -
+          tar -xJf typst.tar.xz
+          echo "$PWD/typst-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+      - run: npm run booklet:check

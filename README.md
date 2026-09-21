@@ -44,6 +44,43 @@ The service account the API runs as needs `roles/storage.objectAdmin` on the
 bucket, and `roles/iam.serviceAccountTokenCreator` on itself so it can sign
 URLs without a private key.
 
+## Booklets (Typst)
+
+`GET /booklets/tricks.pdf` typesets a printable list of a discipline's tricks.
+The public site's Firebase Hosting config rewrites `/booklets/*.pdf` here, and
+Hosting's CDN caches each combination of parameters for a day, so a booklet is
+only typeset when nobody asked for that one lately.
+
+| Parameter    | Values                | Default | |
+| ------------ | --------------------- | ------- | - |
+| `discipline` | `sr`, `dd`, `wh`      | required | |
+| `paper`      | `a4`, `letter`        | `a4`    | |
+| `lang`       | an enabled language   | `en`    | English fills in for anything not translated |
+| `detailed`   | `1`, `0`              | `0`     | include the descriptions, names are always included |
+| `rulesId`    | a ruleset             | none    | label each trick with its level in that ruleset, ✓ when verified |
+| `layout`     | `pages`, `booklet`    | `pages` | see below |
+
+`pages` typesets on the full sheet. `booklet` typesets half sheets and lays
+them out two per side in saddle-stitch order: print double-sided, flipping on
+the short edge, fold the stack down the middle and staple. Speed-log pages fill
+the back, and as many more as it takes for the page count to come out at a
+multiple of four.
+
+The document is typeset by [Typst](https://typst.app), whose pinned release the
+Dockerfile installs into the image (`TYPST_BIN` says where the binary is, for
+local development install the same release and put it on the PATH). The
+template is `templates/booklet/main.typ`, it reads everything from a
+`data.json` that `src/services/booklet.ts` assembles: the tricks grouped by
+Tricktionary level and type, and the labels. English labels come from the
+site's `en.json` (fetched from `WEB_URL`, cached for an hour, with a copy of
+the keys the booklet needs in `booklet.ts` as the fallback), translations from
+the `ui-messages` collection like the site's own. The fonts in
+`templates/fonts` are the site's PT Sans, under the OFL.
+
+`npm run booklet:check` typesets the template against fixture data in every
+layout, the QA workflow runs it so a template or Typst change fails there
+first. Set `BOOKLET_CHECK_OUT` to a directory to look at the PDFs.
+
 ## Search (Algolia)
 
 Tricks are indexed once per language in `tricktionary_<lang>`, the index

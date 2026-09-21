@@ -2,25 +2,11 @@ import * as Sentry from '@sentry/node'
 import { WEB_URL } from '../config.js'
 import { firestore } from '../store/firestoreDataSource.js'
 import { logger as baseLogger } from '../services/logger.js'
-import { Discipline } from '../generated/graphql.js'
+import { disciplineSlug } from '../helpers/disciplines.js'
 
 import type { RequestHandler } from 'express'
 import type { CollectionReference } from 'firebase-admin/firestore'
 import type { TrickDoc } from '../store/schema.js'
-
-/** Matches `disciplineToSlug` in the web app, whose routes these URLs are */
-function disciplineSlug (discipline: Discipline) {
-  switch (discipline) {
-    case Discipline.SingleRope:
-      return 'sr'
-    case Discipline.DoubleDutch:
-      return 'dd'
-    case Discipline.Wheel:
-      return 'wh'
-    default:
-      return null
-  }
-}
 
 /**
  * `GET /sitemap.xml`. The public site's Firebase Hosting config rewrites
