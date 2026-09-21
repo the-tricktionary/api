@@ -188,12 +188,6 @@ export const userResolvers: Resolvers = {
 
       return speedResult
     },
-    async speedPersonalBests (user, _, { dataSources, allowUser }) {
-      allowUser.user(user).getSpeedPersonalBests.assert()
-
-      const eventDefinitions = await dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
-      return await dataSources.speedResults.findBestsByUser(user.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
-    },
     async speedBests (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedPersonalBests.assert()
 

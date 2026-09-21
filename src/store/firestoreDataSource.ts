@@ -364,36 +364,6 @@ export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
     return await this.findManyByQuery(c => newestFirst(c.where('athleteMemberIds', 'array-contains', memberId), { eventDefinitionId }), { ttl })
   }
 
-  /** The user's highest score in an event among the ones they competed whole */
-  async findBestByUserAndEvent (userId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
-    return (await this.findManyByQuery(c => c
-      .where('wholeScoreUserId', '==', userId)
-      .where('eventDefinitionId', '==', eventDefinitionId)
-      .orderBy('count', 'desc')
-      .limit(1), { ttl }))[0]
-  }
-
-  /** The member's highest score in an event among the group's scores they competed whole */
-  async findBestByMemberAndEvent (memberId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
-    return (await this.findManyByQuery(c => c
-      .where('wholeScoreMemberId', '==', memberId)
-      .where('eventDefinitionId', '==', eventDefinitionId)
-      .orderBy('count', 'desc')
-      .limit(1), { ttl }))[0]
-  }
-
-  async findBestsByUser (userId: string, eventDefinitionIds: readonly string[], { ttl }: FindArgs = {}) {
-    const bests = await Promise.all(eventDefinitionIds.map(async eventDefinitionId =>
-      await this.findBestByUserAndEvent(userId, eventDefinitionId, { ttl })))
-    return bests.filter(result => result != null)
-  }
-
-  async findBestsByMember (memberId: string, eventDefinitionIds: readonly string[], { ttl }: FindArgs = {}) {
-    const bests = await Promise.all(eventDefinitionIds.map(async eventDefinitionId =>
-      await this.findBestByMemberAndEvent(memberId, eventDefinitionId, { ttl })))
-    return bests.filter(result => result != null)
-  }
-
   /** Every score the athlete competed in, ranked per event, see helpers/speedResults.ts */
   private async findBestsByAthlete (athlete: SpeedAthlete, eventDefinitions: readonly EventDefinitionDoc[], { ttl }: FindArgs = {}) {
     const results = await this.findManyByQuery(c => (athlete.userId != null
