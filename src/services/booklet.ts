@@ -6,6 +6,7 @@ import { uiMessageValues } from '../helpers/uiMessages.js'
 import { TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
 import { langSchema, rulesIdSchema } from '../validation.js'
 import { compileTypst } from './typst.js'
+import { renderDotToSvg } from './graphviz.js'
 import { imposeBooklet } from './imposition.js'
 import { siteEnglishMessages } from './siteMessages.js'
 
@@ -145,12 +146,17 @@ export interface BookletData {
     isbnLabel: string | null
     printedBy: string | null
   } | null
-  /** The trick map of the `print` layout, null when there are no prerequisites to draw */
+  /**
+   * The trick map of the `print` layout, null when there are no prerequisites
+   * to draw. The graph itself reaches the template as `map.svg`.
+   */
   map: {
     title: string
     explanation: string
-    /** Graphviz DOT source */
+    /** Graphviz DOT source, laid out and drawn to `map.svg` for the template */
     dot: string
+    /** The drawn graph's size in pt, set once it has been drawn, so the template can fit it without measuring */
+    size: { width: number, height: number } | null
     legend: Array<{ label: string, colour: string }>
   } | null
   groups: BookletGroup[]
@@ -253,7 +259,8 @@ interface MapNode {
  * The trick map as Graphviz DOT for the `dot` engine: every trick a dot
  * coloured by its type and sized by how many tricks build on it, an arrow
  * from each prerequisite to the trick that builds on it. `dot` ranks the
- * tricks bottom to top by how far up the prerequisite chain they are.
+ * tricks bottom to top by how far up the prerequisite chain they are. The
+ * labels name the booklet's font, so Typst draws them in it.
  */
 export function trickMapDot (nodes: MapNode[], edges: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>) {
   const dependents = new Map<string, number>()
@@ -262,7 +269,7 @@ export function trickMapDot (nodes: MapNode[], edges: Array<Pick<TrickPrereqDoc,
   const lines = [
     'digraph tricks {',
     '  graph [rankdir=BT, ranksep=0.35, nodesep=0.08, splines=true, outputorder=edgesfirst];',
-    '  node [shape=circle, style=filled, fixedsize=true, label="", color="#ffffff00", fontsize=5];',
+    '  node [shape=circle, style=filled, fixedsize=true, label="", color="#ffffff00", fontname="PT Sans", fontsize=5];',
     '  edge [color="#999999", arrowsize=0.4, penwidth=0.5];'
   ]
   for (const node of nodes) {
@@ -370,6 +377,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         title: t('booklet.map'),
         explanation: t('booklet.mapExplanation'),
         dot: trickMapDot(mapNodes, sources.prerequisites),
+        size: null,
         legend: typeOrder
           .filter(type => mapNodes.some(node => node.trickType === type))
           .map(type => ({ label: t(enumKey('trickType', type)), colour: TRICK_TYPE_COLOURS[type] }))
@@ -427,9 +435,23 @@ interface RenderContext {
   now?: Date
 }
 
-/** Typesets already assembled data, one page per page of the data */
+/** The size Graphviz gave an SVG, from its root element, in pt */
+function svgSize (svg: string) {
+  const width = /<svg[^>]*\swidth="([\d.]+)pt"/.exec(svg)?.[1]
+  const height = /<svg[^>]*\sheight="([\d.]+)pt"/.exec(svg)?.[1]
+  if (width == null || height == null) throw new Error('Graphviz drew an SVG without a size in pt')
+  return { width: parseFloat(width), height: parseFloat(height) }
+}
+
+/** Typesets already assembled data, one page per page of the data, drawing the trick map first */
 export async function typesetBooklet (data: BookletData, { bin, now = new Date() }: RenderContext): Promise<Uint8Array> {
-  return await compileTypst({ template: 'booklet', data, bin, creationDate: now })
+  const files: Record<string, string> = {}
+  if (data.map) {
+    const svg = await renderDotToSvg(data.map.dot, { engine: 'dot' })
+    files['map.svg'] = svg
+    data = { ...data, map: { ...data.map, size: svgSize(svg) } }
+  }
+  return await compileTypst({ template: 'booklet', data, files, bin, creationDate: now })
 }
 
 /** Lays a typeset `booklet` layout out two pages per side of its paper */

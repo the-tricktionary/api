@@ -11,11 +11,6 @@ import { TypesettingError, UnavailableError } from '../errors.js'
  */
 export const TEMPLATES_DIR = fileURLToPath(new URL('../../templates/', import.meta.url))
 const FONTS_DIR = path.join(TEMPLATES_DIR, 'fonts')
-/**
- * Packages from Typst Universe, vendored in the layout of Typst's package
- * cache (`preview/<name>/<version>`) so that nothing is downloaded at runtime
- */
-const PACKAGES_DIR = path.join(TEMPLATES_DIR, 'packages')
 
 /** A booklet compiles in well under a second, anything near this is broken */
 const COMPILE_TIMEOUT_MS = 30_000
@@ -48,6 +43,8 @@ export interface CompileOptions {
   template: string
   /** Written as `data.json` next to the template, which reads it with `json("data.json")` */
   data: unknown
+  /** Further files written next to the template, by name, such as images it embeds */
+  files?: Record<string, string | Uint8Array>
   /** The Typst binary, `TYPST_BIN` in the configuration */
   bin: string
   /** Stamped as the PDF's creation date, so the same data gives the same bytes */
@@ -59,11 +56,14 @@ export interface CompileOptions {
  * temporary directory that is also the project root, so the template can only
  * read what was put there; fonts are passed separately.
  */
-export async function compileTypst ({ template, data, bin, creationDate }: CompileOptions): Promise<Buffer> {
+export async function compileTypst ({ template, data, files = {}, bin, creationDate }: CompileOptions): Promise<Buffer> {
   const dir = await mkdtemp(path.join(tmpdir(), 'typst-'))
   try {
     await cp(path.join(TEMPLATES_DIR, template), dir, { recursive: true })
     await writeFile(path.join(dir, 'data.json'), JSON.stringify(data))
+    for (const [name, content] of Object.entries(files)) {
+      await writeFile(path.join(dir, path.basename(name)), content)
+    }
 
     await acquire()
     try {
@@ -72,7 +72,6 @@ export async function compileTypst ({ template, data, bin, creationDate }: Compi
         '--root', dir,
         '--ignore-system-fonts',
         '--font-path', FONTS_DIR,
-        '--package-cache-path', PACKAGES_DIR,
         path.join(dir, 'main.typ'),
         '-'
       ], creationDate)

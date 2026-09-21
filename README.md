@@ -54,9 +54,8 @@ put it on the PATH, or point `TYPST_BIN` at it. The template is
 `en.json` (fetched from `WEB_URL`, cached for an hour), the translations from
 the `ui-messages` collection like the site's own, and a key neither has is
 printed as is. The fonts in `templates/fonts` are the site's PT Sans, under the
-OFL. Packages from Typst Universe are vendored in `templates/packages` in the
-layout of Typst's package cache, so nothing is downloaded while typesetting; to
-add or upgrade one, copy its release into `preview/<name>/<version>` there.
+OFL. The print layout's trick map is laid out by Graphviz (`@viz-js/viz`, its
+WebAssembly build) and handed to the template as an SVG.
 
 `npm run booklet:check` typesets the template against fixture data in every
 layout, the QA workflow runs it in the API's image so a template or Typst

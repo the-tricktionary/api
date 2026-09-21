@@ -177,33 +177,29 @@
 
 // ---------- Trick map ----------
 
-// A spread: the graph is scaled to fit two pages side by side, each page shows
-// its half. It follows the speed log on an even page, so the two face each
-// other in the bound booklet.
+// A spread: the graph, laid out by Graphviz into `map.svg` next to this
+// file, is scaled to fit two pages side by side and each page shows its half.
+// It follows the speed log on an even page, so the two face each other in the
+// bound booklet.
 
 #if data.map != none [
-  #import "@preview/diagraph:0.3.7": render
-
   #let header-height = 20mm
   #let content-width = (data.page.width - 2 * data.page.margin) * 1mm
   #let content-height = (data.page.height - 2 * data.page.margin) * 1mm
   // a little under what is left, so that rounding never pushes it to a new page
   #let graph-height = content-height - header-height - 2mm
-  #let graph = render(data.map.dot, engine: "dot")
 
-  // the graph, fitted to the spread and centred on it, shifted by `dx`
-  #let graph-half(dx) = block(width: 100%, height: graph-height, clip: true, context {
-    let size = measure(graph)
-    let factor = calc.min(2 * content-width / size.width, graph-height / size.height)
-    let fitted = scale(factor * 100%, reflow: true, graph)
-    let fitted-size = measure(fitted)
-    place(
-      top + left,
-      dx: dx + (2 * content-width - fitted-size.width) / 2,
-      dy: (graph-height - fitted-size.height) / 2,
-      fitted,
-    )
-  })
+  // the graph, fitted to the spread and centred on it, shifted by `dx`; its
+  // drawn size comes with the data, measuring an image isn't reliable
+  #let drawn = (width: data.map.size.width * 1pt, height: data.map.size.height * 1pt)
+  #let factor = calc.min(2 * content-width / drawn.width, graph-height / drawn.height)
+  #let fitted = (width: drawn.width * factor, height: drawn.height * factor)
+  #let graph-half(dx) = block(width: 100%, height: graph-height, clip: true, place(
+    top + left,
+    dx: dx + (2 * content-width - fitted.width) / 2,
+    dy: (graph-height - fitted.height) / 2,
+    image("map.svg", width: fitted.width, height: fitted.height),
+  ))
 
   #let legend = data.map.legend.map(entry => box[
     #box(width: 0.8em, height: 0.8em, radius: 50%, fill: rgb(entry.colour), baseline: 0.1em)
