@@ -11,12 +11,12 @@
 
 #set document(title: data.title + " – " + data.discipline, author: "the Tricktionary")
 
+// for the print layout the page includes its bleed, the API adds it to the
+// size and the margins
 #set page(
   width: data.page.width * 1mm,
   height: data.page.height * 1mm,
   margin: data.page.margin * 1mm,
-  // print shops trim the bleed off, the PDF carries the trim box
-  bleed: data.page.bleed * 1mm,
   numbering: "1",
 )
 #set text(

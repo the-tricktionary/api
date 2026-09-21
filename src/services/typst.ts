@@ -3,6 +3,7 @@ import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { TypesettingError, UnavailableError } from '../errors.js'
 
 /**
  * The Typst templates and the fonts they use live next to the code, in
@@ -24,24 +25,6 @@ const MAX_CONCURRENT = 2
 const MAX_QUEUED = 32
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 
-/** More compiles are waiting than the instance can reasonably serve */
-export class TypstBusyError extends Error {
-  constructor () {
-    super('Too many documents are being typeset at once')
-    this.name = 'TypstBusyError'
-  }
-}
-
-/** Typst rejected the template or its data, `stderr` has its diagnostics */
-export class TypstCompileError extends Error {
-  readonly stderr: string
-  constructor (message: string, stderr: string) {
-    super(message)
-    this.name = 'TypstCompileError'
-    this.stderr = stderr
-  }
-}
-
 let running = 0
 const waiting: Array<() => void> = []
 
@@ -50,7 +33,7 @@ async function acquire () {
     running++
     return
   }
-  if (waiting.length >= MAX_QUEUED) throw new TypstBusyError()
+  if (waiting.length >= MAX_QUEUED) throw new UnavailableError('Too many documents are being typeset at once, try again shortly')
   await new Promise<void>(resolve => waiting.push(resolve))
   running++
 }
@@ -114,7 +97,7 @@ async function run (bin: string, args: string[], creationDate?: Date): Promise<B
       }
     }, (err, stdout, stderr) => {
       if (err) {
-        reject(new TypstCompileError(`Typst failed: ${err.message}`, stderr.toString('utf8')))
+        reject(new TypesettingError(`Typst failed: ${err.message}`, { cause: err, private: { stderr: stderr.toString('utf8') } }))
         return
       }
       resolve(stdout)

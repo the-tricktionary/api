@@ -3939,7 +3939,32 @@
       "sv": "IJRU 5.0.0"
     }
   },
-  "messages": {},
+  "messages": {
+    "booklet.copyright": "© the Tricktionary 2016–{year}",
+    "booklet.count": "Count",
+    "booklet.date": "Date",
+    "booklet.generated": "Generated {date}",
+    "booklet.info": "Detailed information and videos of the tricks are available on the-tricktionary.com or in the Tricktionary's Android app.",
+    "booklet.isbn": "ISBN {isbn}",
+    "booklet.map": "Trick map",
+    "booklet.mapExplanation": "An arrow leads from a trick to a trick that builds on it. The more tricks build on one, the bigger its dot.",
+    "booklet.printedBy": "Printed by {printer}, {year}",
+    "booklet.speedEvent": "Speed event",
+    "booklet.unrated": "Unrated",
+    "booklet.verified": "Verified level",
+    "enums.discipline.DoubleDutch": "Double Dutch",
+    "enums.discipline.SingleRope": "Single Rope",
+    "enums.discipline.Wheel": "Wheel",
+    "enums.trickType.Basic": "Basic",
+    "enums.trickType.Impossible": "Impossible",
+    "enums.trickType.Manipulation": "Manipulation",
+    "enums.trickType.Multiple": "Multiple",
+    "enums.trickType.Power": "Power",
+    "enums.trickType.Release": "Release",
+    "home.level": "Level {level}",
+    "trick.alternativeNames": "Alternative names: {names}",
+    "trick.level": "{ruleset} Level {level}"
+  },
   "prerequisites": [
     {
       "parentId": "trick001",

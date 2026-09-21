@@ -11,7 +11,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { PDFDocument } from '@cantoo/pdf-lib'
-import { BOOKLET_MESSAGE_DEFAULTS, LAYOUTS, PAPERS, bookletData, bookletFilename, imposeBookletPdf, typesetBooklet } from '../services/booklet.js'
+import { LAYOUTS, PAPERS, bookletData, bookletFilename, imposeBookletPdf, typesetBooklet } from '../services/booklet.js'
 import { Discipline } from '../generated/graphql.js'
 import fixture from './booklet-fixture.json' with { type: 'json' }
 
@@ -21,11 +21,12 @@ const bin = process.env.TYPST_BIN ?? 'typst'
 const outDir = process.env.BOOKLET_CHECK_OUT
 const now = new Date('2026-01-01T00:00:00Z')
 
+// the fixture's messages are a copy of the site's, plus a translated label as
+// the ui-messages collection would supply it
 const sources: BookletSources = {
-  ...(fixture as Omit<BookletSources, 'messages'>),
+  ...(fixture as BookletSources),
   messages: {
-    ...BOOKLET_MESSAGE_DEFAULTS,
-    // a translated label, as the ui-messages collection would supply it
+    ...fixture.messages,
     'home.level': 'Nivå {level}'
   }
 }

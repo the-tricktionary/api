@@ -1,8 +1,10 @@
+import z from 'zod'
 import { NotFoundError } from '../errors.js'
 import { Discipline, TrickType } from '../generated/graphql.js'
-import { disciplineSlug } from '../helpers/disciplines.js'
+import { DISCIPLINE_SLUGS, disciplineFromSlug, disciplineSlug } from '../helpers/disciplines.js'
 import { uiMessageValues } from '../helpers/uiMessages.js'
 import { TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
+import { langSchema, rulesIdSchema } from '../validation.js'
 import { compileTypst } from './typst.js'
 import { imposeBooklet } from './imposition.js'
 import { siteEnglishMessages } from './siteMessages.js'
@@ -18,26 +20,39 @@ export type Paper = typeof PAPERS[number]
 export const LAYOUTS = ['pages', 'booklet', 'print'] as const
 export type Layout = typeof LAYOUTS[number]
 
-export interface BookletOptions {
-  discipline: Discipline
-  paper: Paper
+/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
+export function isbnDigits (isbn: string): string | null {
+  const digits = isbn.replace(/[-\s]/g, '')
+  if (!/^97[89]\d{10}$/.test(digits)) return null
+  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
+  return sum % 10 === 0 ? digits : null
+}
+
+/** The query string of `GET /booklets/tricks.pdf` */
+export const bookletOptionsSchema = z.object({
+  discipline: z.enum(DISCIPLINE_SLUGS).transform(disciplineFromSlug),
+  paper: z.enum(PAPERS).default('a4'),
   /** The language of the booklet, English fills in for anything not translated */
-  lang: string
+  lang: langSchema.default('en'),
   /** Whether to include trick descriptions, names are always included */
-  detailed: boolean
-  /** A ruleset whose level each trick is labelled with, or null for none */
-  rulesId: string | null
+  detailed: z.stringbool().default(false),
+  /** A ruleset whose level each trick is labelled with, with a mark when verified */
+  rulesId: rulesIdSchema.optional().transform(rulesId => rulesId ?? null),
   /**
    * `pages` typesets on the full sheet, `booklet` on half sheets that are then
    * laid out two per side for folding down the middle, `print` on half sheets
    * with bleed, a cover and a trick map, for a print shop
    */
-  layout: Layout
-  /** The ISBN of the `print` layout, with the dashes it should be shown with */
-  isbn: string | null
+  layout: z.enum(LAYOUTS).default('booklet'),
+  /** The ISBN of the `print` layout, shown in the colophon and as a barcode on the back */
+  isbn: z.string().trim()
+    .refine(isbn => isbnDigits(isbn) != null, 'An ISBN is 13 digits starting with 978 or 979, optionally with dashes, and its check digit has to add up')
+    .optional().transform(isbn => isbn ?? null),
   /** Who prints the `print` layout, named in its colophon */
-  printedBy: string | null
-}
+  printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
+})
+
+export type BookletOptions = z.output<typeof bookletOptionsSchema>
 
 /** Sheet sizes in mm */
 const PAPER_SIZES: Record<Paper, { width: number, height: number }> = {
@@ -45,7 +60,7 @@ const PAPER_SIZES: Record<Paper, { width: number, height: number }> = {
   letter: { width: 215.9, height: 279.4 }
 }
 
-/** What print shops ask for, in mm */
+/** What print shops ask for, in mm, on every side of the `print` layout's pages */
 const BLEED_MM = 3
 
 const SPEED_PAGES = 4
@@ -64,38 +79,6 @@ const TRICK_TYPE_COLOURS: Record<TrickType, string> = {
   [TrickType.Impossible]: '#7f7f7f'
 }
 
-/**
- * The booklet's own labels in English, keyed like the site's `en.json`. The
- * site's copy of the same keys is what translators work from, so the wording
- * there wins whenever the site can be reached, these are the fallback.
- */
-export const BOOKLET_MESSAGE_DEFAULTS: FlatMessages = {
-  'booklet.info': 'Detailed information and videos of the tricks are available on the-tricktionary.com or in the Tricktionary\'s Android app.',
-  'booklet.generated': 'Generated {date}',
-  'booklet.speedEvent': 'Speed event',
-  'booklet.date': 'Date',
-  'booklet.count': 'Count',
-  'booklet.unrated': 'Unrated',
-  'booklet.verified': 'Verified level',
-  'booklet.copyright': '© the Tricktionary 2016–{year}',
-  'booklet.isbn': 'ISBN {isbn}',
-  'booklet.printedBy': 'Printed by {printer}, {year}',
-  'booklet.map': 'Trick map',
-  'booklet.mapExplanation': 'An arrow leads from a trick to a trick that builds on it. The more tricks build on one, the bigger its dot.',
-  'home.level': 'Level {level}',
-  'trick.alternativeNames': 'Alternative names: {names}',
-  'trick.level': '{ruleset} Level {level}',
-  'enums.discipline.DoubleDutch': 'Double Dutch',
-  'enums.discipline.SingleRope': 'Single Rope',
-  'enums.discipline.Wheel': 'Wheel',
-  'enums.trickType.Basic': 'Basic',
-  'enums.trickType.Impossible': 'Impossible',
-  'enums.trickType.Manipulation': 'Manipulation',
-  'enums.trickType.Multiple': 'Multiple',
-  'enums.trickType.Power': 'Power',
-  'enums.trickType.Release': 'Release'
-}
-
 /** Everything a booklet is typeset from, as loaded from Firestore and the site */
 export interface BookletSources {
   tricks: Array<Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'trickType'>>
@@ -106,7 +89,11 @@ export interface BookletSources {
   ruleset: Pick<RulesetDoc, 'id' | 'names'> | null
   /** The prerequisite edges between the tricks, `parentId` builds on `childId`. Only loaded for the trick map. */
   prerequisites: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>
-  /** The defaults above, the site's English and the language's translations, later ones winning */
+  /**
+   * The site's English messages with the language's translations laid over
+   * them, keyed like the site's `en.json`; a key that neither has is shown as
+   * is, so a missing string is easy to spot
+   */
   messages: FlatMessages
 }
 
@@ -116,6 +103,11 @@ export interface BookletData {
   region: string | null
   title: string
   discipline: string
+  /**
+   * The page as typeset. For the `print` layout the bleed is part of it: the
+   * page is the trim size plus the bleed on every side, and the margins are
+   * that much wider, so the trimmed page comes out as intended
+   */
   page: {
     /** mm */
     width: number
@@ -123,8 +115,6 @@ export interface BookletData {
     height: number
     /** mm */
     margin: number
-    /** mm, beyond the trimmed page on every side */
-    bleed: number
     columns: number
     /** pt */
     fontSize: number
@@ -225,7 +215,6 @@ export async function loadBookletSources (options: BookletOptions, { dataSources
     ruleset: ruleset ?? null,
     prerequisites: prerequisites.filter(edge => inDiscipline.has(edge.parentId) && inDiscipline.has(edge.childId)),
     messages: {
-      ...BOOKLET_MESSAGE_DEFAULTS,
       ...siteMessages,
       ...uiMessageValues(translations?.messages)
     }
@@ -247,14 +236,6 @@ function enumKey (name: 'discipline' | 'trickType', value: string) {
 function splitLang (tag: string): { lang: string, region: string | null } {
   const [lang, region] = tag.split('-')
   return { lang, region: region ? region.toUpperCase() : null }
-}
-
-/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
-export function isbnDigits (isbn: string): string | null {
-  const digits = isbn.replace(/[-\s]/g, '')
-  if (!/^97[89]\d{10}$/.test(digits)) return null
-  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
-  return sum % 10 === 0 ? digits : null
 }
 
 /** A DOT string literal */
@@ -298,7 +279,7 @@ export function trickMapDot (nodes: MapNode[], edges: Array<Pick<TrickPrereqDoc,
 export function bookletData (options: BookletOptions, sources: BookletSources, { now = new Date() }: { now?: Date } = {}): BookletData {
   const { lang, detailed, rulesId, layout, paper } = options
   const { messages } = sources
-  const t = (key: string, values: Record<string, string> = {}) => interpolate(messages[key] ?? BOOKLET_MESSAGE_DEFAULTS[key] ?? key, values)
+  const t = (key: string, values: Record<string, string> = {}) => interpolate(messages[key] ?? key, values)
 
   const collator = new Intl.Collator(lang)
   const listFormat = new Intl.ListFormat(lang, { style: 'long', type: 'disjunction' })
@@ -363,10 +344,11 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
   })
 
   const sheet = PAPER_SIZES[paper]
+  const bleed = layout === 'print' ? BLEED_MM : 0
   const page = layout === 'pages'
-    ? { width: sheet.width, height: sheet.height, margin: 18, bleed: 0, columns: 2, fontSize: 10 }
+    ? { width: sheet.width, height: sheet.height, margin: 18, columns: 2, fontSize: 10 }
     // half a landscape sheet, so that two fit on one side exactly
-    : { width: sheet.height / 2, height: sheet.width, margin: 14, bleed: layout === 'print' ? BLEED_MM : 0, columns: 1, fontSize: 10 }
+    : { width: sheet.height / 2 + 2 * bleed, height: sheet.width + 2 * bleed, margin: 14 + bleed, columns: 1, fontSize: 10 }
 
   const { lang: baseLang, region } = splitLang(lang)
   const year = String(now.getFullYear())

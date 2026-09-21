@@ -196,3 +196,28 @@ export class UpstreamError<Extensions extends Record<string, any> | undefined, P
     })
   }
 }
+
+/** The service can't take on more work right now, the request may be retried shortly */
+export class UnavailableError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions, Private> {
+  constructor (errorOrMsg: string | Error = 'The service is busy, try again shortly', options: ExtendedErrorOptions<Extensions, Private> = {}) {
+    super(errorOrMsg, {
+      name: 'UnavailableError',
+      code: 'SERVICE_UNAVAILABLE',
+      httpStatusCode: 503,
+      ...options
+    })
+  }
+}
+
+interface TypesettingErrorPrivate { stderr: string }
+/** Typst rejected a template or its data, its diagnostics go to the logs */
+export class TypesettingError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions, Private & TypesettingErrorPrivate> {
+  constructor (errorOrMsg: string | Error, options: ExtendedErrorOptions<Extensions, Private & TypesettingErrorPrivate>) {
+    super(errorOrMsg, {
+      name: 'TypesettingError',
+      code: 'TYPESETTING_FAILED',
+      httpStatusCode: 500,
+      ...options
+    })
+  }
+}
