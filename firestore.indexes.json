@@ -51,24 +51,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "eventDefinitionId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "count",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "speed-results",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "athleteUserIds",
           "arrayConfig": "CONTAINS"
         },
@@ -160,6 +142,104 @@
         },
         {
           "fieldPath": "count",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "speed-results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "needsParticipants",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eventDefinitionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "speed-results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "athleteMemberIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "eventDefinitionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "speed-results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "groupId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "constellationKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "speed-results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "groupId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eventDefinitionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "speed-results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "groupId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "constellationKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eventDefinitionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordedAt",
           "order": "DESCENDING"
         }
       ]

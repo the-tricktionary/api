@@ -4,9 +4,9 @@ import { GrantType } from '../generated/graphql.js'
 import { firestore } from '../store/firestoreDataSource.js'
 import { checklistStats } from '../helpers/checklist.js'
 import { membershipOf } from '../helpers/groups.js'
+import { mergeNewest, personalBests } from '../helpers/speedResults.js'
 import { groupInviteExpired } from '../store/schema.js'
 import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema, usernameSchema } from '../validation.js'
-import { byEventOrder } from './eventDefinitions.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
@@ -193,7 +193,12 @@ export const userResolvers: Resolvers = {
     async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
-      return await dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter, eventDefinitionId })
+      const feed = { ttl: 60, limit, startAfter, eventDefinitionId }
+      const [competed, unassigned] = await Promise.all([
+        dataSources.speedResults.findManyByAthleteUser(user.id, feed),
+        dataSources.speedResults.findManyUnassignedByUser(user.id, feed)
+      ])
+      return mergeNewest([competed, unassigned], limit)
     },
     async speedResult (parent, { speedResultId }, { dataSources, allowUser, user }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })
@@ -206,15 +211,8 @@ export const userResolvers: Resolvers = {
     async speedPersonalBests (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedPersonalBests.assert()
 
-      // custom events have no personal best
-      const eventDefinitions = (await dataSources.eventDefinitions.findManyByQuery(c => c, { ttl: 3600 }))
-        .sort(byEventOrder)
-
-      const bests = await Promise.all(eventDefinitions.map(async eventDefinition =>
-        await dataSources.speedResults.findBestByUserAndEvent(user.id, eventDefinition.id, { ttl: 60 })
-      ))
-
-      return bests.filter(best => best != null)
+      return await personalBests(async eventDefinitionId =>
+        await dataSources.speedResults.findBestByUserAndEvent(user.id, eventDefinitionId, { ttl: 60 }), dataSources)
     }
   }
 }

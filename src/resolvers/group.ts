@@ -3,6 +3,8 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, CollisionError } from '../errors.js'
 import { GroupRole } from '../generated/graphql.js'
 import { byMemberOrder, byNewest, existingGroup, groupAndMembership, membershipOf, uniqueJoinCode } from '../helpers/groups.js'
+import { constellationKey } from '../helpers/speedParticipants.js'
+import { groupConstellations } from '../helpers/speedResults.js'
 import { deleteInChunks, firestore } from '../store/firestoreDataSource.js'
 import { groupInviteExpired } from '../store/schema.js'
 import { groupNameSchema, joinCodeSchema } from '../validation.js'
@@ -137,6 +139,28 @@ export const groupResolvers: Resolvers = {
       const membership = await membershipOf(group.id, context)
       if (!context.allowUser.group(group, membership).manageJoinCode()) return null
       return group.joinCode ?? null
+    },
+    async speedResults (group, { limit, startAfter, eventDefinitionId, constellation }, context) {
+      const membership = await membershipOf(group.id, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      return await context.dataSources.speedResults.findManyByGroup(group.id, {
+        ttl: 60,
+        limit,
+        startAfter,
+        eventDefinitionId,
+        ...(constellation ? { constellationKey: constellationKey(constellation) } : {})
+      })
+    },
+    async constellations (group, _, context) {
+      const membership = await membershipOf(group.id, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      const [results, members] = await Promise.all([
+        context.dataSources.speedResults.findManyByGroup(group.id, { ttl: 60 }),
+        context.dataSources.groupMembers.findManyByGroup(group.id, { ttl: 60 })
+      ])
+      return groupConstellations(results, members.sort(byMemberOrder))
     }
   },
 }

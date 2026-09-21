@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/node'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { canonicalTimingTrackContentType, createTimingTrackUpload, deleteTimingTrackObject, timingTrackObjectName, TIMING_TRACK_CONTENT_TYPES } from '../services/storage.js'
 import { eventDefinitionCreateSchema, eventDefinitionUpdateSchema } from '../validation.js'
+import { byEventOrder } from '../helpers/eventDefinitions.js'
 
 import type { ApolloContext } from '../apollo.js'
 import type { Resolvers } from '../generated/graphql.js'
@@ -44,11 +45,6 @@ async function discardAudio (audioUrl: string | undefined, eventDefinitionId: st
     logger.error(err, `Failed to delete the timing track audio ${objectName}`)
     Sentry.captureException(err)
   }
-}
-
-/** Shortest first, then by name */
-export function byEventOrder (a: EventDefinitionDoc, b: EventDefinitionDoc) {
-  return a.totalDuration - b.totalDuration || a.name.localeCompare(b.name)
 }
 
 export const eventDefinitionResolvers: Resolvers = {

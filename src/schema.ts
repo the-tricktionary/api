@@ -437,14 +437,18 @@ const typeDefs = gql`
     level. Visible to the user themselves and to everyone on a public profile.
     """
     checklistStats: ChecklistStats!
-    """Newest first. eventDefinitionId narrows the list to one event. Only visible to the user themselves."""
+    """
+    The scores the user competed in, and the ones they entered and have not
+    yet said who competed in, newest first. eventDefinitionId narrows the list
+    to one event. Only visible to the user themselves.
+    """
     speedResults (limit: Int, startAfter: Timestamp, eventDefinitionId: ID): [SpeedResult!]!
     speedResult (speedResultId: ID!): SpeedResult
     """
-    The user's highest score in each predefined event they have a score in,
-    however it was entered, in the order the events are listed. Custom events
-    are left out. Visible to the user themselves, and to everyone on a public
-    profile that shows its speed scores.
+    The user's highest score in each predefined event they competed whole, in
+    the order the events are listed. A leg of a relay counts for nobody, and
+    custom events are left out. Visible to the user themselves, and to
+    everyone on a public profile that shows its speed scores.
     """
     speedPersonalBests: [SpeedResult!]!
 
@@ -524,8 +528,29 @@ const typeDefs = gql`
     invites: [GroupInvite!]!
     """The active join code. Admins only, and null for everyone else and when there is none."""
     joinCode: String
+    """The scores shared with the group, newest first. Every filter is optional and they combine."""
+    speedResults (
+      limit: Int
+      startAfter: Timestamp
+      eventDefinitionId: ID
+      """
+      Exactly this set of athletes, in any order, not a superset. An empty
+      list finds the scores nobody has been assigned to yet.
+      """
+      constellation: [ID!]
+    ): [SpeedResult!]!
+    """The sets of athletes that appear on the group's scores, commonest first"""
+    constellations: [GroupConstellation!]!
     createdAt: Timestamp!
     updatedAt: Timestamp!
+  }
+
+  """A set of athletes that competed together in the group's scores"""
+  type GroupConstellation {
+    """Stable identifier of the set, pass it back as \`constellation\`"""
+    key: String!
+    members: [GroupMember!]!
+    resultCount: Int!
   }
 
   """
@@ -548,7 +573,30 @@ const typeDefs = gql`
     """
     checklist: [TrickCompletion!]!
     checklistStats: ChecklistStats!
+    """
+    This athlete's best score in each predefined event among the group's
+    scores, counting only the ones they competed whole. Works for athletes
+    with no account, who have no personal bests of their own.
+    """
+    speedPersonalBests: [SpeedResult!]!
+    """
+    This athlete's scores in one event, newest first, whether they competed
+    the whole event or a single leg of it. A leg reports the count and pace of
+    that leg, so the same athlete's showing can be followed across
+    constellations.
+    """
+    speedProgression (eventDefinitionId: ID!): [SpeedSegmentResult!]!
     createdAt: Timestamp!
+  }
+
+  type SpeedSegmentResult {
+    result: SpeedResult!
+    """Null when the athlete competed the whole event rather than one leg"""
+    segment: SpeedSegment
+    """The athlete's own steps: the leg's when they competed a leg, else the result's"""
+    count: Int!
+    """Null for a result entered as a plain count"""
+    stepsPerSecond: Float
   }
 
   """An invitation from a group, or a request to join one, told apart by \`kind\`"""

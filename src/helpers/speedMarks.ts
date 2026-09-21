@@ -1,7 +1,7 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { createMarkReducer, filterMarkStream, simpleReducer } from '@ropescore/rulesets'
 import { TimingCueType } from '../generated/graphql.js'
-import type { SpeedMark, SpeedResultDoc, TimingTrack } from '../store/schema.js'
+import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc, TimingTrack } from '../store/schema.js'
 
 /** Gaps between steps longer than this many median gaps count as a miss */
 const MISS_THRESHOLD = 1.5
@@ -272,4 +272,17 @@ export function analyseMarks (rawMarks: readonly SpeedMark[], totalDuration: num
     stepsPerSecondSeries,
     segments
   }
+}
+
+/**
+ * The snapshot taken when the result was recorded wins. Falling back to the
+ * event's own cues is only safe for a custom event, whose cues are stored on
+ * the result itself: a known event's track can be edited later, and that must
+ * not rewrite how an old result was segmented.
+ */
+export function analysisOf (result: SpeedResultDoc, eventDefinition: EventDefinitionDoc): SpeedAnalysis | null {
+  const marks = marksOf(result)
+  if (!marks.length) return null
+  const timing = result.timingTrack ?? (result.eventDefinitionId ? null : eventDefinition.timingTrack)
+  return analyseMarks(marks, eventDefinition.totalDuration, timing)
 }

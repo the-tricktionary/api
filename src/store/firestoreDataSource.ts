@@ -206,22 +206,59 @@ export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompleti
 }
 export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(collection<TrickCompletionDoc>('trick-completions'), { logger: logger.child({ name: 'trick-completion-source' }), cache })
 
+interface SpeedFeedArgs extends FindArgs {
+  limit?: number | null
+  startAfter?: Timestamp | null
+  eventDefinitionId?: string | null
+}
+
+function newestFirst (query: Query<SpeedResultDoc>, { limit, startAfter, eventDefinitionId }: SpeedFeedArgs) {
+  let q = query
+  if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
+  q = q.orderBy('recordedAt', 'desc')
+  if (startAfter) q = q.startAfter(startAfter)
+  if (limit) q = q.limit(limit)
+  return q
+}
+
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
-  async findManyByUser (userId: string, { ttl, limit, startAfter, eventDefinitionId }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null, eventDefinitionId?: string | null } = {}) {
+  /** The scores the user competed in, whether or not they entered them */
+  async findManyByAthleteUser (userId: string, { ttl, ...feed }: SpeedFeedArgs = {}) {
+    return await this.findManyByQuery(c => newestFirst(c.where('athleteUserIds', 'array-contains', userId), feed), { ttl })
+  }
+
+  /** The scores the user entered and has not yet said who competed in */
+  async findManyUnassignedByUser (userId: string, { ttl, ...feed }: SpeedFeedArgs = {}) {
+    return await this.findManyByQuery(c => newestFirst(c
+      .where('userId', '==', userId)
+      .where('needsParticipants', '==', true), feed), { ttl })
+  }
+
+  async findManyByGroup (groupId: string, { ttl, constellationKey, ...feed }: SpeedFeedArgs & { constellationKey?: string | null } = {}) {
     return await this.findManyByQuery(c => {
-      let q = c.where('userId', '==', userId)
-      if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
-      q = q.orderBy('recordedAt', 'desc')
-      if (startAfter) q = q.startAfter(startAfter)
-      if (limit) q = q.limit(limit)
-      return q
+      let q = c.where('groupId', '==', groupId)
+      if (constellationKey != null) q = q.where('constellationKey', '==', constellationKey)
+      return newestFirst(q, feed)
     }, { ttl })
   }
 
-  /** The user's highest score in an event */
+  async findManyByAthleteMemberAndEvent (memberId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
+    return await this.findManyByQuery(c => newestFirst(c.where('athleteMemberIds', 'array-contains', memberId), { eventDefinitionId }), { ttl })
+  }
+
+  /** The user's highest score in an event among the ones they competed whole */
   async findBestByUserAndEvent (userId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
     return (await this.findManyByQuery(c => c
-      .where('userId', '==', userId)
+      .where('wholeScoreUserId', '==', userId)
+      .where('eventDefinitionId', '==', eventDefinitionId)
+      .orderBy('count', 'desc')
+      .limit(1), { ttl }))[0]
+  }
+
+  /** The member's highest score in an event among the group's scores they competed whole */
+  async findBestByMemberAndEvent (memberId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
+    return (await this.findManyByQuery(c => c
+      .where('wholeScoreMemberId', '==', memberId)
       .where('eventDefinitionId', '==', eventDefinitionId)
       .orderBy('count', 'desc')
       .limit(1), { ttl }))[0]
