@@ -516,7 +516,7 @@ const typeDefs = gql`
     username: String
   }
 
-  """A squad: a coach and their athletes"""
+  """A coach and their athletes"""
   type Group @cacheControl(maxAge: 0, scope: PRIVATE) {
     id: ID!
     name: String!
@@ -565,7 +565,7 @@ const typeDefs = gql`
     """Their own name, else the one the group gave them, else their username"""
     name: String!
     role: GroupRole!
-    """In the group to watch rather than to compete"""
+    """Left out of the group's checklist and speed scores"""
     observer: Boolean!
     """
     The athlete's completed tricks. Their own once they have an account, else

@@ -219,7 +219,7 @@ export interface GroupMemberDoc extends DocBase {
   userId?: UserDoc['id']
   name?: string
   role: GroupRole
-  /** In the group to watch rather than to compete, never true without a `userId` */
+  /** Left out of the group's checklist and speed scores, never true without a `userId` */
   observer: boolean
 }
 export function isGroupMember (t: any): t is GroupMemberDoc { return t?.collection === 'group-members' }
