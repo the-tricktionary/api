@@ -126,8 +126,12 @@ export async function claimSpeedResults (memberId: string, userId: string, dataS
 
   const collection = dataSources.speedResults.collection
   await writeInChunks(recorded, (batch, speedResult) => {
+    const participants = speedResult.participants?.map(participant => (
+      participant.memberId === memberId ? { ...participant, userId } : participant
+    ))
     batch.update(collection.doc(speedResult.id), {
       athleteUserIds: FieldValue.arrayUnion(userId),
+      ...(participants ? { participants } : {}),
       ...(speedResult.wholeScoreMemberId === memberId ? { wholeScoreUserId: userId } : {})
     })
   })

@@ -115,7 +115,7 @@ export const groupMemberResolvers: Resolvers = {
       if (!eventDefinition) throw new NotFoundError(`Event definition ${eventDefinitionId} not found`, { extensions: { entity: 'event-definition', id: eventDefinitionId } })
 
       const results = await context.dataSources.speedResults.findManyByAthleteMemberAndEvent(member.id, eventDefinition.id, { ttl: 60 })
-      return results.map(result => segmentResultOf(result, member.id, eventDefinition))
+      return results.map(result => segmentResultOf(result, { memberId: member.id }, eventDefinition))
     }
   },
 }

@@ -345,6 +345,11 @@ export interface SpeedParticipant {
   /** Absent when the athlete competed the whole result rather than one segment */
   segmentIndex?: number
   memberId: GroupMemberDoc['id']
+  /**
+   * The account behind `memberId`, absent for an athlete the group manages.
+   * An index for looking a leg up by user, never exposed on its own.
+   */
+  userId?: UserDoc['id']
 }
 export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed-results' }
 
