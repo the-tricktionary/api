@@ -24,6 +24,7 @@ generates:
         TrickCompletion: ../store/schema.js#TrickCompletionDoc
         SpeedResult: ../store/schema.js#SpeedResultDoc
         SpeedMark: ../store/schema.js#SpeedMark as SpeedMarkModel
+        SpeedParticipant: ../store/schema.js#SpeedParticipant as SpeedParticipantModel
         EventDefinition: ../store/schema.js#EventDefinitionDoc
         Group: ../store/schema.js#GroupDoc
         GroupMember: ../store/schema.js#GroupMemberDoc

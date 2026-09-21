@@ -292,6 +292,9 @@ export interface SpeedResultDoc extends DocBase {
   name?: string
   userId: UserDoc['id']
 
+  /** When the score was jumped */
+  recordedAt?: Timestamp
+
   count: number
 
   // either we link this to an event definition
@@ -322,6 +325,25 @@ export interface SpeedResultDoc extends DocBase {
   graphData?: number[]
   /** Key of the mirrored v2 realtime database entry, kept so deletes propagate */
   rtdKey?: string
+
+  groupId?: GroupDoc['id']
+  participants?: SpeedParticipant[]
+
+  // Derived from `participants` on every write, never taken from the input
+  athleteMemberIds: string[]
+  wholeScoreMemberId?: GroupMemberDoc['id']
+  /** The accounts behind `athleteMemberIds`, or the creator when there is no group */
+  athleteUserIds: string[]
+  wholeScoreUserId?: UserDoc['id']
+  needsParticipants?: boolean
+  /** The distinct member ids that competed, sorted and joined with `|` */
+  constellationKey?: string
+}
+
+export interface SpeedParticipant {
+  /** Absent when the athlete competed the whole result rather than one segment */
+  segmentIndex?: number
+  memberId: GroupMemberDoc['id']
 }
 export function isSpeedResult (t: any): t is SpeedResultDoc { return t?.collection === 'speed-results' }
 

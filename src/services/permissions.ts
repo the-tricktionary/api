@@ -197,15 +197,24 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         getGroups: isMe,
         getGroupInvites: isMe,
 
-        speedResult (speedResult: SpeedResultDoc) {
+        speedResult (speedResult: SpeedResultDoc, membership?: GroupMemberDoc) {
           const isMine = enrich(function isMine () { return !!user && speedResult.userId === user.id })
+          const isSharedWithMe = enrich(function isSharedWithMe () {
+            return !!user && !!membership && !!speedResult.groupId && membership.groupId === speedResult.groupId && membership.userId === user.id
+          })
+          const isGroupAdmin = enrich(function isSpeedResultGroupAdmin () {
+            return isSharedWithMe() && membership?.role === GroupRole.Admin
+          })
 
-          const isMineOrHasPublicSpeed = enrich(function isMineOrHasPublicSpeed () { return isMine() || (hasPublicProfile() && hasPublicSpeed()) })
+          const isMineOrSharedWithMe = enrich(function isMineOrSharedWithMe () { return isMine() || isSharedWithMe() })
+          const canRead = enrich(function canReadSpeedResult () { return isMineOrSharedWithMe() || (hasPublicProfile() && hasPublicSpeed()) })
+          const canManage = enrich(function canManageSpeedResult () { return isMine() || isGroupAdmin() })
           return {
-            get: isMineOrHasPublicSpeed,
-            edit: isMine,
-            delete: isMine,
-            getCreator: isMineOrHasPublicSpeed
+            get: canRead,
+            getGroup: isMineOrSharedWithMe,
+            edit: canManage,
+            delete: canManage,
+            getCreator: canRead
           }
         }
       }

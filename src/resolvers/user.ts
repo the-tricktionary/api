@@ -3,6 +3,7 @@ import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js
 import { GrantType } from '../generated/graphql.js'
 import { firestore } from '../store/firestoreDataSource.js'
 import { checklistStats } from '../helpers/checklist.js'
+import { membershipOf } from '../helpers/groups.js'
 import { groupInviteExpired } from '../store/schema.js'
 import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema, usernameSchema } from '../validation.js'
 import { byEventOrder } from './eventDefinitions.js'
@@ -194,10 +195,11 @@ export const userResolvers: Resolvers = {
 
       return await dataSources.speedResults.findManyByUser(user.id, { ttl: 60, limit, startAfter, eventDefinitionId })
     },
-    async speedResult (user, { speedResultId }, { dataSources, allowUser }) {
+    async speedResult (parent, { speedResultId }, { dataSources, allowUser, user }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })
       if (!speedResult) throw new NotFoundError(`Speed result with id ${speedResultId} not found`, {})
-      allowUser.user(user).speedResult(speedResult).get.assert()
+      const membership = speedResult.groupId ? await membershipOf(speedResult.groupId, { dataSources, user }) : undefined
+      allowUser.user(parent).speedResult(speedResult, membership).get.assert()
 
       return speedResult
     },

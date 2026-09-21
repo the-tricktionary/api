@@ -114,6 +114,7 @@ export const grantsSchema = z.array(grantInputSchema)
 // Speed results
 
 const MAX_MARKS = 20_000
+const MAX_SEGMENTS = 50
 
 const speedResultNameSchema = z.string().trim().max(120)
 const speedResultCountSchema = z.number().int().min(0).max(1_000_000)
@@ -186,13 +187,22 @@ export const speedMarkSchema = z.object({
   target: z.number().int().min(0).nullish()
 })
 
+export const speedParticipantSchema = z.object({
+  segmentIndex: z.number().int().min(0).max(MAX_SEGMENTS - 1).nullish(),
+  memberId: z.string().min(1)
+})
+
+const speedParticipantsSchema = z.array(speedParticipantSchema).max(MAX_SEGMENTS)
+
 export const speedResultCreateSchema = z.object({
   name: speedResultNameSchema.nullish(),
   count: speedResultCountSchema.nullish(),
   marks: z.array(speedMarkSchema).max(MAX_MARKS).nullish(),
   withTimingTrack: z.boolean().nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
-  eventDefinition: eventDefinitionInputSchema.nullish()
+  eventDefinition: eventDefinitionInputSchema.nullish(),
+  groupId: z.string().min(1).nullish(),
+  participants: speedParticipantsSchema.nullish()
 })
 
 export const speedResultUpdateSchema = z.object({
@@ -200,6 +210,11 @@ export const speedResultUpdateSchema = z.object({
   count: speedResultCountSchema.nullish(),
   eventDefinitionId: z.string().min(1).nullish(),
   eventDefinition: eventDefinitionInputSchema.nullish()
+})
+
+export const speedResultGroupSchema = z.object({
+  groupId: z.string().min(1).nullish(),
+  participants: speedParticipantsSchema.nullish()
 })
 
 // Event definitions and timing tracks

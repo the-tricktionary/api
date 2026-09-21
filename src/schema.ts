@@ -114,6 +114,8 @@ const typeDefs = gql`
     # Speed
     createSpeedResult (data: SpeedResultInput!): SpeedResult!
     updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult!
+    """Share a score with a group and say who competed, see SpeedResultGroupInput"""
+    setSpeedResultGroup (speedResultId: ID!, data: SpeedResultGroupInput!): SpeedResult!
     deleteSpeedResult (speedResultId: ID!): SpeedResult!
 
     # Event definitions (speed editors)
@@ -632,6 +634,17 @@ const typeDefs = gql`
     the analysis. True exactly when there is an analysis to show.
     """
     counted: Boolean!
+
+    """Null for a score that is yours alone"""
+    group: Group
+    """Who competed, empty while nobody has been assigned"""
+    participants: [SpeedParticipant!]!
+  }
+
+  type SpeedParticipant {
+    """The segment of the analysis they competed, null when they competed the whole score"""
+    segmentIndex: Int
+    member: GroupMember!
   }
 
   type SpeedMark {
@@ -712,6 +725,11 @@ const typeDefs = gql`
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput
+
+    """Share the score with a group you are in, see SpeedResult.group"""
+    groupId: ID
+    """Requires a groupId, see SpeedResult.participants"""
+    participants: [SpeedParticipantInput!]
   }
 
   input SpeedResultUpdateInput {
@@ -722,6 +740,19 @@ const typeDefs = gql`
 
     eventDefinitionId: ID
     eventDefinition: EventDefinitionInput
+  }
+
+  """Both fields state the whole record after the call, neither is a partial edit"""
+  input SpeedResultGroupInput {
+    """The group the score belongs to, null for none, which also clears who competed"""
+    groupId: ID
+    """Everyone who competed, replacing whoever was named before"""
+    participants: [SpeedParticipantInput!]
+  }
+
+  input SpeedParticipantInput {
+    segmentIndex: Int
+    memberId: ID!
   }
 
   input EventDefinitionInput {

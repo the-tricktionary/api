@@ -56,13 +56,13 @@ function clicksToMarks (clicks: NonNullable<SpeedResultDoc['clicks']>): SpeedMar
  * This is lossy but keeps the pacing graph of old results, the count stays
  * whatever was stored on the document.
  */
-function graphDataToMarks (result: Pick<SpeedResultDoc, 'graphData' | 'createdAt' | 'count' | 'eventDefinition'>): SpeedMark[] {
+function graphDataToMarks (result: Pick<SpeedResultDoc, 'graphData' | 'createdAt' | 'recordedAt' | 'count' | 'eventDefinition'>): SpeedMark[] {
   const offsets = (result.graphData ?? []).filter(n => Number.isFinite(n))
   if (!offsets.length) return []
   const totalDuration = result.eventDefinition?.totalDuration ?? 0
   const lastOffset = offsets[offsets.length - 1] ?? 0
   const durationMs = totalDuration > 0 ? totalDuration * 1000 : lastOffset * 10
-  const start = toMillis(result.createdAt) - durationMs
+  const start = toMillis(result.recordedAt ?? result.createdAt) - durationMs
 
   const marks: SpeedMark[] = offsets.map((offset, sequence) => ({
     sequence,
@@ -137,7 +137,7 @@ function eventStart (marks: ReadonlyArray<{ schema: string, timestamp: number }>
  * custom event's switches are offsets into the event itself, so both start
  * from zero.
  */
-function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
+export function segmentBounds (durationSeconds: number, timingTrack?: TimingTrack | null): Array<{ start: number, end: number, label?: string }> {
   const startCue = timingTrack?.cues.find(cue => cue.type === TimingCueType.Start)
   const switches = timingTrack?.cues.filter(cue => cue.type === TimingCueType.Switch) ?? []
   if (switches.length === 0) return [{ start: 0, end: durationSeconds, ...(startCue?.label ? { label: startCue.label } : {}) }]
