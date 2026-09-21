@@ -33,8 +33,11 @@ const envSchema = z.object({
   MUX_UPLOAD_CORS_ORIGIN: z.url().default('https://admin.the-tricktionary.com'),
   // The publicly readable Cloud Storage bucket timing track audio is uploaded to
   TIMING_TRACK_BUCKET: z.string().default('tricktionary-timing-tracks'),
-  // The public site, whose sitemap this serves
-  WEB_URL: z.url().default('https://the-tricktionary.com')
+  // The public site, whose sitemap this serves, and whose English interface
+  // messages the booklets are labelled with
+  WEB_URL: z.url().default('https://the-tricktionary.com'),
+  // The Typst binary that typesets booklets, see the README
+  TYPST_BIN: z.string().default('typst')
 })
 
 export const {
@@ -46,5 +49,6 @@ export const {
   PORT,
   MUX_UPLOAD_CORS_ORIGIN,
   TIMING_TRACK_BUCKET,
-  WEB_URL
+  WEB_URL,
+  TYPST_BIN
 } = envSchema.parse(process.env)

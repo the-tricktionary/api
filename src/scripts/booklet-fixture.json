@@ -1,0 +1,4834 @@
+{
+  "tricks": [
+    {
+      "id": "trick000",
+      "slug": "triple-under",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick001",
+      "slug": "ts",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick002",
+      "slug": "full-twist",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick003",
+      "slug": "quad-side-cross-eb",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick004",
+      "slug": "sunny-d",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick005",
+      "slug": "pushup-cross",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick006",
+      "slug": "kamikaze-double-under",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick007",
+      "slug": "tummytuck",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick008",
+      "slug": "can-can",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick009",
+      "slug": "backwards-side-swing",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick010",
+      "slug": "johmmy-inverse",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick011",
+      "slug": "snake-180",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick012",
+      "slug": "round-off-backtuck",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick013",
+      "slug": "crooger-wrap",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick014",
+      "slug": "frog-as-double-under",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick015",
+      "slug": "quad-wrap-cross",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick016",
+      "slug": "triple-under-side-side-cross",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick017",
+      "slug": "double-under-frog",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick018",
+      "slug": "swing-kick",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick019",
+      "slug": "frog-cross",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick020",
+      "slug": "leg-wrap",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick021",
+      "slug": "ek-backward",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick022",
+      "slug": "twister",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick023",
+      "slug": "double-under-cross-cross",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick024",
+      "slug": "t-toad",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick025",
+      "slug": "forward-straddle",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick026",
+      "slug": "wounded-duck",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick027",
+      "slug": "360",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick028",
+      "slug": "crooger-inverse",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick029",
+      "slug": "straddle-jump",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick030",
+      "slug": "two-footed-frog",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick031",
+      "slug": "double-under-stall-forwards-to-backwards",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick032",
+      "slug": "double-under-as",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick033",
+      "slug": "kn",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick034",
+      "slug": "awesome-annie",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick035",
+      "slug": "triple-under-side-open-open",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick036",
+      "slug": "ek-cross-cross",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick037",
+      "slug": "toad-leg-over-cross",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick038",
+      "slug": "crooger-leg-over",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick039",
+      "slug": "double-side-swing",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick040",
+      "slug": "quad-side-side-open-open",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick041",
+      "slug": "180-forward",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick042",
+      "slug": "side-swing-cross",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick043",
+      "slug": "triple-under-cl",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick044",
+      "slug": "as-switch-cross",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick045",
+      "slug": "180-backward",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick046",
+      "slug": "mic",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick047",
+      "slug": "snake",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick048",
+      "slug": "backwards-side-swing-cross",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick049",
+      "slug": "johmmy",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick050",
+      "slug": "kamikaze-backwards",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick051",
+      "slug": "jump-out-pushup",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick052",
+      "slug": "eb",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick053",
+      "slug": "pushup-double-under",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick054",
+      "slug": "toad-wrap",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick055",
+      "slug": "quad-side-side-open-cross",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick056",
+      "slug": "bc-fulltwist",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick057",
+      "slug": "criss-cross",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick058",
+      "slug": "eb-tj-inverse",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick059",
+      "slug": "pushup-backwards",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick060",
+      "slug": "pushup-as",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick061",
+      "slug": "deathwish",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick062",
+      "slug": "pushup-as-double-under",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick063",
+      "slug": "bc-turn",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick064",
+      "slug": "triple-under-as",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick065",
+      "slug": "side-swing-jump",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick066",
+      "slug": "mic-switch-sides",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick067",
+      "slug": "caboose-to-forward",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick068",
+      "slug": "as",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick069",
+      "slug": "double-under-cross-open",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick070",
+      "slug": "single-bounce",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick071",
+      "slug": "triple-under-side-open-cross",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick072",
+      "slug": "kamikaze",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick073",
+      "slug": "tj",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick074",
+      "slug": "tj-inverse",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick075",
+      "slug": "double-under-switch-cross",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick076",
+      "slug": "360-texas-style",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick077",
+      "slug": "backwards-cross",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick078",
+      "slug": "as-to-cl",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick079",
+      "slug": "mic-under-leg",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick080",
+      "slug": "skier",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick081",
+      "slug": "caboose",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick082",
+      "slug": "tj-as",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick083",
+      "slug": "double-under-open-cross",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick084",
+      "slug": "pushup-ts",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick085",
+      "slug": "quad-side-open-side-open",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick086",
+      "slug": "eb-to-cross-floater",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick087",
+      "slug": "standing-backtuck",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick088",
+      "slug": "one-handle-release-180",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick089",
+      "slug": "triple-under-side-cross-cross",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick090",
+      "slug": "ts-to-as-wave",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick091",
+      "slug": "frog-double-under",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick092",
+      "slug": "ek-fulltwist",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick093",
+      "slug": "quadruple-under",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick094",
+      "slug": "one-handle-windmill",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick095",
+      "slug": "quadruple-under-frog",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick096",
+      "slug": "mic-360",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick097",
+      "slug": "elephant",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick098",
+      "slug": "ts-pushup",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick099",
+      "slug": "as-double-under",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick100",
+      "slug": "backwards-double-under",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick101",
+      "slug": "pushup",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick102",
+      "slug": "double-bounce",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick103",
+      "slug": "toad-double-under",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick104",
+      "slug": "540-one-and-a-half",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick105",
+      "slug": "full-twist-cross",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick106",
+      "slug": "belch",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick107",
+      "slug": "full-turn",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick108",
+      "slug": "frog-fake",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick109",
+      "slug": "pushup-one-handed",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick110",
+      "slug": "bell",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick111",
+      "slug": "caboose-to-backward-french-trick",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick112",
+      "slug": "jogging-step",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick113",
+      "slug": "triple-under-mic",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick114",
+      "slug": "tj-eb",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick115",
+      "slug": "double-under-eb",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick116",
+      "slug": "crooger-wrap-inverse",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick117",
+      "slug": "double-under-side-open",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick118",
+      "slug": "side-swing",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick119",
+      "slug": "rump-jump",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick120",
+      "slug": "quad-mic",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick121",
+      "slug": "tj-open-cross",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick122",
+      "slug": "cl",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick123",
+      "slug": "t-toad-inverse",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick124",
+      "slug": "backwards-eb",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick125",
+      "slug": "knee-crossover",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick126",
+      "slug": "triple-under-side-switch-cross",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick127",
+      "slug": "toad-inverse",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick128",
+      "slug": "pushup-fake",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick129",
+      "slug": "mic-catch-on-leg",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick130",
+      "slug": "hummingbird",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick131",
+      "slug": "crooger-open",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick132",
+      "slug": "cl-pushup",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick133",
+      "slug": "triple-under-side-cross-open",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick134",
+      "slug": "triple-under-eb",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick135",
+      "slug": "one-handle-release",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick136",
+      "slug": "toe-to-toe",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick137",
+      "slug": "x-motion",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick138",
+      "slug": "cross-to-cross-floater",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick139",
+      "slug": "as-to-ts",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick140",
+      "slug": "double-under-side-cross",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick141",
+      "slug": "moneymaker-kamikaze-frog",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick142",
+      "slug": "ek-cross",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick143",
+      "slug": "pushup-cl",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick144",
+      "slug": "snake-above-head",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick145",
+      "slug": "heel-to-heel",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick146",
+      "slug": "double-under",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick147",
+      "slug": "quad-leg-under-release",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick148",
+      "slug": "marley",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick149",
+      "slug": "mic-variations",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick150",
+      "slug": "backwards-side-swing-open",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick151",
+      "slug": "as-pushup",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick152",
+      "slug": "leg-wrap-release",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick153",
+      "slug": "backwards-jump",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick154",
+      "slug": "triple-under-side-side-open",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick155",
+      "slug": "heel-to-toe",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick156",
+      "slug": "switch-cross",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    },
+    {
+      "id": "trick157",
+      "slug": "triple-under-fake-eb",
+      "discipline": "SingleRope",
+      "trickType": "manipulation"
+    },
+    {
+      "id": "trick158",
+      "slug": "frog-donkey-kick",
+      "discipline": "SingleRope",
+      "trickType": "multiple"
+    },
+    {
+      "id": "trick159",
+      "slug": "tj-quad",
+      "discipline": "SingleRope",
+      "trickType": "power"
+    },
+    {
+      "id": "trick160",
+      "slug": "quad-side-cross-side-cross",
+      "discipline": "SingleRope",
+      "trickType": "release"
+    },
+    {
+      "id": "trick161",
+      "slug": "two-handle-release",
+      "discipline": "SingleRope",
+      "trickType": "impossible"
+    },
+    {
+      "id": "trick162",
+      "slug": "eb-tj",
+      "discipline": "SingleRope",
+      "trickType": "basic"
+    }
+  ],
+  "localisations": [
+    {
+      "id": "trick000-en",
+      "trickId": "trick000",
+      "name": "Triple Under",
+      "alternativeNames": [],
+      "description": "The rope swings around the jumper three times for every one jump."
+    },
+    {
+      "id": "trick000-sv",
+      "trickId": "trick000",
+      "name": "Triple Under (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick001-en",
+      "trickId": "trick001",
+      "name": "TS",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with both arms behind his or her back."
+    },
+    {
+      "id": "trick002-en",
+      "trickId": "trick002",
+      "name": "Full Twist",
+      "alternativeNames": [],
+      "description": "The jumper does a full turn as a double under in one jump."
+    },
+    {
+      "id": "trick003-en",
+      "trickId": "trick003",
+      "name": "Quad Side Cross EB",
+      "alternativeNames": [],
+      "description": "The jumper does a side cross and an EB on opposite sides as a quad."
+    },
+    {
+      "id": "trick003-sv",
+      "trickId": "trick003",
+      "name": "Quad Side Cross EB (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick004-en",
+      "trickId": "trick004",
+      "name": "Sunny-D",
+      "alternativeNames": [],
+      "description": "The jumper does a frog but swings the rope down backwards."
+    },
+    {
+      "id": "trick005-en",
+      "trickId": "trick005",
+      "name": "Pushup Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup with a cross on the way up."
+    },
+    {
+      "id": "trick006-en",
+      "trickId": "trick006",
+      "name": "Kamikaze Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does a kamikaze with two swings into the second pushup."
+    },
+    {
+      "id": "trick006-sv",
+      "trickId": "trick006",
+      "name": "Kamikaze Double Under (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick007-en",
+      "trickId": "trick007",
+      "name": "TummyTuck",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under with one arm behind his or her legs and one arm under that arm."
+    },
+    {
+      "id": "trick008-en",
+      "trickId": "trick008",
+      "name": "Can Can",
+      "alternativeNames": [],
+      "description": "The jumper does a knee up then a kick with a jump in between, alternating legs with each kick."
+    },
+    {
+      "id": "trick009-en",
+      "trickId": "trick009",
+      "name": "Backwards Side Swing",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope from side to side with the rope swinging backwards."
+    },
+    {
+      "id": "trick009-sv",
+      "trickId": "trick009",
+      "name": "Backwards Side Swing (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick010-en",
+      "trickId": "trick010",
+      "name": "Johmmy Inverse",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under side swing, inverse crooger, then cross."
+    },
+    {
+      "id": "trick011-en",
+      "trickId": "trick011",
+      "name": "Snake 180",
+      "alternativeNames": [
+        "180 Around the World"
+      ],
+      "description": "The jumper does a snake release and spins halfway around instead of catching the handle."
+    },
+    {
+      "id": "trick012-en",
+      "trickId": "trick012",
+      "name": "Round Off Backtuck",
+      "alternativeNames": [],
+      "description": "The jumper does a round-off backtuck and swings the rope around more than once."
+    },
+    {
+      "id": "trick012-sv",
+      "trickId": "trick012",
+      "name": "Round Off Backtuck (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick013-en",
+      "trickId": "trick013",
+      "name": "Crooger Wrap",
+      "alternativeNames": [],
+      "description": "The jumper jumps a crooger twice, wrapping the rope on his or her ankle and swinging into a toad on the other leg."
+    },
+    {
+      "id": "trick014-en",
+      "trickId": "trick014",
+      "name": "Frog AS Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does a frog with a double under AS on the way down."
+    },
+    {
+      "id": "trick015-en",
+      "trickId": "trick015",
+      "name": "Quad Wrap Cross",
+      "alternativeNames": [],
+      "description": "The jumper does two swings to wrap, one swing to unwrap, then a cross as a quad."
+    },
+    {
+      "id": "trick015-sv",
+      "trickId": "trick015",
+      "name": "Quad Wrap Cross (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick016-en",
+      "trickId": "trick016",
+      "name": "Triple Under Side Side Cross",
+      "alternativeNames": [
+        "Glacier Bear Cross"
+      ],
+      "description": "The jumper does a triple under by swinging the rope to both sides and ending with a cross."
+    },
+    {
+      "id": "trick017-en",
+      "trickId": "trick017",
+      "name": "Double Under Frog",
+      "alternativeNames": [],
+      "description": "The jumper does a two footed frog and swings the rope two times around before landing on his or her hands."
+    },
+    {
+      "id": "trick018-en",
+      "trickId": "trick018",
+      "name": "Swing Kick",
+      "alternativeNames": [],
+      "description": "The jumper kicks his or her leg backward then forward, alternating legs with each forward kick."
+    },
+    {
+      "id": "trick018-sv",
+      "trickId": "trick018",
+      "name": "Swing Kick (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick019-en",
+      "trickId": "trick019",
+      "name": "Frog Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a frog with a cross on the way down"
+    },
+    {
+      "id": "trick020-en",
+      "trickId": "trick020",
+      "name": "Leg Wrap",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope under one leg and wraps the rope on the same side arm.  Can be done forward and backward, commonly with a double under at the end."
+    },
+    {
+      "id": "trick021-en",
+      "trickId": "trick021",
+      "name": "EK Backward",
+      "alternativeNames": [],
+      "description": "An EK where the first swing is a texas style turn, then a 180, then a jump backwards."
+    },
+    {
+      "id": "trick021-sv",
+      "trickId": "trick021",
+      "name": "EK Backward (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick022-en",
+      "trickId": "trick022",
+      "name": "Twister",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while rotating his or her hips."
+    },
+    {
+      "id": "trick023-en",
+      "trickId": "trick023",
+      "name": "Double Under Cross Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a double under where both swings are crosses."
+    },
+    {
+      "id": "trick024-en",
+      "trickId": "trick024",
+      "name": "T Toad",
+      "alternativeNames": [
+        "TCross"
+      ],
+      "description": "The jumper does a cross with the top arm under the inside of his or her leg."
+    },
+    {
+      "id": "trick024-sv",
+      "trickId": "trick024",
+      "name": "T Toad (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick025-en",
+      "trickId": "trick025",
+      "name": "Forward Straddle",
+      "alternativeNames": [],
+      "description": "The jumper alternates his or her feet forward and backward.  Can be done with a jump in between or continuously."
+    },
+    {
+      "id": "trick026-en",
+      "trickId": "trick026",
+      "name": "Wounded Duck",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while turning his or her toes to the inside and outside."
+    },
+    {
+      "id": "trick027-en",
+      "trickId": "trick027",
+      "name": "360",
+      "alternativeNames": [],
+      "description": "The jumper combines the 180 forward and 180 backward to spin all the way around."
+    },
+    {
+      "id": "trick027-sv",
+      "trickId": "trick027",
+      "name": "360 (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick028-en",
+      "trickId": "trick028",
+      "name": "Crooger Inverse",
+      "alternativeNames": [],
+      "description": "The jumper does an open jump with one arm over the outside of his or her leg, and crosses out of it."
+    },
+    {
+      "id": "trick029-en",
+      "trickId": "trick029",
+      "name": "Straddle Jump",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while putting his or her feet apart, then together."
+    },
+    {
+      "id": "trick030-en",
+      "trickId": "trick030",
+      "name": "Two Footed Frog",
+      "alternativeNames": [],
+      "description": "The jumper rebounds off of both feet into a frog."
+    },
+    {
+      "id": "trick030-sv",
+      "trickId": "trick030",
+      "name": "Two Footed Frog (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick031-en",
+      "trickId": "trick031",
+      "name": "Double Under Stall Forwards to Backwards",
+      "alternativeNames": [],
+      "description": "The jumper does a double under beginning forward, stalling the rope on the front of his or her legs, then bringing the rope backwards to complete the double under."
+    },
+    {
+      "id": "trick032-en",
+      "trickId": "trick032",
+      "name": "Double Under AS",
+      "alternativeNames": [],
+      "description": "The jumper does an A.S. cross open as a double under."
+    },
+    {
+      "id": "trick033-en",
+      "trickId": "trick033",
+      "name": "KN",
+      "alternativeNames": [
+        "flamingo"
+      ],
+      "description": "The jumper does a cross with one arm under the inside of his or her leg, and the other behind his or her head."
+    },
+    {
+      "id": "trick033-sv",
+      "trickId": "trick033",
+      "name": "KN (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick034-en",
+      "trickId": "trick034",
+      "name": "Awesome Annie",
+      "alternativeNames": [],
+      "description": "The jumper alternates between a crooger and a toad, similar to a regular open cross."
+    },
+    {
+      "id": "trick035-en",
+      "trickId": "trick035",
+      "name": "Triple Under Side Open Open",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under where the first swing is a side swing."
+    },
+    {
+      "id": "trick036-en",
+      "trickId": "trick036",
+      "name": "EK Cross×Cross",
+      "alternativeNames": [],
+      "description": "An EK with crosses in both the back and the final jump in the front."
+    },
+    {
+      "id": "trick036-sv",
+      "trickId": "trick036",
+      "name": "EK Cross×Cross (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick037-en",
+      "trickId": "trick037",
+      "name": "Toad/Leg Over Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with the bottom arm under the inside of his or her opposite leg."
+    },
+    {
+      "id": "trick038-en",
+      "trickId": "trick038",
+      "name": "Crooger/Leg Over",
+      "alternativeNames": [],
+      "description": "The jumper takes a jump with one arm under the inside of his or her leg, then does a cross."
+    },
+    {
+      "id": "trick039-en",
+      "trickId": "trick039",
+      "name": "Double Side Swing",
+      "alternativeNames": [],
+      "description": "The jumper alternates between an \"open\" and a \"cross\" side swing."
+    },
+    {
+      "id": "trick039-sv",
+      "trickId": "trick039",
+      "name": "Double Side Swing (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick040-en",
+      "trickId": "trick040",
+      "name": "Quad Side Side Open Open",
+      "alternativeNames": [
+        "Quad Glacier Bear"
+      ],
+      "description": "The jumper does two side swings then two opens as a quad."
+    },
+    {
+      "id": "trick041-en",
+      "trickId": "trick041",
+      "name": "180 Forward",
+      "alternativeNames": [],
+      "description": "The jumper brings his or her arms to the side, turns halfways around, then jumps backwards."
+    },
+    {
+      "id": "trick042-en",
+      "trickId": "trick042",
+      "name": "Side Swing Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing followed by a cross."
+    },
+    {
+      "id": "trick042-sv",
+      "trickId": "trick042",
+      "name": "Side Swing Cross (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick043-en",
+      "trickId": "trick043",
+      "name": "Triple Under CL",
+      "alternativeNames": [],
+      "description": "The jumper does an EB to CL as a triple under."
+    },
+    {
+      "id": "trick044-en",
+      "trickId": "trick044",
+      "name": "AS Switch Cross",
+      "alternativeNames": [],
+      "description": "The jumper does two consecutive AS crosses and switches his or her arms."
+    },
+    {
+      "id": "trick045-en",
+      "trickId": "trick045",
+      "name": "180 Backward",
+      "alternativeNames": [],
+      "description": "The jumper brings his or her arms up, turns halfway around, then brings the rope down to jump forwards."
+    },
+    {
+      "id": "trick045-sv",
+      "trickId": "trick045",
+      "name": "180 Backward (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick046-en",
+      "trickId": "trick046",
+      "name": "Mic",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope to one side, releases one handle, swings the rope two or three times, then catches the handle."
+    },
+    {
+      "id": "trick047-en",
+      "trickId": "trick047",
+      "name": "Snake",
+      "alternativeNames": [
+        "Around the World"
+      ],
+      "description": "The jumper swings the rope around his or her body, releasing one handle, spinning it on the ground, then catching it."
+    },
+    {
+      "id": "trick048-en",
+      "trickId": "trick048",
+      "name": "Backwards Side Swing Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing into a cross with the rope swinging backwards"
+    },
+    {
+      "id": "trick048-sv",
+      "trickId": "trick048",
+      "name": "Backwards Side Swing Cross (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick049-en",
+      "trickId": "trick049",
+      "name": "Johmmy",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under side swing, crooger, then cross."
+    },
+    {
+      "id": "trick050-en",
+      "trickId": "trick050",
+      "name": "Kamikaze Backwards",
+      "alternativeNames": [],
+      "description": "The jumper does a kamikaze with a backwards swing of the rope.  Also called a Dark Side."
+    },
+    {
+      "id": "trick051-en",
+      "trickId": "trick051",
+      "name": "Jump-Out Pushup",
+      "alternativeNames": [],
+      "description": "The jumper does one jump and lands in a push-up position."
+    },
+    {
+      "id": "trick051-sv",
+      "trickId": "trick051",
+      "name": "Jump-Out Pushup (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick052-en",
+      "trickId": "trick052",
+      "name": "EB",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with one arm in front of and the other arm behind his or her back."
+    },
+    {
+      "id": "trick053-en",
+      "trickId": "trick053",
+      "name": "Pushup Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup and swings the rope two times around on the way up."
+    },
+    {
+      "id": "trick054-en",
+      "trickId": "trick054",
+      "name": "Toad Wrap",
+      "alternativeNames": [],
+      "description": "The jumper jumps a toad twice, wrapping the rope on his or her ankle and swinging into a crooger on the other leg."
+    },
+    {
+      "id": "trick054-sv",
+      "trickId": "trick054",
+      "name": "Toad Wrap (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick055-en",
+      "trickId": "trick055",
+      "name": "Quad Side Side Open Cross",
+      "alternativeNames": [
+        "Quad Glacier Bear Cross"
+      ],
+      "description": "The jumper does two side swings then open cross as a quad."
+    },
+    {
+      "id": "trick056-en",
+      "trickId": "trick056",
+      "name": "BC FullTwist",
+      "alternativeNames": [],
+      "description": "An EK where the jumper puts one arm under the outside of his or her leg during the backward jump."
+    },
+    {
+      "id": "trick057-en",
+      "trickId": "trick057",
+      "name": "Criss Cross",
+      "alternativeNames": [],
+      "description": "The jumper crosses his or her arms over each other while jumping the rope."
+    },
+    {
+      "id": "trick057-sv",
+      "trickId": "trick057",
+      "name": "Criss Cross (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick058-en",
+      "trickId": "trick058",
+      "name": "EB TJ Inverse",
+      "alternativeNames": [
+        "Inverse JO",
+        "Inverse OJ"
+      ],
+      "description": "The jumper does an EB TJ with the front arm going under the outside of his or her leg."
+    },
+    {
+      "id": "trick059-en",
+      "trickId": "trick059",
+      "name": "Pushup Backwards",
+      "alternativeNames": [],
+      "description": "The jumper does a push-up and swings the rope backwards on the way up."
+    },
+    {
+      "id": "trick060-en",
+      "trickId": "trick060",
+      "name": "Pushup AS",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup and lands in an AS cross."
+    },
+    {
+      "id": "trick060-sv",
+      "trickId": "trick060",
+      "name": "Pushup AS (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick061-en",
+      "trickId": "trick061",
+      "name": "Deathwish",
+      "alternativeNames": [],
+      "description": "The jumper does a double under AS cross landing in a frog.  This trick was first completed by Nick Woodard in 2008."
+    },
+    {
+      "id": "trick062-en",
+      "trickId": "trick062",
+      "name": "Pushup AS Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup with a double under AS on the way up."
+    },
+    {
+      "id": "trick063-en",
+      "trickId": "trick063",
+      "name": "BC Turn",
+      "alternativeNames": [
+        "Marlee"
+      ],
+      "description": "The jumper does a 360 with one arm under the outside of his or her leg."
+    },
+    {
+      "id": "trick063-sv",
+      "trickId": "trick063",
+      "name": "BC Turn (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick064-en",
+      "trickId": "trick064",
+      "name": "Triple Under AS",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing then AS Open as a triple under."
+    },
+    {
+      "id": "trick065-en",
+      "trickId": "trick065",
+      "name": "Side Swing Jump",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing followed by a single bounce."
+    },
+    {
+      "id": "trick066-en",
+      "trickId": "trick066",
+      "name": "Mic Switch Sides",
+      "alternativeNames": [],
+      "description": "The jumper does a mic release and swings the rope to both sides of his or her body before catching the handle."
+    },
+    {
+      "id": "trick066-sv",
+      "trickId": "trick066",
+      "name": "Mic Switch Sides (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick067-en",
+      "trickId": "trick067",
+      "name": "Caboose to Forward",
+      "alternativeNames": [],
+      "description": "The jumper does a caboose but swings the rope fully forward after letting the rope pass under his or her feet."
+    },
+    {
+      "id": "trick068-en",
+      "trickId": "trick068",
+      "name": "AS",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with both arms behind his or her knees."
+    },
+    {
+      "id": "trick069-en",
+      "trickId": "trick069",
+      "name": "Double Under Cross Open",
+      "alternativeNames": [],
+      "description": "The jumper does a double under where the first swing is a cross."
+    },
+    {
+      "id": "trick069-sv",
+      "trickId": "trick069",
+      "name": "Double Under Cross Open (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick070-en",
+      "trickId": "trick070",
+      "name": "Single Bounce",
+      "alternativeNames": [],
+      "description": "The jumper jumps off of the ground one time for every one turn of the rope."
+    },
+    {
+      "id": "trick071-en",
+      "trickId": "trick071",
+      "name": "Triple Under Side Open Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under where the first swing is a side swing and the third swing is a cross."
+    },
+    {
+      "id": "trick072-en",
+      "trickId": "trick072",
+      "name": "Kamikaze",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup landing back in a pushup."
+    },
+    {
+      "id": "trick072-sv",
+      "trickId": "trick072",
+      "name": "Kamikaze (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick073-en",
+      "trickId": "trick073",
+      "name": "TJ",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under side swing, then toad, then open."
+    },
+    {
+      "id": "trick074-en",
+      "trickId": "trick074",
+      "name": "TJ Inverse",
+      "alternativeNames": [
+        "Japan"
+      ],
+      "description": "The jumper does a TJ but with an inverse toad."
+    },
+    {
+      "id": "trick075-en",
+      "trickId": "trick075",
+      "name": "Double Under Switch Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a double under where both swings are crosses with the opposite arm on top for each."
+    },
+    {
+      "id": "trick075-sv",
+      "trickId": "trick075",
+      "name": "Double Under Switch Cross (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick076-en",
+      "trickId": "trick076",
+      "name": "360 Texas Style",
+      "alternativeNames": [],
+      "description": "The jumper does a 360 but swings the rope behind his or her head or his or her back instead of jumping."
+    },
+    {
+      "id": "trick077-en",
+      "trickId": "trick077",
+      "name": "Backwards Cross",
+      "alternativeNames": [],
+      "description": "The jumper does an open cross with the rope swinging backwards."
+    },
+    {
+      "id": "trick078-en",
+      "trickId": "trick078",
+      "name": "AS to CL",
+      "alternativeNames": [],
+      "description": "A switch cross where the first cross is an AS, and the second a CL."
+    },
+    {
+      "id": "trick078-sv",
+      "trickId": "trick078",
+      "name": "AS to CL (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick079-en",
+      "trickId": "trick079",
+      "name": "Mic Under Leg",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope under his or her leg and lets go of one handle into a mic."
+    },
+    {
+      "id": "trick080-en",
+      "trickId": "trick080",
+      "name": "Skier",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while jumping from side to side."
+    },
+    {
+      "id": "trick081-en",
+      "trickId": "trick081",
+      "name": "Caboose",
+      "alternativeNames": [],
+      "description": "The jumper does a cross between his or her legs, then brings the rope backward."
+    },
+    {
+      "id": "trick081-sv",
+      "trickId": "trick081",
+      "name": "Caboose (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick082-en",
+      "trickId": "trick082",
+      "name": "TJ AS",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing toad into an AS cross as a quad."
+    },
+    {
+      "id": "trick083-en",
+      "trickId": "trick083",
+      "name": "Double Under Open Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a double under where the second swing is a cross."
+    },
+    {
+      "id": "trick084-en",
+      "trickId": "trick084",
+      "name": "Pushup TS",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup and lands in a TS cross."
+    },
+    {
+      "id": "trick084-sv",
+      "trickId": "trick084",
+      "name": "Pushup TS (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick085-en",
+      "trickId": "trick085",
+      "name": "Quad Side Open Side Open",
+      "alternativeNames": [],
+      "description": "The jumper does two side opens on opposite sides as a quad."
+    },
+    {
+      "id": "trick086-en",
+      "trickId": "trick086",
+      "name": "EB to Cross Floater",
+      "alternativeNames": [],
+      "description": "The jumper does an EB, releases the back handle, then catches it in a cross."
+    },
+    {
+      "id": "trick087-en",
+      "trickId": "trick087",
+      "name": "Standing Backtuck",
+      "alternativeNames": [],
+      "description": "The jumper does a standing backtuck and swings the rope around more than once."
+    },
+    {
+      "id": "trick087-sv",
+      "trickId": "trick087",
+      "name": "Standing Backtuck (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick088-en",
+      "trickId": "trick088",
+      "name": "One Handle Release 180",
+      "alternativeNames": [
+        "Backwards EB Toss"
+      ],
+      "description": "The jumper does a one handle release from a forward jump with a half turn."
+    },
+    {
+      "id": "trick089-en",
+      "trickId": "trick089",
+      "name": "Triple Under Side Cross Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under where the first swing is a side swing and the second and third swings are crosses."
+    },
+    {
+      "id": "trick090-en",
+      "trickId": "trick090",
+      "name": "TS to AS/Wave",
+      "alternativeNames": [],
+      "description": "The jumper does a TS then slides his or her arms down into an AS for the next jump."
+    },
+    {
+      "id": "trick090-sv",
+      "trickId": "trick090",
+      "name": "TS to AS/Wave (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick091-en",
+      "trickId": "trick091",
+      "name": "Frog Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does a frog and swings the rope two times around on the way down."
+    },
+    {
+      "id": "trick092-en",
+      "trickId": "trick092",
+      "name": "EK Fulltwist",
+      "alternativeNames": [],
+      "description": "A triple under 360 with a jump in the back, and the front."
+    },
+    {
+      "id": "trick093-en",
+      "trickId": "trick093",
+      "name": "Quadruple Under",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope around 4 times in one jump."
+    },
+    {
+      "id": "trick093-sv",
+      "trickId": "trick093",
+      "name": "Quadruple Under (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick094-en",
+      "trickId": "trick094",
+      "name": "One Handle Windmill",
+      "alternativeNames": [],
+      "description": "The jumper crosses his or her arms over each other to wrap the rope, then swings one handle around to wrap on the opposite arm and end up in the same wrap as the start with the other arm on top."
+    },
+    {
+      "id": "trick095-en",
+      "trickId": "trick095",
+      "name": "Quadruple Under Frog",
+      "alternativeNames": [],
+      "description": "The jumper does a frog swinging the rope around three times before landing on his or her hands."
+    },
+    {
+      "id": "trick096-en",
+      "trickId": "trick096",
+      "name": "Mic 360",
+      "alternativeNames": [],
+      "description": "The jumper does a mic release while doing a 360."
+    },
+    {
+      "id": "trick096-sv",
+      "trickId": "trick096",
+      "name": "Mic 360 (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick097-en",
+      "trickId": "trick097",
+      "name": "Elephant",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with both arms crossed under one of his or her legs."
+    },
+    {
+      "id": "trick098-en",
+      "trickId": "trick098",
+      "name": "TS Pushup",
+      "alternativeNames": [],
+      "description": "The jumper does a TS and jumps out into a pushup after completing the cross."
+    },
+    {
+      "id": "trick099-en",
+      "trickId": "trick099",
+      "name": "AS Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does an AS followed by a double under out of it."
+    },
+    {
+      "id": "trick099-sv",
+      "trickId": "trick099",
+      "name": "AS Double Under (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick100-en",
+      "trickId": "trick100",
+      "name": "Backwards Double Under",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope two times backward in one jump."
+    },
+    {
+      "id": "trick101-en",
+      "trickId": "trick101",
+      "name": "Pushup",
+      "alternativeNames": [],
+      "description": "The jumper jumps out into a push-up position then jumps the rope while coming up."
+    },
+    {
+      "id": "trick102-en",
+      "trickId": "trick102",
+      "name": "Double Bounce",
+      "alternativeNames": [],
+      "description": "The jumper jumps off of the ground two times for every one turn of the rope."
+    },
+    {
+      "id": "trick102-sv",
+      "trickId": "trick102",
+      "name": "Double Bounce (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick103-en",
+      "trickId": "trick103",
+      "name": "Toad Double Under",
+      "alternativeNames": [],
+      "description": "The jumper does a toad followed by a double under out of it."
+    },
+    {
+      "id": "trick104-en",
+      "trickId": "trick104",
+      "name": "540 (One and a Half)",
+      "alternativeNames": [],
+      "description": "A fulltwist and a half turn performed all together as a triple under."
+    },
+    {
+      "id": "trick105-en",
+      "trickId": "trick105",
+      "name": "Full Twist Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a full twist and crosses at the end of the twist."
+    },
+    {
+      "id": "trick105-sv",
+      "trickId": "trick105",
+      "name": "Full Twist Cross (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick106-en",
+      "trickId": "trick106",
+      "name": "Belch",
+      "alternativeNames": [],
+      "description": "The jumper does a frog landing in a pushup position."
+    },
+    {
+      "id": "trick107-en",
+      "trickId": "trick107",
+      "name": "Full Turn",
+      "alternativeNames": [],
+      "description": "The jumper brings his or her arms to the side, spins all the way around with the rope in front, then jumps forwards."
+    },
+    {
+      "id": "trick108-en",
+      "trickId": "trick108",
+      "name": "Frog Fake",
+      "alternativeNames": [],
+      "description": "The jumper kicks up into a handstand, snaps down, then jumps the rope."
+    },
+    {
+      "id": "trick108-sv",
+      "trickId": "trick108",
+      "name": "Frog Fake (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick109-en",
+      "trickId": "trick109",
+      "name": "Pushup One Handed",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup using only one arm on the ground"
+    },
+    {
+      "id": "trick110-en",
+      "trickId": "trick110",
+      "name": "Bell",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while jumping from front to back."
+    },
+    {
+      "id": "trick111-en",
+      "trickId": "trick111",
+      "name": "Caboose to Backward (French Trick)",
+      "alternativeNames": [],
+      "description": "The jumper does a caboose jumping both the cross and the backwards swing in one jump."
+    },
+    {
+      "id": "trick111-sv",
+      "trickId": "trick111",
+      "name": "Caboose to Backward (French Trick) (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick112-en",
+      "trickId": "trick112",
+      "name": "Jogging Step",
+      "alternativeNames": [],
+      "description": "The jumper alternates feet with each jump."
+    },
+    {
+      "id": "trick113-en",
+      "trickId": "trick113",
+      "name": "Triple Under Mic",
+      "alternativeNames": [],
+      "description": "The jumper does a mic with two spins then jump the rope as a triple under."
+    },
+    {
+      "id": "trick114-en",
+      "trickId": "trick114",
+      "name": "TJ EB",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing toad and an EB together as a quad."
+    },
+    {
+      "id": "trick114-sv",
+      "trickId": "trick114",
+      "name": "TJ EB (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick115-en",
+      "trickId": "trick115",
+      "name": "Double Under EB",
+      "alternativeNames": [],
+      "description": "The jumper does an E.B as a double under in one jump."
+    },
+    {
+      "id": "trick116-en",
+      "trickId": "trick116",
+      "name": "Crooger Wrap Inverse",
+      "alternativeNames": [],
+      "description": "The jumper does a crooger wrap with an inverse crooger, and swings into a t-toad."
+    },
+    {
+      "id": "trick117-en",
+      "trickId": "trick117",
+      "name": "Double Under Side Open",
+      "alternativeNames": [],
+      "description": "The jumper does a double under where the first swing is a side swing."
+    },
+    {
+      "id": "trick117-sv",
+      "trickId": "trick117",
+      "name": "Double Under Side Open (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick118-en",
+      "trickId": "trick118",
+      "name": "Side Swing",
+      "alternativeNames": [],
+      "description": "The jumper brings his or her hands together and swings the rope to either the right or the left."
+    },
+    {
+      "id": "trick119-en",
+      "trickId": "trick119",
+      "name": "Rump Jump",
+      "alternativeNames": [],
+      "description": "The jumper swings the rope under his or her body while sitting.  This is usually for performance routines."
+    },
+    {
+      "id": "trick120-en",
+      "trickId": "trick120",
+      "name": "Quad Mic",
+      "alternativeNames": [],
+      "description": "The jumper does a mic with three spins then jumps the rope as a quad."
+    },
+    {
+      "id": "trick120-sv",
+      "trickId": "trick120",
+      "name": "Quad Mic (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick121-en",
+      "trickId": "trick121",
+      "name": "TJ Open Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a TJ quad with the last swing being a cross."
+    },
+    {
+      "id": "trick122-en",
+      "trickId": "trick122",
+      "name": "CL",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with one arm behind his or her legs and one arm behind his or her back."
+    },
+    {
+      "id": "trick123-en",
+      "trickId": "trick123",
+      "name": "T Toad Inverse",
+      "alternativeNames": [
+        "Inverse TCross"
+      ],
+      "description": "The jumper does a cross with the top arm under the outside of his or her leg."
+    },
+    {
+      "id": "trick123-sv",
+      "trickId": "trick123",
+      "name": "T Toad Inverse (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick124-en",
+      "trickId": "trick124",
+      "name": "Backwards EB",
+      "alternativeNames": [],
+      "description": "The jumper does a backwards cross with one arm behind his or her back."
+    },
+    {
+      "id": "trick125-en",
+      "trickId": "trick125",
+      "name": "Knee Crossover",
+      "alternativeNames": [],
+      "description": "The jumper brings his or her leg up, crosses it over the other leg, back up, and back down."
+    },
+    {
+      "id": "trick126-en",
+      "trickId": "trick126",
+      "name": "Triple Under Side Switch Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under by doing a single side swing then a switch cross."
+    },
+    {
+      "id": "trick126-sv",
+      "trickId": "trick126",
+      "name": "Triple Under Side Switch Cross (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick127-en",
+      "trickId": "trick127",
+      "name": "Toad Inverse",
+      "alternativeNames": [],
+      "description": "The jumper does a cross with one arm under the outside of one of his or her legs."
+    },
+    {
+      "id": "trick128-en",
+      "trickId": "trick128",
+      "name": "Pushup Fake",
+      "alternativeNames": [],
+      "description": "The jumper jumps out into a push-up position and comes up before jumping the rope."
+    },
+    {
+      "id": "trick129-en",
+      "trickId": "trick129",
+      "name": "Mic Catch on Leg",
+      "alternativeNames": [],
+      "description": "The jumper does a mic, catches it on his or her leg, and swings it off into another mic."
+    },
+    {
+      "id": "trick129-sv",
+      "trickId": "trick129",
+      "name": "Mic Catch on Leg (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick130-en",
+      "trickId": "trick130",
+      "name": "Hummingbird",
+      "alternativeNames": [],
+      "description": "The jumper does an EB wrap with a half turn as a quad."
+    },
+    {
+      "id": "trick131-en",
+      "trickId": "trick131",
+      "name": "Crooger Open",
+      "alternativeNames": [],
+      "description": "The jumper does a crooger and pulls his or her arm out early to perform an open jump."
+    },
+    {
+      "id": "trick132-en",
+      "trickId": "trick132",
+      "name": "CL Pushup",
+      "alternativeNames": [],
+      "description": "The jumper does a CL and jumps out into a pushup after completing the cross."
+    },
+    {
+      "id": "trick132-sv",
+      "trickId": "trick132",
+      "name": "CL Pushup (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick133-en",
+      "trickId": "trick133",
+      "name": "Triple Under Side Cross Open",
+      "alternativeNames": [],
+      "description": "The jumper does a triple under where the first swing is a side swing and the second swing is a cross."
+    },
+    {
+      "id": "trick134-en",
+      "trickId": "trick134",
+      "name": "Triple Under EB",
+      "alternativeNames": [],
+      "description": "The jumper does an EB then an open jump as a triple under."
+    },
+    {
+      "id": "trick135-en",
+      "trickId": "trick135",
+      "name": "One Handle Release",
+      "alternativeNames": [],
+      "description": "The jumper releases one handle behind his or her feet, then swings it back up and catches it."
+    },
+    {
+      "id": "trick135-sv",
+      "trickId": "trick135",
+      "name": "One Handle Release (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick136-en",
+      "trickId": "trick136",
+      "name": "Toe-to-Toe",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while putting his or her toe behind the other foot."
+    },
+    {
+      "id": "trick137-en",
+      "trickId": "trick137",
+      "name": "X-Motion",
+      "alternativeNames": [],
+      "description": "The jumper does a straddle jump but crosses his or her legs instead of bringing them together."
+    },
+    {
+      "id": "trick138-en",
+      "trickId": "trick138",
+      "name": "Cross to Cross Floater",
+      "alternativeNames": [],
+      "description": "The jumper does a cross, releases the bottom handle, then catches it back in a cross."
+    },
+    {
+      "id": "trick138-sv",
+      "trickId": "trick138",
+      "name": "Cross to Cross Floater (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick139-en",
+      "trickId": "trick139",
+      "name": "AS to TS",
+      "alternativeNames": [],
+      "description": "The jumper does an AS then slides his or her arms up into a TS for the next jump."
+    },
+    {
+      "id": "trick140-en",
+      "trickId": "trick140",
+      "name": "Double Under Side Cross",
+      "alternativeNames": [],
+      "description": "The jumper does a double under where the first swing is a side swing, and the second is a cross."
+    },
+    {
+      "id": "trick141-en",
+      "trickId": "trick141",
+      "name": "Moneymaker (Kamikaze Frog)",
+      "alternativeNames": [],
+      "description": "The jumper does a frog and swings the rope around his or her body landing back in a frog and then pulling the rope under to land.  First landed by Nick Woodard in 2007."
+    },
+    {
+      "id": "trick141-sv",
+      "trickId": "trick141",
+      "name": "Moneymaker (Kamikaze Frog) (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick142-en",
+      "trickId": "trick142",
+      "name": "EK Cross",
+      "alternativeNames": [],
+      "description": "An EK with a cross either in the back, or on the final jump in the front."
+    },
+    {
+      "id": "trick143-en",
+      "trickId": "trick143",
+      "name": "Pushup CL",
+      "alternativeNames": [],
+      "description": "The jumper does a pushup and lands in a CL cross."
+    },
+    {
+      "id": "trick144-en",
+      "trickId": "trick144",
+      "name": "Snake Above Head",
+      "alternativeNames": [],
+      "description": "The jumper does a snake release and spins the rope twice above his or her head."
+    },
+    {
+      "id": "trick144-sv",
+      "trickId": "trick144",
+      "name": "Snake Above Head (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick145-en",
+      "trickId": "trick145",
+      "name": "Heel-to-Heel",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while putting his or her heel in front of the other foot."
+    },
+    {
+      "id": "trick146-en",
+      "trickId": "trick146",
+      "name": "Double Under",
+      "alternativeNames": [],
+      "description": "The rope swings around the jumper two times for every one jump."
+    },
+    {
+      "id": "trick147-en",
+      "trickId": "trick147",
+      "name": "Quad Leg Under Release",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing into a single swing leg under release as a quad."
+    },
+    {
+      "id": "trick147-sv",
+      "trickId": "trick147",
+      "name": "Quad Leg Under Release (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick148-en",
+      "trickId": "trick148",
+      "name": "Marley",
+      "alternativeNames": [
+        "Inverse Marlee"
+      ],
+      "description": "The jumper does a full turn under his or her leg into a forward side swing toad."
+    },
+    {
+      "id": "trick149-en",
+      "trickId": "trick149",
+      "name": "Mic Variations",
+      "alternativeNames": [],
+      "description": "There are many different ways of catching mics on your leg. Here are a couple, have fun with new ones!"
+    },
+    {
+      "id": "trick150-en",
+      "trickId": "trick150",
+      "name": "Backwards Side Swing Open",
+      "alternativeNames": [],
+      "description": "The jumper does a side swing into a jump with the rope swinging backwards."
+    },
+    {
+      "id": "trick150-sv",
+      "trickId": "trick150",
+      "name": "Backwards Side Swing Open (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick151-en",
+      "trickId": "trick151",
+      "name": "AS Pushup",
+      "alternativeNames": [],
+      "description": "The jumper does an AS and jumps out into a pushup after completing the cross."
+    },
+    {
+      "id": "trick152-en",
+      "trickId": "trick152",
+      "name": "Leg Wrap Release",
+      "alternativeNames": [],
+      "description": "The jumper wraps the rope around his or her legs, then releases the front handle, swings it around, up, and catches it."
+    },
+    {
+      "id": "trick153-en",
+      "trickId": "trick153",
+      "name": "Backwards Jump",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce with the rope swinging backwards."
+    },
+    {
+      "id": "trick153-sv",
+      "trickId": "trick153",
+      "name": "Backwards Jump (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick154-en",
+      "trickId": "trick154",
+      "name": "Triple Under Side Side Open",
+      "alternativeNames": [
+        "Glacier Bear"
+      ],
+      "description": "The jumper does a triple under where the first two swings are side swings."
+    },
+    {
+      "id": "trick155-en",
+      "trickId": "trick155",
+      "name": "Heel-to-Toe",
+      "alternativeNames": [],
+      "description": "The jumper does a single bounce while alternating between heel and toe."
+    },
+    {
+      "id": "trick156-en",
+      "trickId": "trick156",
+      "name": "Switch Cross",
+      "alternativeNames": [],
+      "description": "The jumper does two criss crosses in a row, switching which arm is on top between jumps."
+    },
+    {
+      "id": "trick156-sv",
+      "trickId": "trick156",
+      "name": "Switch Cross (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    },
+    {
+      "id": "trick157-en",
+      "trickId": "trick157",
+      "name": "Triple Under Fake EB",
+      "alternativeNames": [],
+      "description": "The jumper does a fake EB then an open jump as a triple under."
+    },
+    {
+      "id": "trick158-en",
+      "trickId": "trick158",
+      "name": "Frog/Donkey Kick",
+      "alternativeNames": [],
+      "description": "The jumper kicks into a handstand and jumps the rope as his or her legs snap down."
+    },
+    {
+      "id": "trick159-en",
+      "trickId": "trick159",
+      "name": "TJ Quad",
+      "alternativeNames": [],
+      "description": "The jumper does a TJ with one extra open swing at the end."
+    },
+    {
+      "id": "trick159-sv",
+      "trickId": "trick159",
+      "name": "TJ Quad (sv)",
+      "alternativeNames": [],
+      "description": ""
+    },
+    {
+      "id": "trick160-en",
+      "trickId": "trick160",
+      "name": "Quad Side Cross Side Cross",
+      "alternativeNames": [],
+      "description": "The jumper does two side crosses on opposite sides as a quad."
+    },
+    {
+      "id": "trick161-en",
+      "trickId": "trick161",
+      "name": "Two Handle Release",
+      "alternativeNames": [],
+      "description": "The jumper tosses both handles into the air, letting the rope rotate once before catching both handles."
+    },
+    {
+      "id": "trick162-en",
+      "trickId": "trick162",
+      "name": "EB TJ",
+      "alternativeNames": [
+        "JO",
+        "OJ"
+      ],
+      "description": "A triple under EB to Toad, then open."
+    },
+    {
+      "id": "trick162-sv",
+      "trickId": "trick162",
+      "name": "EB TJ (sv)",
+      "alternativeNames": [],
+      "description": "Svensk beskrivning av tricket, med åäö."
+    }
+  ],
+  "levels": [
+    {
+      "trickId": "trick001",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick001",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick002",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick002",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick003",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick003",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick004",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick005",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick005",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick006",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick006",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick007",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick007",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick008",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick009",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick009",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick010",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick010",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick011",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick012",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick013",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick013",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick014",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick014",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick015",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick015",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick016",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick017",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick017",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick018",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick018",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick019",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick019",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick020",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick021",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick021",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick022",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick023",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick023",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick024",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick025",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick025",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick026",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick026",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick027",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick027",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick028",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick029",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick029",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick030",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick030",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick031",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick031",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick032",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick033",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick034",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick034",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick035",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick035",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick036",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick037",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick037",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick038",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick038",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick039",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick039",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick040",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick041",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick041",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick042",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick042",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick043",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick043",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick045",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick045",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick046",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick046",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick047",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick047",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick048",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick049",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick049",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick050",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick050",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick051",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick051",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick052",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick053",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick053",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick054",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick054",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick055",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick056",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick057",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick057",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick058",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick058",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick059",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick059",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick060",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick061",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick061",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick062",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick062",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick063",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick063",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick064",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick065",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick065",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick066",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick067",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick067",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick068",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick069",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick069",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick070",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick070",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick071",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick071",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick072",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick073",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick073",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick074",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick074",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick075",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick075",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick076",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick077",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick078",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick078",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick079",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick079",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick080",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick081",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick081",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick082",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick082",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick083",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick083",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick084",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick085",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick085",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick086",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick086",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick087",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick087",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick089",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick089",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick090",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick090",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick091",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick091",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick092",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick093",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick093",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick094",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick094",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick095",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick095",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick096",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick097",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick097",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick098",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick098",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick099",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick100",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick101",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick101",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick102",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick102",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick103",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick103",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick104",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick105",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick105",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick106",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick106",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick107",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick107",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick108",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick109",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick109",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick110",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick111",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick111",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick112",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick113",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick113",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick114",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick114",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick115",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick115",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick116",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick117",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick117",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick118",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick118",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick119",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick119",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick120",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick121",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick122",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick122",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick123",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick123",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick124",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick125",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick125",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick126",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick126",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick127",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick127",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick128",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick129",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick129",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick130",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick130",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick131",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick131",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick133",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick133",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick134",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick134",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick135",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick135",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick136",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick137",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick137",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick138",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick138",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick139",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick139",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick140",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick141",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick141",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick142",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick142",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick143",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick144",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick145",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick145",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick146",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick146",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick147",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick147",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick148",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick149",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick149",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick150",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick150",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick151",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick151",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick152",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick153",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick153",
+      "rulesId": "ijru@5.0.0",
+      "level": "1"
+    },
+    {
+      "trickId": "trick154",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick155",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick155",
+      "rulesId": "ijru@5.0.0",
+      "level": "3"
+    },
+    {
+      "trickId": "trick156",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick157",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick157",
+      "rulesId": "ijru@5.0.0",
+      "level": "5"
+    },
+    {
+      "trickId": "trick158",
+      "rulesId": "tricktionary",
+      "level": "4"
+    },
+    {
+      "trickId": "trick158",
+      "rulesId": "ijru@5.0.0",
+      "level": "6",
+      "verificationLevel": "OFFICIAL"
+    },
+    {
+      "trickId": "trick159",
+      "rulesId": "tricktionary",
+      "level": "5"
+    },
+    {
+      "trickId": "trick159",
+      "rulesId": "ijru@5.0.0",
+      "level": "7"
+    },
+    {
+      "trickId": "trick160",
+      "rulesId": "tricktionary",
+      "level": "1"
+    },
+    {
+      "trickId": "trick161",
+      "rulesId": "tricktionary",
+      "level": "2"
+    },
+    {
+      "trickId": "trick161",
+      "rulesId": "ijru@5.0.0",
+      "level": "2-5"
+    },
+    {
+      "trickId": "trick162",
+      "rulesId": "tricktionary",
+      "level": "3"
+    },
+    {
+      "trickId": "trick162",
+      "rulesId": "ijru@5.0.0",
+      "level": "2",
+      "verificationLevel": "OFFICIAL"
+    }
+  ],
+  "ruleset": {
+    "id": "ijru@5.0.0",
+    "names": {
+      "en": "IJRU 5.0.0",
+      "sv": "IJRU 5.0.0"
+    }
+  },
+  "messages": {
+    "booklet.copyright": "© the Tricktionary 2016–{year}",
+    "booklet.count": "Count",
+    "booklet.date": "Date",
+    "booklet.generated": "Generated {date}",
+    "booklet.info": "Detailed information and videos of the tricks are available on the-tricktionary.com or in the Tricktionary's Android app.",
+    "booklet.isbn": "ISBN {isbn}",
+    "booklet.map": "Trick map",
+    "booklet.mapExplanation": "An arrow leads from a trick to a trick that builds on it. The more tricks build on one, the bigger its dot.",
+    "booklet.printedBy": "Printed by {printer}, {year}",
+    "booklet.speedEvent": "Speed event",
+    "booklet.unrated": "Unrated",
+    "booklet.verified": "Verified level",
+    "enums.discipline.DoubleDutch": "Double Dutch",
+    "enums.discipline.SingleRope": "Single Rope",
+    "enums.discipline.Wheel": "Wheel",
+    "enums.trickType.Basic": "Basic",
+    "enums.trickType.Impossible": "Impossible",
+    "enums.trickType.Manipulation": "Manipulation",
+    "enums.trickType.Multiple": "Multiple",
+    "enums.trickType.Power": "Power",
+    "enums.trickType.Release": "Release",
+    "home.level": "Level {level}",
+    "trick.alternativeNames": "Alternative names: {names}",
+    "trick.level": "{ruleset} Level {level}"
+  },
+  "prerequisites": [
+    {
+      "parentId": "trick001",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick002",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick003",
+      "childId": "trick002"
+    },
+    {
+      "parentId": "trick003",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick004",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick005",
+      "childId": "trick002"
+    },
+    {
+      "parentId": "trick006",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick006",
+      "childId": "trick001"
+    },
+    {
+      "parentId": "trick007",
+      "childId": "trick005"
+    },
+    {
+      "parentId": "trick008",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick009",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick009",
+      "childId": "trick005"
+    },
+    {
+      "parentId": "trick010",
+      "childId": "trick004"
+    },
+    {
+      "parentId": "trick011",
+      "childId": "trick009"
+    },
+    {
+      "parentId": "trick012",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick012",
+      "childId": "trick009"
+    },
+    {
+      "parentId": "trick013",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick014",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick015",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick015",
+      "childId": "trick013"
+    },
+    {
+      "parentId": "trick016",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick017",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick018",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick018",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick019",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick020",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick021",
+      "childId": "trick015"
+    },
+    {
+      "parentId": "trick021",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick022",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick023",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick024",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick024",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick025",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick026",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick027",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick027",
+      "childId": "trick015"
+    },
+    {
+      "parentId": "trick028",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick029",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick030",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick030",
+      "childId": "trick019"
+    },
+    {
+      "parentId": "trick031",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick032",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick033",
+      "childId": "trick019"
+    },
+    {
+      "parentId": "trick033",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick034",
+      "childId": "trick030"
+    },
+    {
+      "parentId": "trick035",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick036",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick036",
+      "childId": "trick009"
+    },
+    {
+      "parentId": "trick037",
+      "childId": "trick031"
+    },
+    {
+      "parentId": "trick038",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick039",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick039",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick040",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick041",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick042",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick042",
+      "childId": "trick039"
+    },
+    {
+      "parentId": "trick043",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick044",
+      "childId": "trick024"
+    },
+    {
+      "parentId": "trick045",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick045",
+      "childId": "trick025"
+    },
+    {
+      "parentId": "trick046",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick047",
+      "childId": "trick004"
+    },
+    {
+      "parentId": "trick048",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick048",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick049",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick050",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick051",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick051",
+      "childId": "trick015"
+    },
+    {
+      "parentId": "trick052",
+      "childId": "trick024"
+    },
+    {
+      "parentId": "trick053",
+      "childId": "trick034"
+    },
+    {
+      "parentId": "trick054",
+      "childId": "trick030"
+    },
+    {
+      "parentId": "trick054",
+      "childId": "trick019"
+    },
+    {
+      "parentId": "trick055",
+      "childId": "trick022"
+    },
+    {
+      "parentId": "trick056",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick057",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick057",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick058",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick059",
+      "childId": "trick052"
+    },
+    {
+      "parentId": "trick060",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick060",
+      "childId": "trick045"
+    },
+    {
+      "parentId": "trick061",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick062",
+      "childId": "trick034"
+    },
+    {
+      "parentId": "trick063",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick063",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick064",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick065",
+      "childId": "trick030"
+    },
+    {
+      "parentId": "trick066",
+      "childId": "trick038"
+    },
+    {
+      "parentId": "trick066",
+      "childId": "trick003"
+    },
+    {
+      "parentId": "trick067",
+      "childId": "trick054"
+    },
+    {
+      "parentId": "trick068",
+      "childId": "trick060"
+    },
+    {
+      "parentId": "trick069",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick069",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick070",
+      "childId": "trick052"
+    },
+    {
+      "parentId": "trick071",
+      "childId": "trick039"
+    },
+    {
+      "parentId": "trick072",
+      "childId": "trick040"
+    },
+    {
+      "parentId": "trick072",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick073",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick074",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick075",
+      "childId": "trick059"
+    },
+    {
+      "parentId": "trick075",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick076",
+      "childId": "trick028"
+    },
+    {
+      "parentId": "trick077",
+      "childId": "trick043"
+    },
+    {
+      "parentId": "trick078",
+      "childId": "trick036"
+    },
+    {
+      "parentId": "trick078",
+      "childId": "trick055"
+    },
+    {
+      "parentId": "trick079",
+      "childId": "trick049"
+    },
+    {
+      "parentId": "trick080",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick081",
+      "childId": "trick061"
+    },
+    {
+      "parentId": "trick081",
+      "childId": "trick077"
+    },
+    {
+      "parentId": "trick082",
+      "childId": "trick036"
+    },
+    {
+      "parentId": "trick083",
+      "childId": "trick057"
+    },
+    {
+      "parentId": "trick084",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick084",
+      "childId": "trick061"
+    },
+    {
+      "parentId": "trick085",
+      "childId": "trick033"
+    },
+    {
+      "parentId": "trick086",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick087",
+      "childId": "trick022"
+    },
+    {
+      "parentId": "trick087",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick088",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick089",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick090",
+      "childId": "trick050"
+    },
+    {
+      "parentId": "trick090",
+      "childId": "trick057"
+    },
+    {
+      "parentId": "trick091",
+      "childId": "trick042"
+    },
+    {
+      "parentId": "trick092",
+      "childId": "trick064"
+    },
+    {
+      "parentId": "trick093",
+      "childId": "trick051"
+    },
+    {
+      "parentId": "trick093",
+      "childId": "trick055"
+    },
+    {
+      "parentId": "trick094",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick095",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick096",
+      "childId": "trick064"
+    },
+    {
+      "parentId": "trick096",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick097",
+      "childId": "trick069"
+    },
+    {
+      "parentId": "trick098",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick099",
+      "childId": "trick053"
+    },
+    {
+      "parentId": "trick099",
+      "childId": "trick051"
+    },
+    {
+      "parentId": "trick100",
+      "childId": "trick044"
+    },
+    {
+      "parentId": "trick101",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick102",
+      "childId": "trick090"
+    },
+    {
+      "parentId": "trick102",
+      "childId": "trick085"
+    },
+    {
+      "parentId": "trick103",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick104",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick105",
+      "childId": "trick101"
+    },
+    {
+      "parentId": "trick105",
+      "childId": "trick093"
+    },
+    {
+      "parentId": "trick106",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick107",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick108",
+      "childId": "trick060"
+    },
+    {
+      "parentId": "trick108",
+      "childId": "trick049"
+    },
+    {
+      "parentId": "trick109",
+      "childId": "trick098"
+    },
+    {
+      "parentId": "trick110",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick111",
+      "childId": "trick079"
+    },
+    {
+      "parentId": "trick111",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick112",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick113",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick114",
+      "childId": "trick074"
+    },
+    {
+      "parentId": "trick114",
+      "childId": "trick057"
+    },
+    {
+      "parentId": "trick115",
+      "childId": "trick114"
+    },
+    {
+      "parentId": "trick116",
+      "childId": "trick024"
+    },
+    {
+      "parentId": "trick117",
+      "childId": "trick054"
+    },
+    {
+      "parentId": "trick117",
+      "childId": "trick034"
+    },
+    {
+      "parentId": "trick118",
+      "childId": "trick104"
+    },
+    {
+      "parentId": "trick119",
+      "childId": "trick114"
+    },
+    {
+      "parentId": "trick120",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick120",
+      "childId": "trick113"
+    },
+    {
+      "parentId": "trick121",
+      "childId": "trick111"
+    },
+    {
+      "parentId": "trick122",
+      "childId": "trick056"
+    },
+    {
+      "parentId": "trick123",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick123",
+      "childId": "trick114"
+    },
+    {
+      "parentId": "trick124",
+      "childId": "trick068"
+    },
+    {
+      "parentId": "trick125",
+      "childId": "trick083"
+    },
+    {
+      "parentId": "trick126",
+      "childId": "trick070"
+    },
+    {
+      "parentId": "trick126",
+      "childId": "trick041"
+    },
+    {
+      "parentId": "trick127",
+      "childId": "trick022"
+    },
+    {
+      "parentId": "trick128",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick129",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick129",
+      "childId": "trick123"
+    },
+    {
+      "parentId": "trick130",
+      "childId": "trick060"
+    },
+    {
+      "parentId": "trick131",
+      "childId": "trick072"
+    },
+    {
+      "parentId": "trick132",
+      "childId": "trick072"
+    },
+    {
+      "parentId": "trick132",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick133",
+      "childId": "trick078"
+    },
+    {
+      "parentId": "trick134",
+      "childId": "trick108"
+    },
+    {
+      "parentId": "trick135",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick135",
+      "childId": "trick134"
+    },
+    {
+      "parentId": "trick136",
+      "childId": "trick120"
+    },
+    {
+      "parentId": "trick137",
+      "childId": "trick021"
+    },
+    {
+      "parentId": "trick138",
+      "childId": "trick038"
+    },
+    {
+      "parentId": "trick138",
+      "childId": "trick135"
+    },
+    {
+      "parentId": "trick139",
+      "childId": "trick129"
+    },
+    {
+      "parentId": "trick140",
+      "childId": "trick104"
+    },
+    {
+      "parentId": "trick141",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick141",
+      "childId": "trick109"
+    },
+    {
+      "parentId": "trick142",
+      "childId": "trick140"
+    },
+    {
+      "parentId": "trick143",
+      "childId": "trick066"
+    },
+    {
+      "parentId": "trick144",
+      "childId": "trick080"
+    },
+    {
+      "parentId": "trick144",
+      "childId": "trick033"
+    },
+    {
+      "parentId": "trick145",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick146",
+      "childId": "trick040"
+    },
+    {
+      "parentId": "trick147",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick147",
+      "childId": "trick115"
+    },
+    {
+      "parentId": "trick148",
+      "childId": "trick140"
+    },
+    {
+      "parentId": "trick149",
+      "childId": "trick052"
+    },
+    {
+      "parentId": "trick150",
+      "childId": "trick118"
+    },
+    {
+      "parentId": "trick150",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick151",
+      "childId": "trick081"
+    },
+    {
+      "parentId": "trick152",
+      "childId": "trick088"
+    },
+    {
+      "parentId": "trick153",
+      "childId": "trick110"
+    },
+    {
+      "parentId": "trick153",
+      "childId": "trick054"
+    },
+    {
+      "parentId": "trick154",
+      "childId": "trick082"
+    },
+    {
+      "parentId": "trick155",
+      "childId": "trick085"
+    },
+    {
+      "parentId": "trick156",
+      "childId": "trick072"
+    },
+    {
+      "parentId": "trick156",
+      "childId": "trick013"
+    },
+    {
+      "parentId": "trick157",
+      "childId": "trick085"
+    },
+    {
+      "parentId": "trick158",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick159",
+      "childId": "trick124"
+    },
+    {
+      "parentId": "trick159",
+      "childId": "trick062"
+    },
+    {
+      "parentId": "trick160",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick161",
+      "childId": "trick031"
+    },
+    {
+      "parentId": "trick162",
+      "childId": "trick122"
+    },
+    {
+      "parentId": "trick162",
+      "childId": "trick057"
+    }
+  ]
+}

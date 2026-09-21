@@ -16,6 +16,8 @@ RUN npm run codegen
 RUN npm run build
 
 FROM base AS runner
+# Typst typesets the booklets, see the README
+RUN apk add --no-cache typst
 ARG GITHUB_SHA
 ARG GITHUB_REF
 ENV GITHUB_SHA=${GITHUB_SHA}
@@ -25,4 +27,6 @@ COPY --from=runtime_deps /src/node_modules /app/node_modules
 # the package is ESM, and node decides that from the nearest package.json
 COPY --from=runtime_deps /src/package.json /app/package.json
 COPY --from=builder /src/dist /app
+# the booklet templates, fonts and packages, read at runtime next to the compiled code
+COPY templates /app/templates
 CMD ["node", "--import", "./src/tracing.js", "src/index.js"]

@@ -8,6 +8,7 @@ import { logger } from './services/logger.js'
 import { allowedOrigins } from './helpers/cors.js'
 import { muxWebhookHandler } from './routes/muxWebhook.js'
 import { sitemapHandler } from './routes/sitemap.js'
+import { bookletHandler } from './routes/booklet.js'
 import express from 'express'
 import cors from 'cors'
 import http from 'node:http'
@@ -28,8 +29,9 @@ app.use(cors({
 // parser turns it into an object
 app.post('/webhooks/mux', express.raw({ type: 'application/json' }), muxWebhookHandler)
 
-// Reached through the public site's Firebase Hosting rewrite, not directly
+// Reached through the public site's Firebase Hosting rewrites, not directly
 app.get('/sitemap.xml', sitemapHandler)
+app.get('/booklets/tricks.pdf', bookletHandler)
 
 initApollo(httpServer)
   .then(async middleware => {

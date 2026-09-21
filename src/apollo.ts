@@ -3,10 +3,7 @@ import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHt
 import { ApolloServerPluginCacheControl } from '@apollo/server/plugin/cacheControl'
 import { expressMiddleware, type ExpressContextFunctionArgument } from '@as-integrations/express5'
 import { makeExecutableSchema } from '@graphql-tools/schema'
-import { fromZodError } from 'zod-validation-error'
 import { unwrapResolverError } from '@apollo/server/errors'
-import z from 'zod'
-import { GraphQLError } from 'graphql'
 import type Pino from 'pino'
 import type { Server } from 'node:http'
 
@@ -17,7 +14,7 @@ import sentryPlugin from './plugins/sentry.js'
 import loggingPlugin from './plugins/logging.js'
 import { userFromAuthorizationHeader } from './services/authentication.js'
 import { allowUser } from './services/permissions.js'
-import { UnexpectedError, ValidationError } from './errors.js'
+import { toCustomError } from './helpers/httpErrors.js'
 import { logger } from './services/logger.js'
 import { createDataSources, dataSourceCache } from './store/firestoreDataSource.js'
 
@@ -44,14 +41,7 @@ export async function initApollo (httpServer: Server) {
     logger: logger.child({ name: 'apollo-server' }),
     introspection: true,
     formatError (formattedError, wrappedOriginal) {
-      const error = unwrapResolverError(wrappedOriginal)
-      let err: GraphQLError
-      if (error instanceof GraphQLError) err = error
-      else if (error instanceof z.ZodError) {
-        const formatted = fromZodError(error)
-        err = new ValidationError(formatted.message, { extensions: { issues: error.issues } })
-      } else err = new UnexpectedError(error as Error)
-
+      const err = toCustomError(unwrapResolverError(wrappedOriginal))
       logger.error(err)
       return err
     }

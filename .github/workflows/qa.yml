@@ -17,3 +17,16 @@ jobs:
       - run: npm run codegen
       - run: npm run lint
       - run: npm run typecheck
+
+  booklets:
+    runs-on: ubuntu-latest
+    # The image the API runs in, with the Typst that Alpine packages, so the
+    # templates are checked against what production typesets with
+    container: node:24-alpine
+
+    steps:
+      - run: apk add --no-cache typst
+      - uses: actions/checkout@v6
+      - run: npm ci --prefer-offline
+      - run: npm run codegen
+      - run: npm run booklet:check

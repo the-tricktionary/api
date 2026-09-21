@@ -44,6 +44,24 @@ The service account the API runs as needs `roles/storage.objectAdmin` on the
 bucket, and `roles/iam.serviceAccountTokenCreator` on itself so it can sign
 URLs without a private key.
 
+## Booklets (Typst)
+
+The booklets (`src/routes/booklet.ts`) are typeset by [Typst](https://typst.app),
+from Alpine's package in the image; for local development install Typst and
+put it on the PATH, or point `TYPST_BIN` at it. The template is
+`templates/booklet/main.typ`, it reads everything from a `data.json` that
+`src/services/booklet.ts` assembles. The English labels come from the site's
+`en.json` (fetched from `WEB_URL`, cached for an hour), the translations from
+the `ui-messages` collection like the site's own, and a key neither has is
+printed as is. The fonts in `templates/fonts` are the site's PT Sans, under the
+OFL. The print layout's trick map is laid out by Graphviz (`@viz-js/viz`, its
+WebAssembly build) and handed to the template as an SVG.
+
+`npm run booklet:check` typesets the template against fixture data in every
+layout, the QA workflow runs it in the API's image so a template or Typst
+change fails there first. Set `BOOKLET_CHECK_OUT` to a directory to look at
+the PDFs.
+
 ## Search (Algolia)
 
 Tricks are indexed once per language in `tricktionary_<lang>`, the index

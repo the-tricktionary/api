@@ -103,6 +103,11 @@ export class TrickPrerequisiteDataSource extends FirestoreDataSource<TrickPrereq
   async findManyRequisitesByTrick (trickId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('childId', '==', trickId), options)
   }
+
+  /** Every edge, the collection is small and edges don't record their discipline */
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
 }
 export const trickPrerequisiteDataSource = (cache: KeyValueCache) => new TrickPrerequisiteDataSource(collection<TrickPrereqDoc>('trick-prerequisites'), { logger: logger.child({ name: 'trick-prerequisite-data-source' }), cache })
 
