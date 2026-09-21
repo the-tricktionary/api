@@ -292,12 +292,7 @@ export interface SpeedResultDoc extends DocBase {
   name?: string
   userId: UserDoc['id']
 
-  /**
-   * When the score was recorded. `createdAt` cannot be used: the data source's
-   * converter strips it on write and derives it from the document's own create
-   * time on read, so it is not a stored field and Firestore cannot order by it.
-   * Absent until the backfill in `migrations/speed-recorded-at.ts` has run.
-   */
+  /** When the score was jumped */
   recordedAt?: Timestamp
 
   count: number
@@ -350,11 +345,7 @@ export interface SpeedResultDoc extends DocBase {
   soleAthleteUserId?: UserDoc['id']
   /** Set while the result is in a group and nobody has been assigned yet */
   needsParticipants?: boolean
-  /**
-   * The distinct member ids that competed, sorted and joined with `|`. A set
-   * rather than a running order, so the same four athletes in a different
-   * running order are one constellation.
-   */
+  /** The distinct member ids that competed, sorted and joined with `|` */
   constellationKey?: string
 }
 

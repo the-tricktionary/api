@@ -1,6 +1,7 @@
 /**
- * Backfills `recordedAt` on every speed result, so Firestore has a stored
- * timestamp to order the list by. See the notes on `SpeedResultDoc`.
+ * Backfills `recordedAt` on every speed result. `createdAt` cannot be ordered
+ * by: the data source's converter strips it on write and derives it from the
+ * document's own create time on read, so it is not a stored field.
  *
  * The value comes from the stored `createdAt` where there is one, which is the
  * original jump time on the scores the functions repo imported from v2, and
