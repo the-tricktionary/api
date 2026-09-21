@@ -1,7 +1,6 @@
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { GroupInviteKind, GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import { acceptInvite, claimableMember, existingGroup, existingInvite, groupAndMembership } from '../helpers/groups.js'
-import { findUserByUsernameOrId } from '../helpers/users.js'
 import { groupInviteExpired, groupInviteExpiry } from '../store/schema.js'
 import { joinCodeSchema } from '../validation.js'
 
@@ -20,7 +19,7 @@ export const groupInviteResolvers: Resolvers = {
         throw new ValidationError('An observer does not compete, so they cannot take over an athlete')
       }
 
-      const target = await findUserByUsernameOrId(usernameOrId, dataSources)
+      const target = await dataSources.users.findOneByUsernameOrId(usernameOrId, { ttl: 60 })
       if (!target) {
         throw new NotFoundError(`No user matches ${usernameOrId}`, { extensions: { entity: 'user', id: usernameOrId } })
       }

@@ -11,15 +11,6 @@ import type { GroupInviteDoc, GroupMemberDoc } from '../store/schema.js'
 
 export type Context = Pick<ApolloContext, 'dataSources' | 'user'>
 
-export function byNewest (a: { createdAt: Timestamp }, b: { createdAt: Timestamp }) {
-  return b.createdAt.toMillis() - a.createdAt.toMillis()
-}
-
-export function byMemberOrder (a: GroupMemberDoc, b: GroupMemberDoc) {
-  if (a.observer !== b.observer) return a.observer ? 1 : -1
-  return a.createdAt.toMillis() - b.createdAt.toMillis()
-}
-
 export async function existingGroup (groupId: string, { dataSources }: Pick<Context, 'dataSources'>) {
   const group = await dataSources.groups.findOneById(groupId, { ttl: 60 })
   if (!group) throw new NotFoundError(`Group ${groupId} not found`, { extensions: { entity: 'group', id: groupId } })
@@ -65,13 +56,6 @@ export async function claimableMember (memberId: string, groupId: string, { data
   return member
 }
 
-export async function hasCompeted (memberId: string, dataSources: DataSources) {
-  const [result] = await dataSources.speedResults.findManyByQuery(c => c
-    .where('athleteMemberIds', 'array-contains', memberId)
-    .limit(1))
-  return result != null
-}
-
 export async function assertNotLastAdmin (member: GroupMemberDoc, dataSources: DataSources) {
   if (member.role !== GroupRole.Admin || member.userId == null) return
   const admins = await dataSources.groupMembers.findManyAdminsByGroup(member.groupId)
@@ -85,7 +69,7 @@ export async function assertNotLastAdmin (member: GroupMemberDoc, dataSources: D
 export async function detachMember (member: GroupMemberDoc, { dataSources }: Pick<Context, 'dataSources'>) {
   await assertNotLastAdmin(member, dataSources)
 
-  if (await hasCompeted(member.id, dataSources)) {
+  if (await dataSources.speedResults.existsByAthleteMember(member.id)) {
     if (member.userId == null) {
       throw new CollisionError(
         'That athlete competed in scores the group holds, so they cannot be removed',
@@ -137,7 +121,7 @@ export async function claimChecklist (memberId: string, userId: string, dataSour
 }
 
 export async function claimSpeedResults (memberId: string, userId: string, dataSources: DataSources) {
-  const recorded = await dataSources.speedResults.findManyByQuery(c => c.where('athleteMemberIds', 'array-contains', memberId))
+  const recorded = await dataSources.speedResults.findManyByAthleteMember(memberId)
   if (!recorded.length) return
 
   const collection = dataSources.speedResults.collection

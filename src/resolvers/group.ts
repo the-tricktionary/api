@@ -2,11 +2,9 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 
 import { AuthorizationError, CollisionError } from '../errors.js'
 import { GroupRole } from '../generated/graphql.js'
-import { byMemberOrder, byNewest, existingGroup, groupAndMembership, membershipOf, uniqueJoinCode } from '../helpers/groups.js'
-import { constellationKey } from '../helpers/speedParticipants.js'
-import { groupConstellations } from '../helpers/speedResults.js'
+import { existingGroup, groupAndMembership, membershipOf, uniqueJoinCode } from '../helpers/groups.js'
+import { constellationKey, constellationMemberIds } from '../helpers/speedParticipants.js'
 import { deleteInChunks, firestore } from '../store/firestoreDataSource.js'
-import { groupInviteExpired } from '../store/schema.js'
 import { groupNameSchema, joinCodeSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
@@ -75,8 +73,7 @@ export const groupResolvers: Resolvers = {
       const { group, membership } = await groupAndMembership(groupId, context)
       context.allowUser.group(group, membership).delete.assert()
 
-      const [inUse] = await dataSources.speedResults.findManyByQuery(c => c.where('groupId', '==', group.id).limit(1))
-      if (inUse) {
+      if (await dataSources.speedResults.existsByGroup(group.id)) {
         throw new CollisionError(
           'Speed scores are shared with this group, so it cannot be deleted',
           { extensions: { entity: 'group', id: group.id } }
@@ -85,7 +82,7 @@ export const groupResolvers: Resolvers = {
 
       const [members, invites] = await Promise.all([
         dataSources.groupMembers.findManyByGroup(group.id),
-        dataSources.groupInvites.findManyByQuery(c => c.where('groupId', '==', group.id))
+        dataSources.groupInvites.findManyByGroup(group.id)
       ])
 
       // the completions of a member with an account are their own, and stay
@@ -130,8 +127,7 @@ export const groupResolvers: Resolvers = {
       const membership = await membershipOf(group.id, context)
       context.allowUser.group(group, membership).get.assert()
 
-      const members = await context.dataSources.groupMembers.findManyByGroup(group.id, { ttl: 60 })
-      return members.sort(byMemberOrder)
+      return await context.dataSources.groupMembers.findManyByGroup(group.id, { ttl: 60 })
     },
     async myMembership (group, _, context) {
       return await membershipOf(group.id, context) ?? null
@@ -140,8 +136,7 @@ export const groupResolvers: Resolvers = {
       const membership = await membershipOf(group.id, context)
       if (!context.allowUser.group(group, membership).manageMembers()) return []
 
-      const invites = await context.dataSources.groupInvites.findManyPendingByGroup(group.id)
-      return invites.filter(invite => !groupInviteExpired(invite)).sort(byNewest)
+      return await context.dataSources.groupInvites.findManyPendingByGroup(group.id)
     },
     async joinCode (group, _, context) {
       const membership = await membershipOf(group.id, context)
@@ -164,11 +159,14 @@ export const groupResolvers: Resolvers = {
       const membership = await membershipOf(group.id, context)
       context.allowUser.group(group, membership).get.assert()
 
-      const [results, members] = await Promise.all([
-        context.dataSources.speedResults.findManyByGroup(group.id, { ttl: 60 }),
+      const [constellations, members] = await Promise.all([
+        context.dataSources.speedResults.findConstellationsByGroup(group.id, { ttl: 60 }),
         context.dataSources.groupMembers.findManyByGroup(group.id, { ttl: 60 })
       ])
-      return groupConstellations(results, members.sort(byMemberOrder))
+      return constellations.map(({ key, resultCount }) => {
+        const memberIds = new Set(constellationMemberIds(key))
+        return { key, members: members.filter(member => memberIds.has(member.id)), resultCount }
+      })
     }
   },
 }

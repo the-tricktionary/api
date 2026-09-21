@@ -4,9 +4,6 @@ import { GrantType } from '../generated/graphql.js'
 import { firestore } from '../store/firestoreDataSource.js'
 import { checklistStats } from '../helpers/checklist.js'
 import { membershipOf } from '../helpers/groups.js'
-import { mergeNewest, personalBests } from '../helpers/speedResults.js'
-import { findUserByUsernameOrId } from '../helpers/users.js'
-import { groupInviteExpired } from '../store/schema.js'
 import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
@@ -52,7 +49,7 @@ export const userResolvers: Resolvers = {
       return user ?? null
     },
     async user (_, { usernameOrId }, { dataSources, allowUser }) {
-      const found = await findUserByUsernameOrId(usernameOrId, dataSources)
+      const found = await dataSources.users.findOneByUsernameOrId(usernameOrId, { ttl: 60 })
 
       // private reads the same as missing
       if (!found || !allowUser.user(found).getProfile()) return null
@@ -176,20 +173,12 @@ export const userResolvers: Resolvers = {
     async groupInvites (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getGroupInvites.assert()
 
-      const invites = await dataSources.groupInvites.findManyPendingByUser(user.id, { ttl: 60 })
-      return invites
-        .filter(invite => !groupInviteExpired(invite))
-        .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
+      return await dataSources.groupInvites.findManyPendingByUser(user.id, { ttl: 60 })
     },
     async speedResults (user, { limit, startAfter, eventDefinitionId }, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedResults.assert()
 
-      const feed = { ttl: 60, limit, startAfter, eventDefinitionId }
-      const [competed, unassigned] = await Promise.all([
-        dataSources.speedResults.findManyByAthleteUser(user.id, feed),
-        dataSources.speedResults.findManyUnassignedByUser(user.id, feed)
-      ])
-      return mergeNewest([competed, unassigned], limit)
+      return await dataSources.speedResults.findManyFeedByUser(user.id, { ttl: 60, limit, startAfter, eventDefinitionId })
     },
     async speedResult (parent, { speedResultId }, { dataSources, allowUser, user }) {
       const speedResult = await dataSources.speedResults.findOneById(speedResultId, { ttl: 60 })
@@ -202,8 +191,8 @@ export const userResolvers: Resolvers = {
     async speedPersonalBests (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getSpeedPersonalBests.assert()
 
-      return await personalBests(async eventDefinitionId =>
-        await dataSources.speedResults.findBestByUserAndEvent(user.id, eventDefinitionId, { ttl: 60 }), dataSources)
+      const eventDefinitions = await dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
+      return await dataSources.speedResults.findBestsByUser(user.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
     }
   }
 }

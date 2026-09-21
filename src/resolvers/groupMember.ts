@@ -2,7 +2,7 @@ import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js
 import { GroupRole } from '../generated/graphql.js'
 import { assertNotLastAdmin, detachMember, existingGroup, existingMember, groupAndMembership } from '../helpers/groups.js'
 import { checklistStats } from '../helpers/checklist.js'
-import { personalBests, segmentResultOf } from '../helpers/speedResults.js'
+import { segmentResultOf } from '../helpers/speedResults.js'
 import { checklistAthlete } from '../store/schema.js'
 import { groupAthleteNameSchema, groupMemberInputSchema } from '../validation.js'
 
@@ -95,8 +95,8 @@ export const groupMemberResolvers: Resolvers = {
       const { group, membership } = await groupAndMembership(member.groupId, context)
       context.allowUser.group(group, membership).get.assert()
 
-      return await personalBests(async eventDefinitionId =>
-        await context.dataSources.speedResults.findBestByMemberAndEvent(member.id, eventDefinitionId, { ttl: 60 }), context.dataSources)
+      const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
+      return await context.dataSources.speedResults.findBestsByMember(member.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
     },
     async speedProgression (member, { eventDefinitionId }, context) {
       const { group, membership } = await groupAndMembership(member.groupId, context)
