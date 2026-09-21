@@ -58,13 +58,23 @@ only typeset when nobody asked for that one lately.
 | `lang`       | an enabled language   | `en`    | English fills in for anything not translated |
 | `detailed`   | `1`, `0`              | `0`     | include the descriptions, names are always included |
 | `rulesId`    | a ruleset             | none    | label each trick with its level in that ruleset, ✓ when verified |
-| `layout`     | `pages`, `booklet`    | `pages` | see below |
+| `layout`     | `pages`, `booklet`, `print` | `pages` | see below |
+| `isbn`       | an ISBN-13            | none    | `print` only, shown in the colophon and as a barcode on the back |
+| `printedBy`  | text                  | none    | `print` only, the printer named in the colophon |
 
 `pages` typesets on the full sheet. `booklet` typesets half sheets and lays
 them out two per side in saddle-stitch order: print double-sided, flipping on
 the short edge, fold the stack down the middle and staple. Speed-log pages fill
 the back, and as many more as it takes for the page count to come out at a
 multiple of four.
+
+`print` is for a print shop: half-sheet pages with a 3 mm bleed and a trim
+box, the brand red cover with the logo, a colophon inside it, a trick map
+spread at the back (every trick a dot coloured by type and sized by how many
+tricks build on it, arrows from prerequisites, laid out by Graphviz through
+the vendored `diagraph` package) and the ISBN barcode on the back cover. It
+isn't imposed, print shops do that themselves. The site's form doesn't offer
+it, it is only reached by URL.
 
 The document is typeset by [Typst](https://typst.app), whose pinned release the
 Dockerfile installs into the image (`TYPST_BIN` says where the binary is, for
@@ -75,7 +85,10 @@ Tricktionary level and type, and the labels. English labels come from the
 site's `en.json` (fetched from `WEB_URL`, cached for an hour, with a copy of
 the keys the booklet needs in `booklet.ts` as the fallback), translations from
 the `ui-messages` collection like the site's own. The fonts in
-`templates/fonts` are the site's PT Sans, under the OFL.
+`templates/fonts` are the site's PT Sans, under the OFL. Packages from Typst
+Universe are vendored in `templates/packages` in the layout of Typst's package
+cache, so nothing is downloaded while typesetting; to add or upgrade one, copy
+its release into `preview/<name>/<version>` there.
 
 `npm run booklet:check` typesets the template against fixture data in every
 layout, the QA workflow runs it so a template or Typst change fails there

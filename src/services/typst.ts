@@ -10,6 +10,11 @@ import { fileURLToPath } from 'node:url'
  */
 export const TEMPLATES_DIR = fileURLToPath(new URL('../../templates/', import.meta.url))
 const FONTS_DIR = path.join(TEMPLATES_DIR, 'fonts')
+/**
+ * Packages from Typst Universe, vendored in the layout of Typst's package
+ * cache (`preview/<name>/<version>`) so that nothing is downloaded at runtime
+ */
+const PACKAGES_DIR = path.join(TEMPLATES_DIR, 'packages')
 
 /** A booklet compiles in well under a second, anything near this is broken */
 const COMPILE_TIMEOUT_MS = 30_000
@@ -84,6 +89,7 @@ export async function compileTypst ({ template, data, bin, creationDate }: Compi
         '--root', dir,
         '--ignore-system-fonts',
         '--font-path', FONTS_DIR,
+        '--package-cache-path', PACKAGES_DIR,
         path.join(dir, 'main.typ'),
         '-'
       ], creationDate)

@@ -34,7 +34,16 @@ const cases: BookletOptions[] = []
 for (const layout of LAYOUTS) {
   for (const paper of PAPERS) {
     for (const detailed of [false, true]) {
-      cases.push({ discipline: Discipline.SingleRope, paper, lang: detailed ? 'sv' : 'en', detailed, rulesId: detailed ? 'ijru@5.0.0' : null, layout })
+      cases.push({
+        discipline: Discipline.SingleRope,
+        paper,
+        lang: detailed ? 'sv' : 'en',
+        detailed,
+        rulesId: detailed ? 'ijru@5.0.0' : null,
+        layout,
+        isbn: layout === 'print' && !detailed ? '978-91-8000-000-0' : null,
+        printedBy: layout === 'print' && !detailed ? 'Example Print Shop AB' : null
+      })
     }
   }
 }

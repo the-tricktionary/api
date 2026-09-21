@@ -3939,5 +3939,871 @@
       "sv": "IJRU 5.0.0"
     }
   },
-  "messages": {}
+  "messages": {},
+  "prerequisites": [
+    {
+      "parentId": "trick001",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick002",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick003",
+      "childId": "trick002"
+    },
+    {
+      "parentId": "trick003",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick004",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick005",
+      "childId": "trick002"
+    },
+    {
+      "parentId": "trick006",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick006",
+      "childId": "trick001"
+    },
+    {
+      "parentId": "trick007",
+      "childId": "trick005"
+    },
+    {
+      "parentId": "trick008",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick009",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick009",
+      "childId": "trick005"
+    },
+    {
+      "parentId": "trick010",
+      "childId": "trick004"
+    },
+    {
+      "parentId": "trick011",
+      "childId": "trick009"
+    },
+    {
+      "parentId": "trick012",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick012",
+      "childId": "trick009"
+    },
+    {
+      "parentId": "trick013",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick014",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick015",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick015",
+      "childId": "trick013"
+    },
+    {
+      "parentId": "trick016",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick017",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick018",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick018",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick019",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick020",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick021",
+      "childId": "trick015"
+    },
+    {
+      "parentId": "trick021",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick022",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick023",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick024",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick024",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick025",
+      "childId": "trick010"
+    },
+    {
+      "parentId": "trick026",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick027",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick027",
+      "childId": "trick015"
+    },
+    {
+      "parentId": "trick028",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick029",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick030",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick030",
+      "childId": "trick019"
+    },
+    {
+      "parentId": "trick031",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick032",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick033",
+      "childId": "trick019"
+    },
+    {
+      "parentId": "trick033",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick034",
+      "childId": "trick030"
+    },
+    {
+      "parentId": "trick035",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick036",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick036",
+      "childId": "trick009"
+    },
+    {
+      "parentId": "trick037",
+      "childId": "trick031"
+    },
+    {
+      "parentId": "trick038",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick039",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick039",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick040",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick041",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick042",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick042",
+      "childId": "trick039"
+    },
+    {
+      "parentId": "trick043",
+      "childId": "trick014"
+    },
+    {
+      "parentId": "trick044",
+      "childId": "trick024"
+    },
+    {
+      "parentId": "trick045",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick045",
+      "childId": "trick025"
+    },
+    {
+      "parentId": "trick046",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick047",
+      "childId": "trick004"
+    },
+    {
+      "parentId": "trick048",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick048",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick049",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick050",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick051",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick051",
+      "childId": "trick015"
+    },
+    {
+      "parentId": "trick052",
+      "childId": "trick024"
+    },
+    {
+      "parentId": "trick053",
+      "childId": "trick034"
+    },
+    {
+      "parentId": "trick054",
+      "childId": "trick030"
+    },
+    {
+      "parentId": "trick054",
+      "childId": "trick019"
+    },
+    {
+      "parentId": "trick055",
+      "childId": "trick022"
+    },
+    {
+      "parentId": "trick056",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick057",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick057",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick058",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick059",
+      "childId": "trick052"
+    },
+    {
+      "parentId": "trick060",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick060",
+      "childId": "trick045"
+    },
+    {
+      "parentId": "trick061",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick062",
+      "childId": "trick034"
+    },
+    {
+      "parentId": "trick063",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick063",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick064",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick065",
+      "childId": "trick030"
+    },
+    {
+      "parentId": "trick066",
+      "childId": "trick038"
+    },
+    {
+      "parentId": "trick066",
+      "childId": "trick003"
+    },
+    {
+      "parentId": "trick067",
+      "childId": "trick054"
+    },
+    {
+      "parentId": "trick068",
+      "childId": "trick060"
+    },
+    {
+      "parentId": "trick069",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick069",
+      "childId": "trick007"
+    },
+    {
+      "parentId": "trick070",
+      "childId": "trick052"
+    },
+    {
+      "parentId": "trick071",
+      "childId": "trick039"
+    },
+    {
+      "parentId": "trick072",
+      "childId": "trick040"
+    },
+    {
+      "parentId": "trick072",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick073",
+      "childId": "trick020"
+    },
+    {
+      "parentId": "trick074",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick075",
+      "childId": "trick059"
+    },
+    {
+      "parentId": "trick075",
+      "childId": "trick006"
+    },
+    {
+      "parentId": "trick076",
+      "childId": "trick028"
+    },
+    {
+      "parentId": "trick077",
+      "childId": "trick043"
+    },
+    {
+      "parentId": "trick078",
+      "childId": "trick036"
+    },
+    {
+      "parentId": "trick078",
+      "childId": "trick055"
+    },
+    {
+      "parentId": "trick079",
+      "childId": "trick049"
+    },
+    {
+      "parentId": "trick080",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick081",
+      "childId": "trick061"
+    },
+    {
+      "parentId": "trick081",
+      "childId": "trick077"
+    },
+    {
+      "parentId": "trick082",
+      "childId": "trick036"
+    },
+    {
+      "parentId": "trick083",
+      "childId": "trick057"
+    },
+    {
+      "parentId": "trick084",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick084",
+      "childId": "trick061"
+    },
+    {
+      "parentId": "trick085",
+      "childId": "trick033"
+    },
+    {
+      "parentId": "trick086",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick087",
+      "childId": "trick022"
+    },
+    {
+      "parentId": "trick087",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick088",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick089",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick090",
+      "childId": "trick050"
+    },
+    {
+      "parentId": "trick090",
+      "childId": "trick057"
+    },
+    {
+      "parentId": "trick091",
+      "childId": "trick042"
+    },
+    {
+      "parentId": "trick092",
+      "childId": "trick064"
+    },
+    {
+      "parentId": "trick093",
+      "childId": "trick051"
+    },
+    {
+      "parentId": "trick093",
+      "childId": "trick055"
+    },
+    {
+      "parentId": "trick094",
+      "childId": "trick008"
+    },
+    {
+      "parentId": "trick095",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick096",
+      "childId": "trick064"
+    },
+    {
+      "parentId": "trick096",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick097",
+      "childId": "trick069"
+    },
+    {
+      "parentId": "trick098",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick099",
+      "childId": "trick053"
+    },
+    {
+      "parentId": "trick099",
+      "childId": "trick051"
+    },
+    {
+      "parentId": "trick100",
+      "childId": "trick044"
+    },
+    {
+      "parentId": "trick101",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick102",
+      "childId": "trick090"
+    },
+    {
+      "parentId": "trick102",
+      "childId": "trick085"
+    },
+    {
+      "parentId": "trick103",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick104",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick105",
+      "childId": "trick101"
+    },
+    {
+      "parentId": "trick105",
+      "childId": "trick093"
+    },
+    {
+      "parentId": "trick106",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick107",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick108",
+      "childId": "trick060"
+    },
+    {
+      "parentId": "trick108",
+      "childId": "trick049"
+    },
+    {
+      "parentId": "trick109",
+      "childId": "trick098"
+    },
+    {
+      "parentId": "trick110",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick111",
+      "childId": "trick079"
+    },
+    {
+      "parentId": "trick111",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick112",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick113",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick114",
+      "childId": "trick074"
+    },
+    {
+      "parentId": "trick114",
+      "childId": "trick057"
+    },
+    {
+      "parentId": "trick115",
+      "childId": "trick114"
+    },
+    {
+      "parentId": "trick116",
+      "childId": "trick024"
+    },
+    {
+      "parentId": "trick117",
+      "childId": "trick054"
+    },
+    {
+      "parentId": "trick117",
+      "childId": "trick034"
+    },
+    {
+      "parentId": "trick118",
+      "childId": "trick104"
+    },
+    {
+      "parentId": "trick119",
+      "childId": "trick114"
+    },
+    {
+      "parentId": "trick120",
+      "childId": "trick016"
+    },
+    {
+      "parentId": "trick120",
+      "childId": "trick113"
+    },
+    {
+      "parentId": "trick121",
+      "childId": "trick111"
+    },
+    {
+      "parentId": "trick122",
+      "childId": "trick056"
+    },
+    {
+      "parentId": "trick123",
+      "childId": "trick017"
+    },
+    {
+      "parentId": "trick123",
+      "childId": "trick114"
+    },
+    {
+      "parentId": "trick124",
+      "childId": "trick068"
+    },
+    {
+      "parentId": "trick125",
+      "childId": "trick083"
+    },
+    {
+      "parentId": "trick126",
+      "childId": "trick070"
+    },
+    {
+      "parentId": "trick126",
+      "childId": "trick041"
+    },
+    {
+      "parentId": "trick127",
+      "childId": "trick022"
+    },
+    {
+      "parentId": "trick128",
+      "childId": "trick000"
+    },
+    {
+      "parentId": "trick129",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick129",
+      "childId": "trick123"
+    },
+    {
+      "parentId": "trick130",
+      "childId": "trick060"
+    },
+    {
+      "parentId": "trick131",
+      "childId": "trick072"
+    },
+    {
+      "parentId": "trick132",
+      "childId": "trick072"
+    },
+    {
+      "parentId": "trick132",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick133",
+      "childId": "trick078"
+    },
+    {
+      "parentId": "trick134",
+      "childId": "trick108"
+    },
+    {
+      "parentId": "trick135",
+      "childId": "trick037"
+    },
+    {
+      "parentId": "trick135",
+      "childId": "trick134"
+    },
+    {
+      "parentId": "trick136",
+      "childId": "trick120"
+    },
+    {
+      "parentId": "trick137",
+      "childId": "trick021"
+    },
+    {
+      "parentId": "trick138",
+      "childId": "trick038"
+    },
+    {
+      "parentId": "trick138",
+      "childId": "trick135"
+    },
+    {
+      "parentId": "trick139",
+      "childId": "trick129"
+    },
+    {
+      "parentId": "trick140",
+      "childId": "trick104"
+    },
+    {
+      "parentId": "trick141",
+      "childId": "trick012"
+    },
+    {
+      "parentId": "trick141",
+      "childId": "trick109"
+    },
+    {
+      "parentId": "trick142",
+      "childId": "trick140"
+    },
+    {
+      "parentId": "trick143",
+      "childId": "trick066"
+    },
+    {
+      "parentId": "trick144",
+      "childId": "trick080"
+    },
+    {
+      "parentId": "trick144",
+      "childId": "trick033"
+    },
+    {
+      "parentId": "trick145",
+      "childId": "trick026"
+    },
+    {
+      "parentId": "trick146",
+      "childId": "trick040"
+    },
+    {
+      "parentId": "trick147",
+      "childId": "trick018"
+    },
+    {
+      "parentId": "trick147",
+      "childId": "trick115"
+    },
+    {
+      "parentId": "trick148",
+      "childId": "trick140"
+    },
+    {
+      "parentId": "trick149",
+      "childId": "trick052"
+    },
+    {
+      "parentId": "trick150",
+      "childId": "trick118"
+    },
+    {
+      "parentId": "trick150",
+      "childId": "trick065"
+    },
+    {
+      "parentId": "trick151",
+      "childId": "trick081"
+    },
+    {
+      "parentId": "trick152",
+      "childId": "trick088"
+    },
+    {
+      "parentId": "trick153",
+      "childId": "trick110"
+    },
+    {
+      "parentId": "trick153",
+      "childId": "trick054"
+    },
+    {
+      "parentId": "trick154",
+      "childId": "trick082"
+    },
+    {
+      "parentId": "trick155",
+      "childId": "trick085"
+    },
+    {
+      "parentId": "trick156",
+      "childId": "trick072"
+    },
+    {
+      "parentId": "trick156",
+      "childId": "trick013"
+    },
+    {
+      "parentId": "trick157",
+      "childId": "trick085"
+    },
+    {
+      "parentId": "trick158",
+      "childId": "trick048"
+    },
+    {
+      "parentId": "trick159",
+      "childId": "trick124"
+    },
+    {
+      "parentId": "trick159",
+      "childId": "trick062"
+    },
+    {
+      "parentId": "trick160",
+      "childId": "trick032"
+    },
+    {
+      "parentId": "trick161",
+      "childId": "trick031"
+    },
+    {
+      "parentId": "trick162",
+      "childId": "trick122"
+    },
+    {
+      "parentId": "trick162",
+      "childId": "trick057"
+    }
+  ]
 }

@@ -4,7 +4,7 @@ import { fromZodError } from 'zod-validation-error'
 import { TYPST_BIN, WEB_URL } from '../config.js'
 import { NotFoundError } from '../errors.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug } from '../helpers/disciplines.js'
-import { LAYOUTS, PAPERS, renderBooklet } from '../services/booklet.js'
+import { LAYOUTS, PAPERS, isbnDigits, renderBooklet } from '../services/booklet.js'
 import { logger as baseLogger } from '../services/logger.js'
 import { TypstBusyError } from '../services/typst.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
@@ -20,7 +20,12 @@ const querySchema = z.object({
   lang: langSchema.default('en'),
   detailed: flag,
   rulesId: rulesIdSchema.optional().transform(rulesId => rulesId ?? null),
-  layout: z.enum(LAYOUTS).default('pages')
+  layout: z.enum(LAYOUTS).default('pages'),
+  // the print layout's colophon and barcode
+  isbn: z.string().trim()
+    .refine(isbn => isbnDigits(isbn) != null, 'An ISBN is 13 digits starting with 978 or 979, optionally with dashes, and its check digit has to add up')
+    .optional().transform(isbn => isbn ?? null),
+  printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
 })
 
 /**

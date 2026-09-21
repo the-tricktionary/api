@@ -9,13 +9,13 @@ import { siteEnglishMessages } from './siteMessages.js'
 
 import type Pino from 'pino'
 import type { DataSources } from '../store/firestoreDataSource.js'
-import type { RulesetDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema.js'
+import type { RulesetDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc, TrickPrereqDoc } from '../store/schema.js'
 import type { FlatMessages } from './siteMessages.js'
 
 export const PAPERS = ['a4', 'letter'] as const
 export type Paper = typeof PAPERS[number]
 
-export const LAYOUTS = ['pages', 'booklet'] as const
+export const LAYOUTS = ['pages', 'booklet', 'print'] as const
 export type Layout = typeof LAYOUTS[number]
 
 export interface BookletOptions {
@@ -29,9 +29,14 @@ export interface BookletOptions {
   rulesId: string | null
   /**
    * `pages` typesets on the full sheet, `booklet` on half sheets that are then
-   * laid out two per side for folding down the middle
+   * laid out two per side for folding down the middle, `print` on half sheets
+   * with bleed, a cover and a trick map, for a print shop
    */
   layout: Layout
+  /** The ISBN of the `print` layout, with the dashes it should be shown with */
+  isbn: string | null
+  /** Who prints the `print` layout, named in its colophon */
+  printedBy: string | null
 }
 
 /** Sheet sizes in mm */
@@ -40,11 +45,24 @@ const PAPER_SIZES: Record<Paper, { width: number, height: number }> = {
   letter: { width: 215.9, height: 279.4 }
 }
 
+/** What print shops ask for, in mm */
+const BLEED_MM = 3
+
 const SPEED_PAGES = 4
 /** The height of a speed-log table row in the template, in mm */
 const SPEED_ROW_MM = 6.5
 /** What the speed-log heading and the table's header row take above the rows, in mm */
 const SPEED_HEADING_MM = 26
+
+/** The colours the trick map draws each type in, the brand red for the basics */
+const TRICK_TYPE_COLOURS: Record<TrickType, string> = {
+  [TrickType.Basic]: '#fe3500',
+  [TrickType.Manipulation]: '#1f77b4',
+  [TrickType.Multiple]: '#2ca02c',
+  [TrickType.Power]: '#9467bd',
+  [TrickType.Release]: '#ff7f0e',
+  [TrickType.Impossible]: '#7f7f7f'
+}
 
 /**
  * The booklet's own labels in English, keyed like the site's `en.json`. The
@@ -59,6 +77,11 @@ export const BOOKLET_MESSAGE_DEFAULTS: FlatMessages = {
   'booklet.count': 'Count',
   'booklet.unrated': 'Unrated',
   'booklet.verified': 'Verified level',
+  'booklet.copyright': '© the Tricktionary 2016–{year}',
+  'booklet.isbn': 'ISBN {isbn}',
+  'booklet.printedBy': 'Printed by {printer}, {year}',
+  'booklet.map': 'Trick map',
+  'booklet.mapExplanation': 'An arrow leads from a trick to a trick that builds on it. The more tricks build on one, the bigger its dot.',
   'home.level': 'Level {level}',
   'trick.alternativeNames': 'Alternative names: {names}',
   'trick.level': '{ruleset} Level {level}',
@@ -81,6 +104,8 @@ export interface BookletSources {
   /** The Tricktionary levels and, when a ruleset was asked for, its levels */
   levels: Array<Pick<TrickLevelDoc, 'trickId' | 'rulesId' | 'level' | 'verificationLevel'>>
   ruleset: Pick<RulesetDoc, 'id' | 'names'> | null
+  /** The prerequisite edges between the tricks, `parentId` builds on `childId`. Only loaded for the trick map. */
+  prerequisites: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>
   /** The defaults above, the site's English and the language's translations, later ones winning */
   messages: FlatMessages
 }
@@ -98,12 +123,16 @@ export interface BookletData {
     height: number
     /** mm */
     margin: number
+    /** mm, beyond the trimmed page on every side */
+    bleed: number
     columns: number
     /** pt */
     fontSize: number
   }
   /** The template adds speed-log pages until the page count is a multiple of this */
   padToMultipleOf: number
+  /** How many pages follow the speed log: the trick map and the back cover */
+  trailingPages: number
   speed: { pages: number, rows: number }
   strings: {
     info: string
@@ -114,6 +143,26 @@ export interface BookletData {
     /** The legend for the verified mark, null when no ruleset's levels are shown */
     verified: string | null
   }
+  /** The cover, colophon and back cover of the `print` layout */
+  print: {
+    copyright: string
+    website: string
+    contact: string
+    /** As it should be shown, with dashes */
+    isbn: string | null
+    /** The 13 digits the barcode encodes */
+    isbnDigits: string | null
+    isbnLabel: string | null
+    printedBy: string | null
+  } | null
+  /** The trick map of the `print` layout, null when there are no prerequisites to draw */
+  map: {
+    title: string
+    explanation: string
+    /** Graphviz DOT source */
+    dot: string
+    legend: Array<{ label: string, colour: string }>
+  } | null
   groups: BookletGroup[]
 }
 
@@ -144,14 +193,15 @@ interface LoadContext {
 }
 
 export async function loadBookletSources (options: BookletOptions, { dataSources, logger, webUrl }: LoadContext): Promise<BookletSources> {
-  const { lang, rulesId, discipline } = options
+  const { lang, rulesId, discipline, layout } = options
 
-  const [language, ruleset, tricks, siteMessages, translations] = await Promise.all([
+  const [language, ruleset, tricks, siteMessages, translations, prerequisites] = await Promise.all([
     dataSources.languages.findOneById(lang, { ttl: 3600 }),
     rulesId == null ? null : dataSources.rulesets.findOneById(rulesId, { ttl: 3600 }),
     dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 }),
     siteEnglishMessages({ webUrl, logger }),
-    lang === 'en' ? null : dataSources.uiMessages.findOneById(lang, { ttl: 3600 })
+    lang === 'en' ? null : dataSources.uiMessages.findOneById(lang, { ttl: 3600 }),
+    layout === 'print' ? dataSources.trickPrerequisites.findAll({ ttl: 3600 }) : []
   ])
   if (!language?.enabled) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
   if (rulesId != null && !ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
@@ -173,6 +223,7 @@ export async function loadBookletSources (options: BookletOptions, { dataSources
     localisations: localisations.filter(localisation => localisation != null),
     levels: [...tricktionaryLevels, ...rulesetLevels].filter(level => inDiscipline.has(level.trickId)),
     ruleset: ruleset ?? null,
+    prerequisites: prerequisites.filter(edge => inDiscipline.has(edge.parentId) && inDiscipline.has(edge.childId)),
     messages: {
       ...BOOKLET_MESSAGE_DEFAULTS,
       ...siteMessages,
@@ -198,6 +249,51 @@ function splitLang (tag: string): { lang: string, region: string | null } {
   return { lang, region: region ? region.toUpperCase() : null }
 }
 
+/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
+export function isbnDigits (isbn: string): string | null {
+  const digits = isbn.replace(/[-\s]/g, '')
+  if (!/^97[89]\d{10}$/.test(digits)) return null
+  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
+  return sum % 10 === 0 ? digits : null
+}
+
+/** A DOT string literal */
+function dotString (value: string) {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+interface MapNode {
+  id: string
+  name: string
+  trickType: TrickType
+}
+
+/**
+ * The trick map as Graphviz DOT for the `dot` engine: every trick a dot
+ * coloured by its type and sized by how many tricks build on it, an arrow
+ * from each prerequisite to the trick that builds on it. `dot` ranks the
+ * tricks bottom to top by how far up the prerequisite chain they are.
+ */
+export function trickMapDot (nodes: MapNode[], edges: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>) {
+  const dependents = new Map<string, number>()
+  for (const edge of edges) dependents.set(edge.childId, (dependents.get(edge.childId) ?? 0) + 1)
+
+  const lines = [
+    'digraph tricks {',
+    '  graph [rankdir=BT, ranksep=0.35, nodesep=0.08, splines=true, outputorder=edgesfirst];',
+    '  node [shape=circle, style=filled, fixedsize=true, label="", color="#ffffff00", fontsize=5];',
+    '  edge [color="#999999", arrowsize=0.4, penwidth=0.5];'
+  ]
+  for (const node of nodes) {
+    const width = (0.12 + 0.06 * Math.sqrt(dependents.get(node.id) ?? 0)).toFixed(2)
+    lines.push(`  ${dotString(node.id)} [width=${width}, fillcolor=${dotString(TRICK_TYPE_COLOURS[node.trickType])}, xlabel=${dotString(node.name)}];`)
+  }
+  // the arrow points from the prerequisite to the trick that builds on it
+  for (const edge of edges) lines.push(`  ${dotString(edge.childId)} -> ${dotString(edge.parentId)};`)
+  lines.push('}')
+  return lines.join('\n')
+}
+
 /** Assembles what the template typesets, a pure function of its sources */
 export function bookletData (options: BookletOptions, sources: BookletSources, { now = new Date() }: { now?: Date } = {}): BookletData {
   const { lang, detailed, rulesId, layout, paper } = options
@@ -218,6 +314,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
 
   // levels in numerical order, tricks without one last
   const groups = new Map<string | null, Map<TrickType, BookletTrick[]>>()
+  const mapNodes: MapNode[] = []
   for (const trick of sources.tricks) {
     const level = tricktionaryLevels.get(trick.id) ?? null
     let byType = groups.get(level)
@@ -241,11 +338,12 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     const description = localisedDescription !== '' ? localisedDescription : (en?.description.trim() ?? '')
     const descriptionLang = localisedDescription !== '' ? lang : 'en'
     const alternativeNames = (names?.alternativeNames ?? []).map(name => name.trim()).filter(name => name !== '')
+    const name = (names?.name.trim() ?? '') !== '' ? names!.name.trim() : trick.slug
 
     const rulesetLevel = rulesetLevels.get(trick.id)
 
     tricks.push({
-      name: (names?.name.trim() ?? '') !== '' ? names!.name.trim() : trick.slug,
+      name,
       nameLang,
       alternativeNames: alternativeNames.length > 0 ? t('trick.alternativeNames', { names: listFormat.format(alternativeNames) }) : null,
       description: detailed && description !== '' ? description : null,
@@ -254,6 +352,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         ? { label: t('trick.level', { ruleset: rulesetName, level: rulesetLevel.level }), verified: rulesetLevel.verificationLevel != null }
         : null
     })
+    mapNodes.push({ id: trick.id, name, trickType: trick.trickType })
   }
 
   const typeOrder = Object.values(TrickType).sort((a, b) => collator.compare(t(enumKey('trickType', a)), t(enumKey('trickType', b))))
@@ -264,12 +363,36 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
   })
 
   const sheet = PAPER_SIZES[paper]
-  const page = layout === 'booklet'
+  const page = layout === 'pages'
+    ? { width: sheet.width, height: sheet.height, margin: 18, bleed: 0, columns: 2, fontSize: 10 }
     // half a landscape sheet, so that two fit on one side exactly
-    ? { width: sheet.height / 2, height: sheet.width, margin: 14, columns: 1, fontSize: 10 }
-    : { width: sheet.width, height: sheet.height, margin: 18, columns: 2, fontSize: 10 }
+    : { width: sheet.height / 2, height: sheet.width, margin: 14, bleed: layout === 'print' ? BLEED_MM : 0, columns: 1, fontSize: 10 }
 
   const { lang: baseLang, region } = splitLang(lang)
+  const year = String(now.getFullYear())
+
+  const print = layout === 'print'
+    ? {
+        copyright: t('booklet.copyright', { year }),
+        website: 'the-tricktionary.com',
+        contact: 'contact@the-tricktionary.com',
+        isbn: options.isbn,
+        isbnDigits: options.isbn == null ? null : isbnDigits(options.isbn),
+        isbnLabel: options.isbn == null ? null : t('booklet.isbn', { isbn: options.isbn }),
+        printedBy: options.printedBy == null ? null : t('booklet.printedBy', { printer: options.printedBy, year })
+      }
+    : null
+
+  const map = layout === 'print' && sources.prerequisites.length > 0
+    ? {
+        title: t('booklet.map'),
+        explanation: t('booklet.mapExplanation'),
+        dot: trickMapDot(mapNodes, sources.prerequisites),
+        legend: typeOrder
+          .filter(type => mapNodes.some(node => node.trickType === type))
+          .map(type => ({ label: t(enumKey('trickType', type)), colour: TRICK_TYPE_COLOURS[type] }))
+      }
+    : null
 
   return {
     lang: baseLang,
@@ -277,7 +400,9 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     title: 'the Tricktionary',
     discipline: t(enumKey('discipline', options.discipline)),
     page,
-    padToMultipleOf: layout === 'booklet' ? 4 : 1,
+    padToMultipleOf: layout === 'pages' ? 1 : 4,
+    // the map is a spread, and the back cover is the very last page
+    trailingPages: (map ? 2 : 0) + (print ? 1 : 0),
     speed: {
       pages: SPEED_PAGES,
       rows: Math.floor((page.height - 2 * page.margin - SPEED_HEADING_MM) / SPEED_ROW_MM)
@@ -290,6 +415,8 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
       count: t('booklet.count'),
       verified: rulesId == null ? null : t('booklet.verified')
     },
+    print,
+    map,
     groups: levelOrder.map(level => ({
       title: level === null ? t('booklet.unrated') : t('home.level', { level }),
       types: typeOrder.flatMap(type => {
@@ -308,7 +435,7 @@ export function bookletFilename (options: BookletOptions) {
   const parts = ['tricktionary', disciplineSlug(options.discipline) ?? 'tricks', options.lang, options.paper]
   if (options.detailed) parts.push('detailed')
   if (options.rulesId != null) parts.push(options.rulesId.replace(/[^a-z0-9.-]+/gi, '-'))
-  if (options.layout === 'booklet') parts.push('booklet')
+  if (options.layout !== 'pages') parts.push(options.layout)
   return `${parts.join('-')}.pdf`
 }
 
