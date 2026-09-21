@@ -1,7 +1,7 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { createMarkReducer, filterMarkStream, simpleReducer } from '@ropescore/rulesets'
 import { TimingCueType } from '../generated/graphql.js'
-import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc, TimingTrack } from '../store/schema.js'
+import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc, TimingCue, TimingTrack } from '../store/schema.js'
 
 /** Gaps between steps longer than this many median gaps count as a miss */
 const MISS_THRESHOLD = 1.5
@@ -154,6 +154,28 @@ export function segmentBounds (durationSeconds: number, timingTrack?: TimingTrac
     previous = cue
   }
   return bounds
+}
+
+/**
+ * The same track measured from the go signal instead of from the audio, for a
+ * result counted without playing it. The end cue has nothing left to say, the
+ * start cue only stays when it names the opening stretch, and a switch that
+ * would land before the event started is dropped.
+ */
+export function trackWithoutAudio (track: TimingTrack): TimingTrack {
+  const startCue = track.cues.find(cue => cue.type === TimingCueType.Start)
+  const startOffset = startCue?.offset ?? 0
+  const cues: TimingCue[] = [
+    ...(startCue?.label ? [{ type: TimingCueType.Start, offset: 0, label: startCue.label }] : []),
+    ...track.cues
+      .filter(cue => cue.type === TimingCueType.Switch && cue.offset - startOffset >= 1)
+      .map(cue => ({
+        type: cue.type,
+        offset: cue.offset - startOffset,
+        ...(cue.label ? { label: cue.label } : {})
+      }))
+  ]
+  return { cues: cues.sort((a, b) => a.offset - b.offset) }
 }
 
 /**
