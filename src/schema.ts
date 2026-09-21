@@ -607,7 +607,7 @@ const typeDefs = gql`
     kind: GroupInviteKind!
     role: GroupRole!
     observer: Boolean!
-    """The athlete the group manages that this hands over, if any"""
+    """The athlete the group manages that this hands over, and once accepted, the row the user holds"""
     member: GroupMember
     """The admin who invited. Null on a request, and when they no longer exist."""
     invitedBy: User

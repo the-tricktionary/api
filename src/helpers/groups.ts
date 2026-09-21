@@ -195,7 +195,7 @@ export async function acceptInvite (invite: GroupInviteDoc, memberId: string | n
       })
     }
 
-    tx.update(invites.doc(invite.id), { status: GroupInviteStatus.Accepted })
+    tx.update(invites.doc(invite.id), { status: GroupInviteStatus.Accepted, memberId: claimedId })
   })
 
   // the transaction bypassed the data source cache
