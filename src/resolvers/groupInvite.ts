@@ -1,6 +1,6 @@
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { GroupInviteKind, GroupInviteStatus, GroupRole } from '../generated/graphql.js'
-import { acceptInvite, claimableMember, existingGroup, existingInvite, findUserToInvite, groupAndMembership } from '../helpers/groups.js'
+import { acceptInvite, claimableMember, existingGroup, existingInvite, groupAndMembership } from '../helpers/groups.js'
 import { groupInviteExpired, groupInviteExpiry } from '../store/schema.js'
 import { joinCodeSchema } from '../validation.js'
 
@@ -19,7 +19,7 @@ export const groupInviteResolvers: Resolvers = {
         throw new ValidationError('An observer does not compete, so they cannot take over an athlete')
       }
 
-      const target = await findUserToInvite(usernameOrId, dataSources)
+      const target = await dataSources.users.findOneByUsernameOrId(usernameOrId, { ttl: 60 })
       if (!target) {
         throw new NotFoundError(`No user matches ${usernameOrId}`, { extensions: { entity: 'user', id: usernameOrId } })
       }
@@ -31,8 +31,11 @@ export const groupInviteResolvers: Resolvers = {
       if (alreadyIn) {
         throw new CollisionError('That user is already in the group', { extensions: { entity: 'group', id: group.id } })
       }
-      if (alreadyAsked && !groupInviteExpired(alreadyAsked)) {
-        throw new CollisionError('That user already has an invitation or a request waiting', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
+      if (alreadyAsked) {
+        if (!groupInviteExpired(alreadyAsked)) {
+          throw new CollisionError('That user already has an invitation or a request waiting', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
+        }
+        await dataSources.groupInvites.deleteOne(alreadyAsked.id)
       }
 
       if (memberId != null) await claimableMember(memberId, group.id, context)
@@ -97,8 +100,11 @@ export const groupInviteResolvers: Resolvers = {
       if (alreadyIn) {
         throw new CollisionError('You are already in that group', { extensions: { entity: 'group', id: group.id } })
       }
-      if (alreadyAsked && !groupInviteExpired(alreadyAsked)) {
-        throw new CollisionError('You already have an invitation or a request waiting for that group', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
+      if (alreadyAsked) {
+        if (!groupInviteExpired(alreadyAsked)) {
+          throw new CollisionError('You already have an invitation or a request waiting for that group', { extensions: { entity: 'group-invite', id: alreadyAsked.id } })
+        }
+        await dataSources.groupInvites.deleteOne(alreadyAsked.id)
       }
 
       return await (dataSources.groupInvites.createOne({

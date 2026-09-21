@@ -1,4 +1,3 @@
-import { Timestamp } from '@google-cloud/firestore'
 import type { Resolvers } from '../generated/graphql.js'
 import { existingMember, groupAndMembership } from '../helpers/groups.js'
 import type { TrickCompletionDoc, TrickDoc } from '../store/schema.js'
@@ -10,15 +9,15 @@ export const trickCompletionResolvers: Resolvers = {
     async createTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
       allowUser.editTrickCompletions.assert()
       if (!user) throw new AuthorizationError()
-      const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
+      const existing = await dataSources.trickCompletions.findOneByAthleteAndTrick({ userId: user.id }, trickId)
 
-      if (!existing) return await (dataSources.trickCompletions.createOne({ trickId, userId: user.id, createdAt: Timestamp.now() }) as Promise<TrickCompletionDoc>)
+      if (!existing) return await (dataSources.trickCompletions.createOne({ trickId, userId: user.id }) as Promise<TrickCompletionDoc>)
       else return existing
     },
     async deleteTrickCompletion (_, { trickId }, { dataSources, allowUser, user }) {
       allowUser.editTrickCompletions.assert()
       if (!user) throw new AuthorizationError()
-      const existing = (await dataSources.trickCompletions.findManyByQuery(c => c.where('userId', '==', user.id).where('trickId', '==', trickId)))[0]
+      const existing = await dataSources.trickCompletions.findOneByAthleteAndTrick({ userId: user.id }, trickId)
 
       if (existing) {
         await dataSources.trickCompletions.deleteOne(existing.id)

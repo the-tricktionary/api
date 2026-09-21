@@ -7,7 +7,7 @@ import type { EventDefinitionDoc, SpeedMark, SpeedResultDoc } from '../store/sch
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import type { speedMarkSchema, speedParticipantSchema } from '../validation.js'
 import { speedResultCreateSchema, speedResultGroupSchema, speedResultUpdateSchema } from '../validation.js'
-import { analyseMarks, assertValidMarkStream, countSteps, marksOf, segmentBounds } from '../helpers/speedMarks.js'
+import { analysisOf, assertValidMarkStream, countSteps, marksOf, segmentBounds } from '../helpers/speedMarks.js'
 import { existingGroup, existingMember, groupAndMembership, membershipOf } from '../helpers/groups.js'
 import type { DerivedParticipants } from '../helpers/speedParticipants.js'
 import { assertValidParticipants, deriveParticipants, ownParticipants, participantUpdate } from '../helpers/speedParticipants.js'
@@ -273,15 +273,8 @@ export const speedResultResolvers: Resolvers = {
       return marksOf(speedResult).some(mark => mark.schema === 'step')
     },
     async analysis (speedResult, _, context) {
-      const marks = marksOf(speedResult)
-      if (!marks.length) return null
-      const eventDefinition = await eventDefinitionOf(speedResult, context)
-      // The snapshot taken when the result was recorded wins. Falling back to
-      // the event's own cues is only safe for a custom event, whose cues are
-      // stored on the result itself: a known event's track can be edited
-      // later, and that must not rewrite how an old result was segmented.
-      const timing = speedResult.timingTrack ?? (speedResult.eventDefinitionId ? null : eventDefinition.timingTrack)
-      return analyseMarks(marks, eventDefinition.totalDuration, timing)
+      if (!marksOf(speedResult).length) return null
+      return analysisOf(speedResult, await eventDefinitionOf(speedResult, context))
     }
   },
   SpeedParticipant: {

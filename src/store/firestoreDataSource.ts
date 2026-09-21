@@ -3,6 +3,8 @@ import { FirestoreDataSource } from 'apollo-datasource-firestore'
 import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { logger } from '../services/logger.js'
 import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
+import { usernameSchema } from '../validation.js'
+import { groupInviteExpired } from './schema.js'
 
 import type { Discipline } from '../generated/graphql.js'
 import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
@@ -119,6 +121,20 @@ export class UserDataSource extends FirestoreDataSource<UserDoc> {
   async findOneByUsername (username: string, options?: QueryFindArgs) {
     return (await this.findManyByQuery(c => c.where('username', '==', username), options))[0]
   }
+
+  /** Finds a user whether or not their profile is public */
+  async findOneByUsernameOrId (usernameOrId: string, options?: QueryFindArgs): Promise<UserDoc | undefined> {
+    const query = usernameOrId.trim()
+    if (!query) return undefined
+
+    const username = usernameSchema.safeParse(query)
+    const [byId, byUsername] = await Promise.all([
+      this.findOneById(query, options),
+      username.success ? this.findOneByUsername(username.data, options) : undefined
+    ])
+    // the id wins, so a lowercase uid cannot be claimed as somebody's username
+    return byId ?? byUsername
+  }
 }
 export const userDataSource = (cache: KeyValueCache) => new UserDataSource(collection<UserDoc>('users'), { logger: logger.child({ name: 'user-data-source' }), cache })
 
@@ -133,21 +149,39 @@ export class GroupDataSource extends FirestoreDataSource<GroupDoc> {
 }
 export const groupDataSource = (cache: KeyValueCache) => new GroupDataSource(collection<GroupDoc>('groups'), { logger: logger.child({ name: 'group-data-source' }), cache })
 
+function byMemberOrder (a: GroupMemberDoc, b: GroupMemberDoc) {
+  if (a.observer !== b.observer) return a.observer ? 1 : -1
+  return a.createdAt.toMillis() - b.createdAt.toMillis()
+}
+
 export class GroupMemberDataSource extends FirestoreDataSource<GroupMemberDoc> {
+  /** Safe because a data source is made per request, and every write through it clears the memo */
+  private readonly memberships = new Map<string, Promise<GroupMemberDoc | undefined>>()
+
+  forget () {
+    this.memberships.clear()
+  }
+
+  /** Observers last, then oldest first */
   async findManyByGroup (groupId: string, options?: QueryFindArgs) {
-    return await this.findManyByQuery(c => c.where('groupId', '==', groupId), options)
+    return (await this.findManyByQuery(c => c.where('groupId', '==', groupId), options)).sort(byMemberOrder)
   }
 
   async findManyByUser (userId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('userId', '==', userId), options)
   }
 
-  /** Nobody holds two rows in one group, see `respondToGroupInvite` */
   async findOneByGroupAndUser (groupId: string, userId: string, options?: QueryFindArgs) {
-    return (await this.findManyByQuery(c => c
+    const key = `${groupId}:${userId}`
+    const memoised = this.memberships.get(key)
+    if (memoised) return await memoised
+
+    const membership = this.findManyByQuery(c => c
       .where('groupId', '==', groupId)
       .where('userId', '==', userId)
-      .limit(1), options))[0]
+      .limit(1), options).then(members => members[0])
+    this.memberships.set(key, membership)
+    return await membership
   }
 
   async findManyAdminsByGroup (groupId: string, options?: QueryFindArgs) {
@@ -155,28 +189,57 @@ export class GroupMemberDataSource extends FirestoreDataSource<GroupMemberDoc> {
       .where('groupId', '==', groupId)
       .where('role', '==', GroupRole.Admin), options)
   }
+
+  async createOne (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['createOne']>) {
+    this.forget()
+    return await super.createOne(...args)
+  }
+
+  async updateOne (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['updateOne']>) {
+    this.forget()
+    return await super.updateOne(...args)
+  }
+
+  async updateOnePartial (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['updateOnePartial']>) {
+    this.forget()
+    return await super.updateOnePartial(...args)
+  }
+
+  async deleteOne (...args: Parameters<FirestoreDataSource<GroupMemberDoc>['deleteOne']>) {
+    this.forget()
+    return await super.deleteOne(...args)
+  }
 }
 export const groupMemberDataSource = (cache: KeyValueCache) => new GroupMemberDataSource(collection<GroupMemberDoc>('group-members'), { logger: logger.child({ name: 'group-member-data-source' }), cache })
 
-/**
- * Invitations and requests to join. Both lists are small enough to sort in
- * memory, which is also the only way to order them by `createdAt`: the data
- * source's converter derives that from the document's own create time rather
- * than storing a field, so Firestore has nothing to order by.
- */
+function byNewest (a: { createdAt: Timestamp }, b: { createdAt: Timestamp }) {
+  return b.createdAt.toMillis() - a.createdAt.toMillis()
+}
+
+function answerable (invites: readonly GroupInviteDoc[]) {
+  return invites.filter(invite => !groupInviteExpired(invite)).sort(byNewest)
+}
+
 export class GroupInviteDataSource extends FirestoreDataSource<GroupInviteDoc> {
+  /** Only the invitations still open to an answer, newest first */
   async findManyPendingByUser (userId: string, options?: QueryFindArgs) {
-    return await this.findManyByQuery(c => c
+    return answerable(await this.findManyByQuery(c => c
       .where('userId', '==', userId)
-      .where('status', '==', GroupInviteStatus.Pending), options)
+      .where('status', '==', GroupInviteStatus.Pending), options))
   }
 
+  /** Only the invitations still open to an answer, newest first */
   async findManyPendingByGroup (groupId: string, options?: QueryFindArgs) {
-    return await this.findManyByQuery(c => c
+    return answerable(await this.findManyByQuery(c => c
       .where('groupId', '==', groupId)
-      .where('status', '==', GroupInviteStatus.Pending), options)
+      .where('status', '==', GroupInviteStatus.Pending), options))
   }
 
+  async findManyByGroup (groupId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('groupId', '==', groupId), options)
+  }
+
+  /** Expired ones included, a caller needs to see one to clear it */
   async findOnePendingByGroupAndUser (groupId: string, userId: string, options?: QueryFindArgs) {
     return (await this.findManyByQuery(c => c
       .where('groupId', '==', groupId)
@@ -211,32 +274,140 @@ export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompleti
 }
 export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(collection<TrickCompletionDoc>('trick-completions'), { logger: logger.child({ name: 'trick-completion-source' }), cache })
 
+interface SpeedFeedArgs extends FindArgs {
+  limit?: number | null
+  startAfter?: Timestamp | null
+  eventDefinitionId?: string | null
+}
+
+function newestFirst (query: Query<SpeedResultDoc>, { limit, startAfter, eventDefinitionId }: SpeedFeedArgs) {
+  let q = query
+  if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
+  q = q.orderBy('recordedAt', 'desc')
+  if (startAfter) q = q.startAfter(startAfter)
+  if (limit) q = q.limit(limit)
+  return q
+}
+
+function recordedMillis (result: SpeedResultDoc) {
+  return (result.recordedAt ?? result.createdAt).toMillis()
+}
+
+/** The first `limit` of the union of lists that each hold their own newest `limit` results */
+function mergeNewest (lists: ReadonlyArray<readonly SpeedResultDoc[]>, limit?: number | null) {
+  const byId = new Map<string, SpeedResultDoc>()
+  for (const result of lists.flat()) byId.set(result.id, result)
+  const merged = [...byId.values()].sort((a, b) => recordedMillis(b) - recordedMillis(a))
+  return limit ? merged.slice(0, limit) : merged
+}
+
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
-  async findManyByUser (userId: string, { ttl, limit, startAfter, eventDefinitionId }: FindArgs & { limit?: number | null, startAfter?: Timestamp | null, eventDefinitionId?: string | null } = {}) {
+  /** The scores the user competed in, whether or not they entered them */
+  async findManyByAthleteUser (userId: string, { ttl, ...feed }: SpeedFeedArgs = {}) {
+    return await this.findManyByQuery(c => newestFirst(c.where('athleteUserIds', 'array-contains', userId), feed), { ttl })
+  }
+
+  /** The scores the user entered and has not yet said who competed in */
+  async findManyUnassignedByUser (userId: string, { ttl, ...feed }: SpeedFeedArgs = {}) {
+    return await this.findManyByQuery(c => newestFirst(c
+      .where('userId', '==', userId)
+      .where('needsParticipants', '==', true), feed), { ttl })
+  }
+
+  /** The scores on the user's own feed, whoever entered them */
+  async findManyFeedByUser (userId: string, feed: SpeedFeedArgs = {}) {
+    const [competed, unassigned] = await Promise.all([
+      this.findManyByAthleteUser(userId, feed),
+      this.findManyUnassignedByUser(userId, feed)
+    ])
+    return mergeNewest([competed, unassigned], feed.limit)
+  }
+
+  async findManyByGroup (groupId: string, { ttl, constellationKey, ...feed }: SpeedFeedArgs & { constellationKey?: string | null } = {}) {
     return await this.findManyByQuery(c => {
-      let q = c.where('userId', '==', userId)
-      if (eventDefinitionId) q = q.where('eventDefinitionId', '==', eventDefinitionId)
-      q = q.orderBy('recordedAt', 'desc')
-      if (startAfter) q = q.startAfter(startAfter)
-      if (limit) q = q.limit(limit)
-      return q
+      let q = c.where('groupId', '==', groupId)
+      if (constellationKey != null) q = q.where('constellationKey', '==', constellationKey)
+      return newestFirst(q, feed)
     }, { ttl })
   }
 
-  /** The user's highest score in an event */
+  async existsByGroup (groupId: string) {
+    return (await this.findManyByQuery(c => c.where('groupId', '==', groupId).limit(1))).length > 0
+  }
+
+  /** Commonest first, ties by key; a score nobody has been assigned to yet is no constellation */
+  async findConstellationsByGroup (groupId: string, { ttl }: FindArgs = {}) {
+    const results = await this.findManyByGroup(groupId, { ttl })
+
+    const counts = new Map<string, number>()
+    for (const result of results) {
+      if (!result.constellationKey) continue
+      counts.set(result.constellationKey, (counts.get(result.constellationKey) ?? 0) + 1)
+    }
+
+    return [...counts]
+      .sort(([keyA, countA], [keyB, countB]) => countB - countA || keyA.localeCompare(keyB))
+      .map(([key, resultCount]) => ({ key, resultCount }))
+  }
+
+  async findManyByAthleteMember (memberId: string, { ttl }: FindArgs = {}) {
+    return await this.findManyByQuery(c => c.where('athleteMemberIds', 'array-contains', memberId), { ttl })
+  }
+
+  async existsByAthleteMember (memberId: string) {
+    return (await this.findManyByQuery(c => c
+      .where('athleteMemberIds', 'array-contains', memberId)
+      .limit(1))).length > 0
+  }
+
+  async findManyByAthleteMemberAndEvent (memberId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
+    return await this.findManyByQuery(c => newestFirst(c.where('athleteMemberIds', 'array-contains', memberId), { eventDefinitionId }), { ttl })
+  }
+
+  /** The user's highest score in an event among the ones they competed whole */
   async findBestByUserAndEvent (userId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
     return (await this.findManyByQuery(c => c
-      .where('userId', '==', userId)
+      .where('wholeScoreUserId', '==', userId)
       .where('eventDefinitionId', '==', eventDefinitionId)
       .orderBy('count', 'desc')
       .limit(1), { ttl }))[0]
   }
+
+  /** The member's highest score in an event among the group's scores they competed whole */
+  async findBestByMemberAndEvent (memberId: string, eventDefinitionId: string, { ttl }: FindArgs = {}) {
+    return (await this.findManyByQuery(c => c
+      .where('wholeScoreMemberId', '==', memberId)
+      .where('eventDefinitionId', '==', eventDefinitionId)
+      .orderBy('count', 'desc')
+      .limit(1), { ttl }))[0]
+  }
+
+  async findBestsByUser (userId: string, eventDefinitionIds: readonly string[], { ttl }: FindArgs = {}) {
+    const bests = await Promise.all(eventDefinitionIds.map(async eventDefinitionId =>
+      await this.findBestByUserAndEvent(userId, eventDefinitionId, { ttl })))
+    return bests.filter(result => result != null)
+  }
+
+  async findBestsByMember (memberId: string, eventDefinitionIds: readonly string[], { ttl }: FindArgs = {}) {
+    const bests = await Promise.all(eventDefinitionIds.map(async eventDefinitionId =>
+      await this.findBestByMemberAndEvent(memberId, eventDefinitionId, { ttl })))
+    return bests.filter(result => result != null)
+  }
 }
 export const speedResultDataSource = (cache: KeyValueCache) => new SpeedResultDataSource(collection<SpeedResultDoc>('speed-results'), { logger: logger.child({ name: 'speed-result-data-source' }), cache })
+
+/** Shortest first, then by name */
+function byEventOrder (a: EventDefinitionDoc, b: EventDefinitionDoc) {
+  return a.totalDuration - b.totalDuration || a.name.localeCompare(b.name)
+}
 
 export class EventDefinitionDataSource extends FirestoreDataSource<EventDefinitionDoc> {
   async findOneByLookupCode (lookupCode: string, { ttl }: FindArgs = {}) {
     return (await this.findManyByQuery(c => c.where('lookupCode', '==', lookupCode), { ttl }))[0]
+  }
+
+  async findAllOrdered ({ ttl }: FindArgs = {}) {
+    return (await this.findManyByQuery(c => c, { ttl })).sort(byEventOrder)
   }
 }
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(collection<EventDefinitionDoc>('event-definitions'), { logger: logger.child({ name: 'event-definition-data-source' }), cache })

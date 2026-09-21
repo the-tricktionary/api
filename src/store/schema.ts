@@ -217,16 +217,13 @@ export interface GroupMemberDoc extends DocBase {
   groupId: GroupDoc['id']
   /** Absent for an athlete the group manages, set when an invite claims the row */
   userId?: UserDoc['id']
-  /** Used while there is no user behind the row */
   name?: string
-  /** Only consulted once `userId` is set */
   role: GroupRole
-  /** In the group to watch rather than to compete, never true without a `userId` */
+  /** Left out of the group's checklist and speed scores, never true without a `userId` */
   observer: boolean
 }
 export function isGroupMember (t: any): t is GroupMemberDoc { return t?.collection === 'group-members' }
 
-/** Both an admin's invitation and a person's request to join, told apart by `kind` */
 export interface GroupInviteDoc extends DocBase {
   readonly collection: 'group-invites'
   groupId: GroupDoc['id']
@@ -234,7 +231,6 @@ export interface GroupInviteDoc extends DocBase {
   kind: GroupInviteKind
   role: GroupRole
   observer: boolean
-  /** The athlete row this hands over, if any */
   memberId?: GroupMemberDoc['id']
   /** The admin who invited, absent on a request to join */
   invitedBy?: UserDoc['id']
@@ -261,7 +257,6 @@ export interface TrickCompletionDoc extends DocBase {
   userId?: UserDoc['id']
   memberId?: GroupMemberDoc['id']
   trickId: TrickDoc['id']
-  /** The group admin who ticked it off, absent when the athlete did it themselves */
   recordedBy?: UserDoc['id']
 }
 

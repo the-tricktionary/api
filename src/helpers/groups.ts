@@ -3,23 +3,13 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { CollisionError, NotFoundError, UnexpectedError, ValidationError } from '../errors.js'
 import { GroupInviteStatus, GroupRole } from '../generated/graphql.js'
 import { generateJoinCode } from './joinCode.js'
-import { firestore, writeInChunks } from '../store/firestoreDataSource.js'
-import { usernameSchema } from '../validation.js'
+import { deleteInChunks, firestore, writeInChunks } from '../store/firestoreDataSource.js'
 
 import type { ApolloContext } from '../apollo.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
 import type { GroupInviteDoc, GroupMemberDoc } from '../store/schema.js'
 
 export type Context = Pick<ApolloContext, 'dataSources' | 'user'>
-
-export function byNewest (a: { createdAt: Timestamp }, b: { createdAt: Timestamp }) {
-  return b.createdAt.toMillis() - a.createdAt.toMillis()
-}
-
-export function byMemberOrder (a: GroupMemberDoc, b: GroupMemberDoc) {
-  if (a.observer !== b.observer) return a.observer ? 1 : -1
-  return a.createdAt.toMillis() - b.createdAt.toMillis()
-}
 
 export async function existingGroup (groupId: string, { dataSources }: Pick<Context, 'dataSources'>) {
   const group = await dataSources.groups.findOneById(groupId, { ttl: 60 })
@@ -55,21 +45,6 @@ export async function reloadInvite (inviteId: string, { dataSources }: Pick<Cont
   return await existingInvite(inviteId, { dataSources })
 }
 
-/** Unlike `Query.user`, finds a user whether or not their profile is public */
-export async function findUserToInvite (usernameOrId: string, dataSources: DataSources) {
-  const query = usernameOrId.trim()
-  if (!query) return undefined
-
-  const username = usernameSchema.safeParse(query)
-  const [byId, byUsername] = await Promise.all([
-    dataSources.users.findOneById(query, { ttl: 60 }),
-    username.success ? dataSources.users.findOneByUsername(username.data, { ttl: 60 }) : undefined
-  ])
-  // the id wins, so a lowercase uid cannot be claimed as somebody's username
-  return byId ?? byUsername
-}
-
-/** An athlete row an invite may hand over: in this group, and not already somebody's */
 export async function claimableMember (memberId: string, groupId: string, { dataSources }: Pick<Context, 'dataSources'>) {
   const member = await existingMember(memberId, { dataSources })
   if (member.groupId !== groupId) {
@@ -79,14 +54,6 @@ export async function claimableMember (memberId: string, groupId: string, { data
     throw new CollisionError('That athlete already has an account of their own', { extensions: { entity: 'group-member', id: memberId } })
   }
   return member
-}
-
-/** `athleteMemberIds` arrives with the group speed work, so this matches nothing yet */
-export async function hasCompeted (memberId: string, dataSources: DataSources) {
-  const [result] = await dataSources.speedResults.findManyByQuery(c => c
-    .where('athleteMemberIds', 'array-contains', memberId)
-    .limit(1))
-  return result != null
 }
 
 export async function assertNotLastAdmin (member: GroupMemberDoc, dataSources: DataSources) {
@@ -102,7 +69,7 @@ export async function assertNotLastAdmin (member: GroupMemberDoc, dataSources: D
 export async function detachMember (member: GroupMemberDoc, { dataSources }: Pick<Context, 'dataSources'>) {
   await assertNotLastAdmin(member, dataSources)
 
-  if (await hasCompeted(member.id, dataSources)) {
+  if (await dataSources.speedResults.existsByAthleteMember(member.id)) {
     if (member.userId == null) {
       throw new CollisionError(
         'That athlete competed in scores the group holds, so they cannot be removed',
@@ -119,6 +86,14 @@ export async function detachMember (member: GroupMemberDoc, { dataSources }: Pic
       role: GroupRole.Member,
       observer: false
     }) as Promise<GroupMemberDoc>)
+  }
+
+  if (member.userId == null) {
+    const recorded = await dataSources.trickCompletions.findManyByMember(member.id)
+    await deleteInChunks(recorded.map(completion => dataSources.trickCompletions.collection.doc(completion.id)))
+    await Promise.all(recorded.map(async completion => {
+      await dataSources.trickCompletions.deleteFromCacheById(completion.id)
+    }))
   }
 
   await dataSources.groupMembers.deleteOne(member.id)
@@ -146,7 +121,7 @@ export async function claimChecklist (memberId: string, userId: string, dataSour
 }
 
 export async function claimSpeedResults (memberId: string, userId: string, dataSources: DataSources) {
-  const recorded = await dataSources.speedResults.findManyByQuery(c => c.where('athleteMemberIds', 'array-contains', memberId))
+  const recorded = await dataSources.speedResults.findManyByAthleteMember(memberId)
   if (!recorded.length) return
 
   const collection = dataSources.speedResults.collection
@@ -204,12 +179,13 @@ export async function acceptInvite (invite: GroupInviteDoc, memberId: string | n
       })
     }
 
-    tx.update(invites.doc(invite.id), { status: GroupInviteStatus.Accepted })
+    tx.update(invites.doc(invite.id), { status: GroupInviteStatus.Accepted, memberId: claimedId })
   })
 
   // the transaction bypassed the data source cache
   if (claimedId) {
     await dataSources.groupMembers.deleteFromCacheById(claimedId)
+    dataSources.groupMembers.forget()
     await claimChecklist(claimedId, invite.userId, dataSources)
     await claimSpeedResults(claimedId, invite.userId, dataSources)
   }

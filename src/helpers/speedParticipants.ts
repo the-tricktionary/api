@@ -12,6 +12,19 @@ function wholeResult (participants: readonly SpeedParticipant[]) {
   return participants.length === 1 && participants[0].segmentIndex == null
 }
 
+/** The set of athletes on a score: distinct member ids, sorted */
+export function constellationOf (memberIds: readonly string[]) {
+  return [...new Set(memberIds)].sort((a, b) => a.localeCompare(b))
+}
+
+export function constellationKey (memberIds: readonly string[]) {
+  return constellationOf(memberIds).join('|')
+}
+
+export function constellationMemberIds (key: string) {
+  return key ? key.split('|') : []
+}
+
 export function assertValidParticipants (
   participants: readonly SpeedParticipant[],
   members: Map<string, GroupMemberDoc>,
@@ -63,7 +76,7 @@ export function deriveParticipants (
   participants: readonly SpeedParticipant[],
   members: Map<string, GroupMemberDoc>
 ): DerivedParticipants {
-  const memberIds = [...new Set(participants.map(participant => participant.memberId))].sort((a, b) => a.localeCompare(b))
+  const memberIds = constellationOf(participants.map(participant => participant.memberId))
   const userOf = (memberId: string) => members.get(memberId)?.userId
   const whole = wholeResult(participants) ? participants[0].memberId : undefined
 
@@ -81,7 +94,7 @@ export function deriveParticipants (
     athleteUserIds: memberIds.map(userOf).filter(userId => userId != null),
     ...(whole != null && userOf(whole) != null ? { wholeScoreUserId: userOf(whole) } : {}),
     needsParticipants: participants.length === 0,
-    constellationKey: memberIds.join('|')
+    constellationKey: constellationKey(memberIds)
   }
 }
 

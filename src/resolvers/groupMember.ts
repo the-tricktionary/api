@@ -1,7 +1,8 @@
-import { AuthorizationError, ValidationError } from '../errors.js'
+import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { GroupRole } from '../generated/graphql.js'
 import { assertNotLastAdmin, detachMember, existingGroup, existingMember, groupAndMembership } from '../helpers/groups.js'
 import { checklistStats } from '../helpers/checklist.js'
+import { segmentResultOf } from '../helpers/speedResults.js'
 import { checklistAthlete } from '../store/schema.js'
 import { groupAthleteNameSchema, groupMemberInputSchema } from '../validation.js'
 
@@ -89,6 +90,23 @@ export const groupMemberResolvers: Resolvers = {
 
       const completions = await context.dataSources.trickCompletions.findManyByAthlete(checklistAthlete(member), { ttl: 60 })
       return await checklistStats(completions, context.dataSources)
+    },
+    async speedPersonalBests (member, _, context) {
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
+      return await context.dataSources.speedResults.findBestsByMember(member.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
+    },
+    async speedProgression (member, { eventDefinitionId }, context) {
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      const eventDefinition = await context.dataSources.eventDefinitions.findOneById(eventDefinitionId, { ttl: 3600 })
+      if (!eventDefinition) throw new NotFoundError(`Event definition ${eventDefinitionId} not found`, { extensions: { entity: 'event-definition', id: eventDefinitionId } })
+
+      const results = await context.dataSources.speedResults.findManyByAthleteMemberAndEvent(member.id, eventDefinition.id, { ttl: 60 })
+      return results.map(result => segmentResultOf(result, member.id, eventDefinition))
     }
   },
 }

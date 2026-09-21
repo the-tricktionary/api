@@ -30,6 +30,8 @@ generates:
         GroupMember: ../store/schema.js#GroupMemberDoc
         GroupInvite: ../store/schema.js#GroupInviteDoc
         UiMessageEntry: ../helpers/uiMessages.js#UiMessageEntry as UiMessageEntryModel
+        SpeedSegmentResult: ../helpers/speedResults.js#SpeedSegmentResult as SpeedSegmentResultModel
+        GroupConstellation: ../helpers/speedResults.js#GroupConstellation as GroupConstellationModel
     plugins:
       - typescript
       - typescript-resolvers
