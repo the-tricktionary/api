@@ -107,6 +107,16 @@ export const groupMemberResolvers: Resolvers = {
       const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
       return await context.dataSources.speedResults.findBestsByMember(member.id, eventDefinitions.map(eventDefinition => eventDefinition.id), { ttl: 60 })
     },
+    async speedBests (member, _, context) {
+      const { group, membership } = await groupAndMembership(member.groupId, context)
+      context.allowUser.group(group, membership).get.assert()
+
+      const eventDefinitions = await context.dataSources.eventDefinitions.findAllOrdered({ ttl: 3600 })
+      // an athlete with an account is ranked on everything they competed in, not just this group's scores
+      return member.userId != null
+        ? await context.dataSources.speedResults.findBestsByAthleteUser(member.userId, eventDefinitions, { ttl: 60 })
+        : await context.dataSources.speedResults.findBestsByAthleteMember(member.id, eventDefinitions, { ttl: 60 })
+    },
     async speedProgression (member, { eventDefinitionId }, context) {
       const { group, membership } = await groupAndMembership(member.groupId, context)
       context.allowUser.group(group, membership).get.assert()

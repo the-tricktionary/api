@@ -464,7 +464,15 @@ const typeDefs = gql`
     custom events are left out. Visible to the user themselves, and to
     everyone on a public profile that shows its speed scores.
     """
-    speedPersonalBests: [SpeedResult!]!
+    speedPersonalBests: [SpeedResult!]! @deprecated(reason: "Use speedBests")
+    """
+    The user's best in each predefined event they have a score in, in the
+    order the events are listed. Every score they competed in counts, however
+    it was entered and whoever counted it, and custom events are left out.
+    Visible to the user themselves, and to everyone on a public profile that
+    shows its speed scores.
+    """
+    speedBests: [SpeedPersonalBest!]!
 
     # store fcm tokens in db? don't expose if so
 
@@ -592,7 +600,14 @@ const typeDefs = gql`
     scores, counting only the ones they competed whole. Works for athletes
     with no account, who have no personal bests of their own.
     """
-    speedPersonalBests: [SpeedResult!]!
+    speedPersonalBests: [SpeedResult!]! @deprecated(reason: "Use speedBests")
+    """
+    This athlete's best in each predefined event they have a score in. An
+    athlete with an account gets their own bests, across every group they are
+    in and their unshared scores alike; one the group manages gets the bests
+    among the scores that name them.
+    """
+    speedBests: [SpeedPersonalBest!]!
     """
     This athlete's scores in one event, newest first, whether they competed
     the whole event or a single leg of it. A leg reports the count and pace of
@@ -611,6 +626,18 @@ const typeDefs = gql`
     count: Int!
     """Null for a result entered as a plain count"""
     stepsPerSecond: Float
+  }
+
+  """An athlete's best in one event"""
+  type SpeedPersonalBest {
+    eventDefinition: EventDefinition!
+    """The highest total the athlete was part of, whether they jumped the whole event or one leg of it"""
+    total: SpeedResult!
+    """
+    The athlete's best own leg, by its count. Null when the athlete never jumped
+    a leg of this event, since their own showing is then the total.
+    """
+    ownSegment: SpeedSegmentResult
   }
 
   """An invitation from a group, or a request to join one, told apart by \`kind\`"""
