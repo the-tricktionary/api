@@ -67,6 +67,8 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     createLanguage: isSuperAdmin,
     setLanguageEnabled: isSuperAdmin,
 
+    manageNotices: isSuperAdmin,
+
     createRuleset: isSuperAdmin,
     editRuleset: isSuperAdmin,
     setPrimaryRuleset: isSuperAdmin,

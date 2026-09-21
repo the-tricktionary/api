@@ -29,7 +29,9 @@ generates:
         Group: ../store/schema.js#GroupDoc
         GroupMember: ../store/schema.js#GroupMemberDoc
         GroupInvite: ../store/schema.js#GroupInviteDoc
+        Notice: ../store/schema.js#NoticeDoc
         UiMessageEntry: ../helpers/uiMessages.js#UiMessageEntry as UiMessageEntryModel
+        NoticeText: ../helpers/notices.js#NoticeTextModel
         SpeedSegmentResult: ../helpers/speedResults.js#SpeedSegmentResult as SpeedSegmentResultModel
         SpeedPersonalBest: ../helpers/speedResults.js#SpeedPersonalBest as SpeedPersonalBestModel
         GroupConstellation: ../helpers/speedResults.js#GroupConstellation as GroupConstellationModel
