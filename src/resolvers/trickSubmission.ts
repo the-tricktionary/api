@@ -1,4 +1,5 @@
-import { FieldValue, GrpcStatus, Timestamp } from '@google-cloud/firestore'
+import { FieldValue, Timestamp } from '@google-cloud/firestore'
+import { GrpcStatus } from 'firebase-admin/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { TrickSubmissionStatus, VideoType } from '../generated/graphql.js'
 import { createTrickWithLocalisation, submissionAttribution, submitterProfile } from '../helpers/tricks.js'
