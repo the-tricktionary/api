@@ -226,12 +226,5 @@ export const trickSubmissionResolvers: Resolvers = {
       if (submission.trickId == null) return null
       return await dataSources.tricks.findOneById(submission.trickId, { ttl: 3600 }) ?? null
     }
-  },
-  User: {
-    async trickSubmissions (user, _, { dataSources, allowUser }) {
-      if (!allowUser.user(user).getTrickSubmissions()) return []
-
-      return await dataSources.trickSubmissions.findManyByUser(user.id)
-    }
   }
 }

@@ -170,6 +170,11 @@ export const userResolvers: Resolvers = {
       const completions = await dataSources.trickCompletions.findManyByUser(user.id, { ttl: 60 })
       return await checklistStats(completions, dataSources)
     },
+    async trickSubmissions (user, _, { dataSources, allowUser }) {
+      allowUser.user(user).getTrickSubmissions.assert()
+
+      return await dataSources.trickSubmissions.findManyByUser(user.id)
+    },
     async groups (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getGroups.assert()
 

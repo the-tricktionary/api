@@ -617,10 +617,7 @@ const typeDefs = gql`
     """Only visible to the user themselves and to super admins, empty for everyone else"""
     grants: [Grant!]! @cacheControl(maxAge: 0, scope: PRIVATE)
 
-    """
-    The tricks the user has submitted, newest first. Only visible to the user
-    themselves and to trick editors, empty for everyone else.
-    """
+    """The tricks the user has submitted, newest first. Only the user themselves and trick editors may read it."""
     trickSubmissions: [TrickSubmission!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
