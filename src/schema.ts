@@ -465,7 +465,10 @@ const typeDefs = gql`
   }
 
   enum VideoType {
+    """An edited clip, the trick at full speed followed by the same run slowed down"""
     SlowMo
+    """One run of the trick at natural speed, the player makes the slow motion"""
+    FullSpeed
     Explainer
   }
 

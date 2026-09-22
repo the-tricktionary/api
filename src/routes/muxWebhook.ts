@@ -136,8 +136,8 @@ async function addAssetToSubmission (submissionId: TrickSubmissionDoc['id'], upl
 
   const video: MuxVideo = {
     ...videoOfAsset(asset),
-    // a stand-in, the editor picks the real type when they accept the submission
-    type: VideoType.SlowMo,
+    // submitters upload one run at natural speed, the editor can still pick another type when they accept
+    type: VideoType.FullSpeed,
     attribution: submissionAttribution(submission)
   }
 

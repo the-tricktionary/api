@@ -109,7 +109,7 @@ export const trickSubmissionResolvers: Resolvers = {
       const upload = await createVideoUpload({
         owner: { submissionId },
         userId: user.id,
-        type: VideoType.SlowMo,
+        type: VideoType.FullSpeed,
         origin: req.get('origin')
       }, { dataSources })
 
