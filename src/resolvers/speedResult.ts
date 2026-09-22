@@ -329,9 +329,6 @@ export const speedResultResolvers: Resolvers = {
     marks (speedResult) {
       return marksOf(speedResult)
     },
-    timingTrack (speedResult) {
-      return speedResult.timingTrack ?? null
-    },
     counted (speedResult) {
       // Scanning the stream the document already carries, rather than running
       // the analysis, so a list of results stays cheap. A stream with no step
@@ -347,15 +344,9 @@ export const speedResultResolvers: Resolvers = {
     },
     async segments (speedResult, _, context) {
       return segmentsOf(speedResult, await eventDefinitionOf(speedResult, context))
-    },
-    segmentCounts (speedResult) {
-      return speedResult.segmentCounts ?? null
     }
   },
   SpeedParticipant: {
-    segmentIndex (participant) {
-      return participant.segmentIndex ?? null
-    },
     async member (participant, _, { dataSources }) {
       return await existingMember(participant.memberId, { dataSources })
     }

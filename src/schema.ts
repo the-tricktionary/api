@@ -99,6 +99,11 @@ const typeDefs = gql`
     uiMessages (lang: String!): JSONObject! @cacheControl(maxAge: 3600)
     """Every translated interface message of a language, with who last set it"""
     uiMessageEntries (lang: String!): [UiMessageEntry!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+
+    """The notices live right now, scheduled ones only inside their window"""
+    notices: [Notice!]! @cacheControl(maxAge: 60)
+    """Every notice, live or not. Super admins only."""
+    allNotices: [Notice!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
   type Mutation {
@@ -171,6 +176,11 @@ const typeDefs = gql`
     alone. English is the site's source language and cannot be set here.
     """
     setUiMessages (lang: String!, entries: [UiMessageInput!]!): [UiMessageEntry!]!
+
+    # Notices
+    createNotice (data: NoticeInput!): Notice!
+    updateNotice (noticeId: ID!, data: NoticeInput!): Notice!
+    deleteNotice (noticeId: ID!): Notice!
 
     # Groups
     createGroup (name: String!): Group!
@@ -332,6 +342,54 @@ const typeDefs = gql`
   type LocalisedString {
     lang: String!
     value: String!
+  }
+
+  """A message shown on the public site's home page"""
+  type Notice @cacheControl(maxAge: 60) {
+    id: ID!
+    """Shown from this moment, straight away when absent"""
+    from: Timestamp
+    """Shown until this moment, indefinitely when absent"""
+    until: Timestamp
+    """
+    The text in this language, falling back to the language's primary subtag
+    and then to English, which every notice has
+    """
+    text (lang: String): NoticeText!
+    """Every language the notice has a text in"""
+    texts: [NoticeText!]!
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+    """Null when the user who last saved the notice no longer exists"""
+    updatedBy: User
+  }
+
+  type NoticeText @cacheControl(maxAge: 60) {
+    lang: String!
+    body: String!
+    links: [NoticeLink!]!
+  }
+
+  type NoticeLink @cacheControl(maxAge: 60) {
+    label: String!
+    """An absolute http(s) URL, or a path on the public site starting with /"""
+    url: String!
+  }
+
+  input NoticeInput {
+    from: Timestamp
+    until: Timestamp
+    """The link targets; each language's text carries one label per URL, in this order"""
+    linkUrls: [String!]!
+    """Must include English. A language listed here needs a body and every link label."""
+    texts: [NoticeTextInput!]!
+  }
+
+  input NoticeTextInput {
+    lang: String!
+    body: String!
+    """One label per entry of linkUrls, in the same order"""
+    linkLabels: [String!]!
   }
 
   input LocalisedStringInput {

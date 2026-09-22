@@ -291,6 +291,36 @@ export const eventDefinitionUpdateSchema = z.object({
   timingTrack: timingTrackInputSchema.nullish()
 })
 
+// Notices
+
+const noticeUrlSchema = z.union([
+  z.string().trim().max(2000).regex(/^\/(?!\/)\S*$/),
+  z.url({ protocol: /^https?$/ }).max(2000)
+], 'A link must be a path such as `/tricks` or an absolute http(s) URL')
+
+const noticeTextSchema = z.object({
+  lang: langSchema,
+  body: z.string().trim().min(1, 'A body is required').max(1000, 'A body can be at most 1000 characters'),
+  linkLabels: z.array(z.string().trim().min(1, 'A label is required').max(100, 'A label can be at most 100 characters'))
+})
+
+export const noticeSchema = z.object({
+  from: z.instanceof(Timestamp).nullish(),
+  until: z.instanceof(Timestamp).nullish(),
+  linkUrls: z.array(noticeUrlSchema).max(5, 'A notice can have at most 5 links'),
+  texts: z.array(noticeTextSchema)
+    .refine(texts => new Set(texts.map(text => text.lang)).size === texts.length, 'Each language may only be specified once')
+    .refine(texts => texts.some(text => text.lang === 'en'), 'An english (`en`) text is required')
+})
+  .refine(
+    notice => notice.from == null || notice.until == null || notice.until.toMillis() > notice.from.toMillis(),
+    'A notice cannot stop showing before it starts'
+  )
+  .refine(
+    notice => notice.texts.every(text => text.linkLabels.length === notice.linkUrls.length),
+    'Every language needs one label per link'
+  )
+
 // Users
 
 /** A profile's handle, e.g. `jane.doe`, lowercased */

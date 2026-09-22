@@ -137,9 +137,6 @@ export const eventDefinitionResolvers: Resolvers = {
       if (eventDefinition.lookupCode) return eventDefinition.lookupCode
       // The seeded competition events use their lookup code as document id
       return lookupCodePattern.test(eventDefinition.id) ? eventDefinition.id : null
-    },
-    timingTrack (eventDefinition) {
-      return eventDefinition.timingTrack ?? null
     }
   }
 }
