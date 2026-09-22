@@ -76,7 +76,8 @@ async function addAssetToTrick (trickId: TrickDoc['id'], upload: TrickVideoUploa
   const video: MuxVideo = {
     ...videoOfAsset(asset),
     type: upload.type,
-    ...(upload.slowMoStart != null ? { slowMoStart: upload.slowMoStart } : {})
+    ...(upload.slowMoStart != null ? { slowMoStart: upload.slowMoStart } : {}),
+    ...(upload.attribution ? { attribution: upload.attribution } : {})
   }
 
   const trick = await dataSources.tricks.findOneById(trickId)

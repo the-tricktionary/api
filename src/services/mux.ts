@@ -9,7 +9,7 @@ import { isAllowedOrigin } from '../helpers/cors.js'
 import type Pino from 'pino'
 import type { VideoType } from '../generated/graphql.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
-import type { TrickDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UserDoc } from '../store/schema.js'
+import type { Attribution, TrickDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UserDoc } from '../store/schema.js'
 
 const [tokenId, tokenSecret] = await Promise.all([getSecret('tricktionary-api-mux-token-id'), getSecret('tricktionary-api-mux-token-secret')])
 
@@ -33,12 +33,14 @@ interface NewVideoUpload {
   userId: UserDoc['id']
   type: VideoType
   slowMoStart?: number | null
+  /** Who to credit the video to once it is ready */
+  attribution?: Attribution
   /** The origin of the request the upload is created for */
   origin?: string
 }
 
 /** Starts a direct upload to Mux, the asset reaches its owner through the webhook */
-export async function createVideoUpload ({ owner, userId, type, slowMoStart, origin }: NewVideoUpload, { dataSources }: { dataSources: DataSources }) {
+export async function createVideoUpload ({ owner, userId, type, slowMoStart, attribution, origin }: NewVideoUpload, { dataSources }: { dataSources: DataSources }) {
   // the signed upload URL only accepts a browser upload from the origin it was
   // created for, so it has to be the caller's own one
   const upload = await mux.video.uploads.create({
@@ -57,7 +59,8 @@ export async function createVideoUpload ({ owner, userId, type, slowMoStart, ori
     userId,
     type,
     status: VideoUploadStatus.Waiting,
-    ...(slowMoStart != null ? { slowMoStart } : {})
+    ...(slowMoStart != null ? { slowMoStart } : {}),
+    ...(attribution ? { attribution } : {})
   }) as Promise<TrickVideoUploadDoc>)
 
   const withUrl: TrickVideoUploadWithUrl = { ...uploadDoc, url: upload.url }

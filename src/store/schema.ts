@@ -72,6 +72,8 @@ export interface TrickVideoUploadDoc extends DocBase {
 
   type: VideoType
   slowMoStart?: number
+  /** Who to credit the video to, copied onto it once the asset is ready */
+  attribution?: Attribution
 
   status: VideoUploadStatus
   /** the Mux asset created from the upload, absent until Mux created it */
