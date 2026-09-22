@@ -7,7 +7,7 @@ import { unwrapResolverError } from '@apollo/server/errors'
 import type Pino from 'pino'
 import type { Server } from 'node:http'
 
-import { GOOGLE_CLOUD_PROJECT, SENTRY_DSN } from './config.js'
+import { SENTRY_DSN } from './config.js'
 import typeDefs from './schema.js'
 import { rootResolver as resolvers } from './resolvers/rootResolver.js'
 import sentryPlugin from './plugins/sentry.js'
@@ -16,6 +16,7 @@ import { userFromAuthorizationHeader } from './services/authentication.js'
 import { allowUser } from './services/permissions.js'
 import { toCustomError } from './helpers/httpErrors.js'
 import { logger } from './services/logger.js'
+import { requestLogger } from './helpers/requestLogger.js'
 import { createDataSources, dataSourceCache } from './store/firestoreDataSource.js'
 
 import type { DataSources } from './store/firestoreDataSource.js'
@@ -53,10 +54,7 @@ export async function initApollo (httpServer: Server) {
     async context (context: ExpressContextFunctionArgument): Promise<ApolloContext> {
       const dataSources = createDataSources()
 
-      const trace = context.req.get('X-Cloud-Trace-Context')
-      const childLogger = logger.child({
-        ...(GOOGLE_CLOUD_PROJECT && trace ? { 'logging.googleapis.com/trace': `project/${GOOGLE_CLOUD_PROJECT}/traces/${trace}` } : {})
-      })
+      const childLogger = requestLogger(context.req)
       const authHeader = context.req.get('authorization')
       const user = await userFromAuthorizationHeader(authHeader, { logger: childLogger, dataSources })
 

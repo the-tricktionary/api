@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node'
 import { WEB_URL } from '../config.js'
 import { firestore } from '../store/firestoreDataSource.js'
-import { logger as baseLogger } from '../services/logger.js'
+import { requestLogger } from '../helpers/requestLogger.js'
 import { disciplineSlug } from '../helpers/disciplines.js'
 
 import type { RequestHandler } from 'express'
@@ -17,8 +17,8 @@ import type { TrickDoc } from '../store/schema.js'
  * being a full collection scan: Hosting's CDN honours it on a rewritten
  * response.
  */
-export const sitemapHandler: RequestHandler = async (_req, res) => {
-  const logger = baseLogger.child({ name: 'sitemap' })
+export const sitemapHandler: RequestHandler = async (req, res) => {
+  const logger = requestLogger(req, { name: 'sitemap' })
 
   let urls: string[]
   try {

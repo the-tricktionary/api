@@ -1,7 +1,7 @@
 import { TYPST_BIN, WEB_URL } from '../config.js'
 import { sendError } from '../helpers/httpErrors.js'
 import { bookletOptionsSchema, renderBooklet } from '../services/booklet.js'
-import { logger as baseLogger } from '../services/logger.js'
+import { requestLogger } from '../helpers/requestLogger.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
 
 import type { RequestHandler } from 'express'
@@ -14,7 +14,7 @@ import type { RequestHandler } from 'express'
  * booklet is only typeset when nobody asked for that one lately.
  */
 export const bookletHandler: RequestHandler = async (req, res) => {
-  const logger = baseLogger.child({ name: 'booklet' })
+  const logger = requestLogger(req, { name: 'booklet' })
 
   const parsed = bookletOptionsSchema.safeParse(req.query)
   if (!parsed.success) {
