@@ -372,7 +372,7 @@ const typeDefs = gql`
 
   type NoticeLink @cacheControl(maxAge: 60) {
     label: String!
-    """An absolute http(s) URL, or a path on the public site starting with /"""
+    """An absolute http(s) URL, a mailto: address, or a path on the public site starting with /"""
     url: String!
   }
 
