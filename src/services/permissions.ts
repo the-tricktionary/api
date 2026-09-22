@@ -55,6 +55,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     createGroup: isAuthenticated,
     requestToJoinGroup: isAuthenticated,
     setUserLang: isAuthenticated,
+    setUserTheme: isAuthenticated,
     editProfile: isAuthenticated,
     createTrickSubmission: isAuthenticated,
     editEventDefinitions,
