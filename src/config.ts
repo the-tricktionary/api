@@ -36,6 +36,8 @@ const envSchema = z.object({
   // The public site, whose sitemap this serves, and whose English interface
   // messages the booklets are labelled with
   WEB_URL: z.url().default('https://the-tricktionary.com'),
+  // The admin interface, which the admin digest links into
+  ADMIN_URL: z.url().default('https://admin.the-tricktionary.com'),
   // The Typst binary that typesets booklets, see the README
   TYPST_BIN: z.string().default('typst')
 })
@@ -50,5 +52,6 @@ export const {
   MUX_UPLOAD_CORS_ORIGIN,
   TIMING_TRACK_BUCKET,
   WEB_URL,
+  ADMIN_URL,
   TYPST_BIN
 } = envSchema.parse(process.env)

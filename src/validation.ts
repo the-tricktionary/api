@@ -368,6 +368,10 @@ export const userNameSchema = z.string().trim()
   .min(1, 'A name is required')
   .max(120, 'A name can be at most 120 characters')
 
+export const notificationOptionsSchema = z.object({
+  adminDigest: z.boolean()
+})
+
 export const profileOptionsSchema = z.object({
   public: z.boolean(),
   checklist: z.boolean(),

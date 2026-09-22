@@ -11,6 +11,41 @@ be `.env` rather than an exported variable if you start the API through an npm
 script: the names contain hyphens, and npm drops variables whose names are not
 valid shell identifiers from the environment it passes on.
 
+## Admin digest (Mailjet)
+
+A weekly email to everyone with a grant, one per person, with only the sections
+their grants give them: pending trick submissions for trick editors and super
+admins, new tricks still missing a translation in a translator's languages or a
+level in a level editor's rulesets, and a note when the site's English
+interface texts (its `en.json`, fetched from `WEB_URL`) have changed, for
+translators and super admins. Someone with nothing new gets nothing, and
+anyone can turn it off in the admin's settings (`notificationOptions` on the
+user, the digest is on unless they do).
+
+It is `src/jobs/adminDigest.ts`, run as the Cloud Run job
+`tricktionary-admin-digest` from the API's image, which a Cloud Scheduler job
+starts every week; both are in the infra repository, and the deploy workflow
+points the job at each new image. The job runs as its own service account,
+the only one that can read the two Mailjet secrets.
+
+Every user has their own window, from `notifications.adminDigestSentUntil` to
+midnight UTC on the day the job runs, so a run that fails or is missed is caught
+up by the next one, and a second run on the same day sends nothing. Someone's
+first grant starts their window then, rather than a week back. Tricks are
+found by `addedAt`, which `src/migrations/trick-added-at.ts` backfilled.
+
+Mail goes out through Mailjet's Send API v3.1 from `noreply@the-tricktionary.com`,
+with replies to `contact@the-tricktionary.com`. The domain's DMARC policy is
+`p=reject`, so Mailjet's SPF include and DKIM record have to be in DNS (infra
+again) before it sends anything.
+
+```sh
+npx tsx src/jobs/adminDigest.ts --dry-run
+```
+
+logs every digest it would send instead of sending it, and moves no one's
+window, so it needs Firestore access but no Mailjet credentials.
+
 ## Speed event definitions and timing tracks
 
 Speed scores refer to an event definition (`event-definitions`), which speed

@@ -1,10 +1,10 @@
+import { Timestamp } from '@google-cloud/firestore'
 import { CollisionError } from '../errors.js'
 import { tryIndexTrick } from '../services/algolia.js'
 import { trickLocalisationId } from '../store/schema.js'
 
 import type { Transaction } from 'firebase-admin/firestore'
 import type { ApolloContext } from '../apollo.js'
-import type { Timestamp } from '@google-cloud/firestore'
 import type { Discipline, TrickType } from '../generated/graphql.js'
 import type { Attribution, TrickDoc, TrickLocalisationDoc, TrickSubmissionDoc, UserDoc, Video } from '../store/schema.js'
 
@@ -55,6 +55,7 @@ export async function createTrickWithLocalisation (trick: NewTrick, { dataSource
       trickType: trick.trickType,
       submittedBy: trick.submittedBy,
       updatedBy: trick.updatedBy,
+      addedAt: Timestamp.now(),
       videos: trick.videos ?? []
     })
     for (const { lang, ...localisation } of localisations) {

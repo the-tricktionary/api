@@ -1,4 +1,5 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
+import { VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -53,6 +54,11 @@ export interface TrickDoc extends DocBase {
 
   submittedBy: UserDoc['id']
   updatedBy?: UserDoc['id']
+  /**
+   * When the trick was added. `createdAt` comes from the document's own
+   * metadata (its `createTime`) and so cannot be queried or ordered on, this can.
+   */
+  addedAt: Timestamp
 
   videos: Video[]
 }
@@ -87,6 +93,9 @@ export interface TrickVideoUploadDoc extends DocBase {
   expiresAt?: Timestamp
 }
 export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t?.collection === 'trick-video-uploads' }
+
+/** An upload in one of these will not change again */
+export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
 
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'
@@ -279,6 +288,25 @@ export interface UserDoc extends DocBase {
   grants?: Grant[]
   /** How the user's trick submissions have been reviewed, what their trust is worked out from */
   submissionStats?: { accepted: number, rejected: number }
+  notifications?: UserNotifications
+}
+
+/** What the user is emailed about, and how far the emails have got */
+export interface UserNotifications {
+  /** The weekly admin digest is opt-out, so only `false` turns it off */
+  adminDigest?: boolean
+  /**
+   * Everything before this has been covered by a digest, or happened before the
+   * user was given their first grant. Moved on for everyone with a grant each
+   * time the digest runs, whether or not they were sent anything.
+   */
+  adminDigestSentUntil?: Timestamp
+  /**
+   * The hash of the site's English interface messages as of the user's last
+   * digest, see jobs/adminDigest.ts. Absent until their first digest, which
+   * records it without reporting a change.
+   */
+  siteMessagesHash?: string
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
 

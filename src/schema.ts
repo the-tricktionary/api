@@ -254,6 +254,8 @@ const typeDefs = gql`
     updateUserProfile (data: UserProfileInput!): User!
     """What others get to see of the signed in user's profile"""
     setProfileOptions (data: ProfileOptionsInput!): User!
+    """What the signed in user is emailed about"""
+    setNotificationOptions (data: NotificationOptionsInput!): User!
     setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
   }
 
@@ -588,6 +590,8 @@ const typeDefs = gql`
     email: String @cacheControl(maxAge: 0, scope: PRIVATE)
 
     profile: ProfileOptions!
+    """Only visible to the user themselves, null for everyone else"""
+    notificationOptions: NotificationOptions @cacheControl(maxAge: 0, scope: PRIVATE)
 
     """The groups the user is in. Only visible to the user themselves."""
     groups: [Group!]! @cacheControl(maxAge: 0, scope: PRIVATE)
@@ -683,6 +687,19 @@ const typeDefs = gql`
     checklist: Boolean!
     """Stored as false while the profile isn't public"""
     speed: Boolean!
+  }
+
+  type NotificationOptions {
+    """
+    Whether the weekly admin digest is emailed to the user: new submissions to
+    review, new tricks to translate or level, and changed interface texts, each
+    only for those whose grants cover it. On unless turned off.
+    """
+    adminDigest: Boolean!
+  }
+
+  input NotificationOptionsInput {
+    adminDigest: Boolean!
   }
 
   input UserProfileInput {

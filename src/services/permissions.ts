@@ -202,6 +202,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         getEmail: isMeOrIsSuperAdmin,
         getGroups: isMe,
         getGroupInvites: isMe,
+        getNotificationOptions: isMe,
         getTrickSubmissions: isMeOrEditsTricks,
 
         speedResult (speedResult: SpeedResultDoc, membership?: GroupMemberDoc) {

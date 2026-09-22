@@ -48,6 +48,7 @@
     "firebase-admin": "^13.10.0",
     "graphql": "^16.11.0",
     "graphql-tag": "^2.12.7",
+    "node-mailjet": "^6.0.11",
     "pino": "^10.3.1",
     "stripe": "^22.6.2",
     "zod": "^4.6.5",

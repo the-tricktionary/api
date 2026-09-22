@@ -4,7 +4,7 @@ import { GrantType } from '../generated/graphql.js'
 import { firestore } from '../store/firestoreDataSource.js'
 import { checklistStats } from '../helpers/checklist.js'
 import { membershipOf } from '../helpers/groups.js'
-import { grantsSchema, langSchema, profileOptionsSchema, userProfileInputSchema } from '../validation.js'
+import { grantsSchema, langSchema, notificationOptionsSchema, profileOptionsSchema, userProfileInputSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
@@ -123,6 +123,14 @@ export const userResolvers: Resolvers = {
 
       return await (dataSources.users.updateOnePartial(user.id, { profile }) as Promise<UserDoc>)
     },
+    async setNotificationOptions (_, { data }, { dataSources, allowUser, user }) {
+      allowUser.editProfile.assert()
+      if (!user) throw new AuthorizationError()
+
+      const { adminDigest } = notificationOptionsSchema.parse(data)
+
+      return await (dataSources.users.updateOnePartial(user.id, { notifications: { adminDigest } }) as Promise<UserDoc>)
+    },
     async setUserGrants (_, { userId, grants }, { dataSources, allowUser, user }) {
       allowUser.setUserGrants.assert()
 
@@ -146,7 +154,14 @@ export const userResolvers: Resolvers = {
         if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
       }))
 
-      return await (dataSources.users.updateOnePartial(userId, { grants: parsedGrants }) as Promise<UserDoc>)
+      // someone's first grant starts their admin digest from now, rather than
+      // with everything that happened before they could act on it
+      const firstGrant = !target.grants?.length && parsedGrants.length > 0
+
+      return await (dataSources.users.updateOnePartial(userId, {
+        grants: parsedGrants,
+        ...(firstGrant ? { notifications: { adminDigestSentUntil: Timestamp.now() } } : {})
+      }) as Promise<UserDoc>)
     }
   },
   User: {
@@ -158,6 +173,10 @@ export const userResolvers: Resolvers = {
     email (user, _, { allowUser }) {
       if (!allowUser.user(user).getEmail()) return null
       return user.email ?? null
+    },
+    notificationOptions (user, _, { allowUser }) {
+      if (!allowUser.user(user).getNotificationOptions()) return null
+      return { adminDigest: user.notifications?.adminDigest !== false }
     },
     async checklist (user, _, { dataSources, allowUser }) {
       allowUser.user(user).getChecklist.assert()

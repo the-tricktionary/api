@@ -2,9 +2,8 @@ import { Firestore } from 'firebase-admin/firestore'
 import { FirestoreDataSource } from 'apollo-datasource-firestore'
 import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { logger } from '../services/logger.js'
-import { FINAL_UPLOAD_STATUSES } from '../services/mux.js'
 import { usernameSchema } from '../validation.js'
-import { groupInviteExpired } from './schema.js'
+import { FINAL_UPLOAD_STATUSES, groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
@@ -57,6 +56,11 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
     const result = await this.findManyByQuery(c => c.where('discipline', '==', discipline).where('slug', '==', slug), options)
     return result[0]
   }
+
+  /** Added in `[from, until)` */
+  async findManyAddedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('addedAt', '>=', from).where('addedAt', '<', until), options)
+  }
 }
 export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(collection<TrickDoc>('tricks'), { logger: logger.child({ name: 'trick-data-source' }), cache })
 
@@ -89,6 +93,15 @@ export class TrickSubmissionDataSource extends FirestoreDataSource<TrickSubmissi
       if (status) q = q.where('status', '==', status)
       return q.orderBy('submittedAt', 'desc')
     }, options)
+  }
+
+  /** Newest first, the ones still waiting for a review that were submitted in `[from, until)` */
+  async findManyPendingSubmittedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c
+      .where('status', '==', TrickSubmissionStatus.Pending)
+      .where('submittedAt', '>=', from)
+      .where('submittedAt', '<', until)
+      .orderBy('submittedAt', 'desc'), options)
   }
 
   /** The user's submissions nobody has reviewed yet */
