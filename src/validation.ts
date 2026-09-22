@@ -81,7 +81,7 @@ const attributionNameSchema = z.string().trim()
 
 export const attributionInputSchema = z.object({
   name: attributionNameSchema,
-  userId: z.string().min(1).nullish()
+  usernameOrId: z.string().trim().min(1).nullish()
 })
 
 // Trick submissions

@@ -478,12 +478,12 @@ const typeDefs = gql`
   }
 
   """
-  Who to credit a video to, by the name they want shown. The user id is
-  optional and links the credit to an account, which has to exist.
+  Who to credit a video to, by the name they want shown. The username or id
+  is optional and links the credit to an existing account.
   """
   input AttributionInput {
     name: String!
-    userId: ID
+    usernameOrId: ID
   }
 
   input YouTubeVideoInput {

@@ -1,8 +1,8 @@
 import z from 'zod'
-import { FieldValue } from '@google-cloud/firestore'
+import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError } from '../errors.js'
 import { VideoHost, VideoType } from '../generated/graphql.js'
-import { inputAttribution, toContributor } from '../helpers/tricks.js'
+import { attribution, toContributor } from '../helpers/tricks.js'
 import { createVideoUpload, tryDeleteAsset } from '../services/mux.js'
 import { attributionInputSchema, slowMoStartSchema, youTubeVideoIdSchema } from '../validation.js'
 
@@ -29,12 +29,13 @@ const videoUploadSchema = z.object({
 async function creditedAttribution (input: AttributionInput | null | undefined, { dataSources }: Pick<ApolloContext, 'dataSources'>) {
   if (!input) return undefined
 
-  if (input.userId != null) {
-    const credited = await dataSources.users.findOneById(input.userId, { ttl: 60 })
-    if (!credited) throw new NotFoundError(`User ${input.userId} not found`, { extensions: { entity: 'user', id: input.userId } })
+  let credited
+  if (input.usernameOrId != null) {
+    credited = await dataSources.users.findOneByUsernameOrId(input.usernameOrId, { ttl: 60 })
+    if (!credited) throw new NotFoundError(`No user matches ${input.usernameOrId}`, { extensions: { entity: 'user', id: input.usernameOrId } })
   }
 
-  return inputAttribution(input)
+  return attribution(input.name, Timestamp.now(), credited?.id)
 }
 
 export const trickVideoResolvers: Resolvers = {
