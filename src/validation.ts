@@ -295,8 +295,9 @@ export const eventDefinitionUpdateSchema = z.object({
 
 const noticeUrlSchema = z.union([
   z.string().trim().max(2000).regex(/^\/(?!\/)\S*$/),
-  z.url({ protocol: /^https?$/ }).max(2000)
-], 'A link must be a path such as `/tricks` or an absolute http(s) URL')
+  z.url({ protocol: /^https?$/ }).max(2000),
+  z.string().trim().max(2000).regex(/^mailto:[^\s@/]+@[^\s@/]+$/)
+], 'A link must be a path such as `/tricks`, an absolute http(s) URL or a mailto: address')
 
 const noticeTextSchema = z.object({
   lang: langSchema,
