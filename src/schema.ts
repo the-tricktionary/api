@@ -55,6 +55,12 @@ const typeDefs = gql`
     Requested
   }
 
+  enum TrickSubmissionStatus {
+    Pending
+    Accepted
+    Rejected
+  }
+
   type Query {
     me: User
     """
@@ -99,6 +105,9 @@ const typeDefs = gql`
     uiMessages (lang: String!): JSONObject! @cacheControl(maxAge: 3600)
     """Every translated interface message of a language, with who last set it"""
     uiMessageEntries (lang: String!): [UiMessageEntry!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+
+    """Trick submissions, newest first, in every status unless one is given. Trick editors only."""
+    trickSubmissions (status: TrickSubmissionStatus): [TrickSubmission!]!
   }
 
   type Mutation {
@@ -160,6 +169,13 @@ const typeDefs = gql`
     """
     createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload!
     removeTrickVideo (trickId: ID!, videoId: String!): Trick!
+
+    # Trick submissions
+    """Starts a trick submission. Upload the video file with a single PUT to \`upload.url\`."""
+    createTrickSubmission (data: TrickSubmissionInput!): TrickSubmission!
+    """Creates the trick from the submission and credits the submitter on its video and localisation"""
+    acceptTrickSubmission (submissionId: ID!, data: AcceptTrickSubmissionInput!): TrickSubmission!
+    rejectTrickSubmission (submissionId: ID!, note: String): TrickSubmission!
 
     # Languages
     createLanguage (lang: String!): Language!
@@ -240,6 +256,8 @@ const typeDefs = gql`
     prerequisiteFor: [Trick!]!
 
     submitter: User
+    """Everyone credited on the trick's videos and localisations, earliest contribution first"""
+    contributors: [Contributor!]!
 
     createdAt: Timestamp
     updatedAt: Timestamp
@@ -254,6 +272,14 @@ const typeDefs = gql`
     createdAt: Timestamp
     updatedAt: Timestamp
     submitter: User
+    attribution: Contributor
+  }
+
+  """Who contributed to a trick, credited by the name they chose"""
+  type Contributor @cacheControl(inheritMaxAge: true) {
+    userId: ID
+    name: String!
+    contributedAt: Timestamp!
   }
 
   input CreateTrickInput {
@@ -365,6 +391,7 @@ const typeDefs = gql`
     videoId: String!
     type: VideoType!
     slowMoStart: Float
+    attribution: Contributor
   }
 
   enum VideoHost {
@@ -413,6 +440,54 @@ const typeDefs = gql`
     error: String
     createdAt: Timestamp!
     updatedAt: Timestamp!
+  }
+
+  """A trick a user has offered, waiting for a trick editor to review it"""
+  type TrickSubmission @cacheControl(maxAge: 0, scope: PRIVATE) {
+    id: ID!
+    submitter: User!
+    attributionName: String!
+    discipline: Discipline!
+    trickType: TrickType
+    lang: String!
+    name: String!
+    alternativeNames: [String!]
+    description: String
+    status: TrickSubmissionStatus!
+    """The video upload, its \`url\` is only set on the \`createTrickSubmission\` response"""
+    upload: TrickVideoUpload!
+    """The video Mux made of the uploaded file, null until it has finished processing"""
+    video: Video
+    reviewNote: String
+    reviewedAt: Timestamp
+    """The trick this became, only set once the submission was accepted"""
+    trick: Trick
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
+  input TrickSubmissionInput {
+    discipline: Discipline!
+    trickType: TrickType
+    """Language of the text fields, defaults to the user's language, then English"""
+    lang: String
+    name: String!
+    alternativeNames: [String!]
+    description: String
+    """The name to credit the submitter by, copied as it is given"""
+    attributionName: String!
+    """Must be true: the submitter grants a CC BY 4.0 licence to the submission"""
+    acceptLicence: Boolean!
+  }
+
+  input AcceptTrickSubmissionInput {
+    discipline: Discipline!
+    trickType: TrickType!
+    slug: String!
+    """The english localisation of the new trick"""
+    localisation: TrickLocalisationInput!
+    videoType: VideoType!
+    slowMoStart: Float
   }
 
   type User {
@@ -471,6 +546,12 @@ const typeDefs = gql`
 
     """Only visible to the user themselves and to super admins, empty for everyone else"""
     grants: [Grant!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+
+    """
+    The tricks the user has submitted, newest first. Only visible to the user
+    themselves and to trick editors, empty for everyone else.
+    """
+    trickSubmissions: [TrickSubmission!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
   enum GrantType {

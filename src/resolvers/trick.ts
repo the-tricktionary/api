@@ -2,12 +2,13 @@ import z from 'zod'
 import { isTrick, trickLocalisationId } from '../store/schema.js'
 import { Discipline, TrickType } from '../generated/graphql.js'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
+import { createTrickWithLocalisation, mergeContributors, submitterProfile, toContributor } from '../helpers/tricks.js'
 import { tryIndexTrick, searchTricks } from '../services/algolia.js'
 import { verificationLevelRank } from '../services/permissions.js'
 import { langSchema, rulesIdSchema, slugSchema, trickLocalisationSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
-import type { TrickDoc, TrickLocalisationDoc, UserDoc } from '../store/schema.js'
+import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
 
 const createTrickSchema = z.object({
   discipline: z.enum(Discipline),
@@ -84,43 +85,14 @@ export const trickResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const { discipline, trickType, slug, localisation } = createTrickSchema.parse(data)
 
-      const collection = dataSources.tricks.collection
-      const localisationCollection = dataSources.trickLocalisations.collection
-
-      // the slug is only unique within a discipline, and there's no way to
-      // express that as a document ID, so a transaction guards it instead
-      const trickId = await collection.firestore.runTransaction(async t => {
-        const qSnap = await t.get(collection.where('discipline', '==', discipline).where('slug', '==', slug))
-        if (!qSnap.empty) {
-          throw new CollisionError(`A ${discipline} trick with the slug ${slug} already exists`, { extensions: { entity: 'trick', id: qSnap.docs[0]?.id } })
-        }
-
-        const dRef = collection.doc()
-        t.create(dRef.withConverter(null), {
-          slug,
-          discipline,
-          trickType,
-          submittedBy: user.id,
-          updatedBy: user.id,
-          videos: []
-        })
-        t.create(localisationCollection.doc(trickLocalisationId(dRef.id, 'en')).withConverter(null), {
-          trickId: dRef.id,
-          name: localisation.name,
-          alternativeNames: localisation.alternativeNames,
-          description: localisation.description,
-          submittedBy: user.id,
-          updatedBy: user.id
-        })
-
-        return dRef.id
-      })
-
-      const trick = await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
-
-      await tryIndexTrick(trickId, { dataSources, logger })
-
-      return trick
+      return await createTrickWithLocalisation({
+        discipline,
+        trickType,
+        slug,
+        localisation: { ...localisation, submittedBy: user.id },
+        submittedBy: user.id,
+        updatedBy: user.id
+      }, { dataSources, logger })
     },
     async updateTrickDetails (_, { trickId, data }, { dataSources, allowUser, user, logger }) {
       allowUser.editTrick.assert()
@@ -252,21 +224,14 @@ export const trickResolvers: Resolvers = {
     async submitter (trick, _, { dataSources }) {
       const user = await dataSources.users.findOneById(trick.submittedBy, { ttl: 60 })
       if (!user) return null
-      const cleaned: UserDoc = {
-        id: user.id,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        collection: user.collection,
-        username: user.username,
-        profile: user.profile,
-        ...(user.profile.public
-          ? {
-              name: user.name,
-              photo: user.photo
-            }
-          : {})
-      }
-      return cleaned
+      return submitterProfile(user)
+    },
+    async contributors (trick, _, { dataSources }) {
+      const localisations = await dataSources.trickLocalisations.findManyByTrick(trick.id, { ttl: 3600 })
+      return mergeContributors([
+        ...(trick.videos ?? []).map(video => video.attribution),
+        ...localisations.map(localisation => localisation.attribution)
+      ])
     },
     async prerequisites (trick, _, { dataSources }) {
       const prereqs = await dataSources.trickPrerequisites.findManyPrerequisitesByTrick(trick.id)
@@ -282,6 +247,16 @@ export const trickResolvers: Resolvers = {
     },
     async levels (trick, { rulesId }, { dataSources }) {
       return await dataSources.trickLevels.findManyByTrick({ trickId: trick.id, rulesId })
+    }
+  },
+  TrickLocalisation: {
+    attribution (localisation) {
+      return localisation.attribution ? toContributor(localisation.attribution) : null
+    }
+  },
+  Video: {
+    attribution (video) {
+      return video.attribution ? toContributor(video.attribution) : null
     }
   }
 }

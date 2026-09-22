@@ -56,6 +56,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     requestToJoinGroup: isAuthenticated,
     setUserLang: isAuthenticated,
     editProfile: isAuthenticated,
+    createTrickSubmission: isAuthenticated,
     editEventDefinitions,
     makePurchase: everyone,
 
@@ -63,6 +64,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editTrick: editTricks,
     editTrickVideos: editTricks,
     getTrickVideoUploads: editTricks,
+    reviewTrickSubmissions: editTricks,
 
     createLanguage: isSuperAdmin,
     setLanguageEnabled: isSuperAdmin,
@@ -186,6 +188,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       const isMeOrHasPublicChecklist = enrich(function isMeOrHasPublicChecklist () { return isMe() || (hasPublicProfile() && hasPublicChecklist()) })
       const isMeOrHasPublicSpeed = enrich(function isMeOrHasPublicSpeed () { return isMe() || (hasPublicProfile() && hasPublicSpeed()) })
       const isMeOrIsSuperAdmin = enrich(function isMeOrIsSuperAdmin () { return isMe() || isSuperAdmin() })
+      const isMeOrEditsTricks = enrich(function isMeOrEditsTricks () { return isMe() || editTricks() })
       return {
         getProfile: isMeOrHasPublicProfile,
         getChecklist: isMeOrHasPublicChecklist,
@@ -196,6 +199,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         getEmail: isMeOrIsSuperAdmin,
         getGroups: isMe,
         getGroupInvites: isMe,
+        getTrickSubmissions: isMeOrEditsTricks,
 
         speedResult (speedResult: SpeedResultDoc, membership?: GroupMemberDoc) {
           const isMine = enrich(function isMine () { return !!user && speedResult.userId === user.id })

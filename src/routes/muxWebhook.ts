@@ -1,16 +1,19 @@
 import * as Sentry from '@sentry/node'
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import { VideoHost, VideoUploadStatus } from '../generated/graphql.js'
-import { mux } from '../services/mux.js'
+import { TrickSubmissionStatus, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import { submissionAttribution } from '../helpers/tricks.js'
+import { mux, tryDeleteAsset } from '../services/mux.js'
 import { getSecret } from '../services/secrets.js'
 import { logger as baseLogger } from '../services/logger.js'
+import { MAX_SUBMISSION_VIDEO_SECONDS } from '../services/submissionLimits.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
+import { rejectedSubmissionExpiry } from '../store/schema.js'
 
 import type Mux from '@mux/mux-node'
 import type { RequestHandler } from 'express'
 import type Pino from 'pino'
 import type { DataSources } from '../store/firestoreDataSource.js'
-import type { MuxVideo, TrickVideoUploadDoc } from '../store/schema.js'
+import type { MuxVideo, TrickDoc, TrickSubmissionDoc, TrickVideoUploadDoc } from '../store/schema.js'
 
 type MuxWebhookEvent = Mux.Webhooks.UnwrapWebhookEvent
 
@@ -55,26 +58,99 @@ async function findUpload (uploadId: string | undefined, type: MuxWebhookEvent['
   return upload
 }
 
-async function addAssetToTrick (upload: TrickVideoUploadDoc, asset: { id: string, playbackId: string }, { dataSources, logger }: MuxWebhookContext) {
+/** An asset Mux has finished processing */
+interface ReadyAsset {
+  id: string
+  playbackId: string
+  /** Seconds, absent when Mux did not report a duration */
+  duration?: number
+}
+
+/** The parts of a stored video that the asset itself provides */
+function videoOfAsset (asset: ReadyAsset): Pick<MuxVideo, 'host' | 'videoId' | 'assetId'> {
+  return { host: VideoHost.Mux, videoId: asset.playbackId, assetId: asset.id }
+}
+
+async function addAssetToTrick (trickId: TrickDoc['id'], upload: TrickVideoUploadDoc, asset: ReadyAsset, context: MuxWebhookContext) {
+  const { dataSources, logger } = context
   const video: MuxVideo = {
-    host: VideoHost.Mux,
-    videoId: asset.playbackId,
-    assetId: asset.id,
+    ...videoOfAsset(asset),
     type: upload.type,
     ...(upload.slowMoStart != null ? { slowMoStart: upload.slowMoStart } : {})
   }
 
-  const trick = await dataSources.tricks.findOneById(upload.trickId)
-  if (!trick) throw new Error(`Trick ${upload.trickId} of upload ${upload.id} does not exist`)
+  const trick = await dataSources.tricks.findOneById(trickId)
+  if (!trick) throw new Error(`Trick ${trickId} of upload ${upload.id} does not exist`)
 
   // Mux retries a webhook until we acknowledge it, so the asset may already
   // be on the trick
   if (trick.videos.some(v => v.host === VideoHost.Mux && v.assetId === asset.id)) {
-    logger.info({ trickId: upload.trickId, assetId: asset.id }, 'Mux asset is already on the trick')
+    logger.info({ trickId, assetId: asset.id }, 'Mux asset is already on the trick')
+  } else {
+    await dataSources.tricks.updateOnePartial(trickId, { videos: FieldValue.arrayUnion(video) })
+  }
+
+  await finishUpload(upload.id, { status: VideoUploadStatus.Ready, assetId: asset.id }, context)
+  logger.info({ uploadId: upload.id, trickId, assetId: asset.id, playbackId: asset.playbackId }, 'Added a Mux video to a trick')
+}
+
+/**
+ * Puts the asset on the submission it was uploaded for. An asset no submission
+ * waits for is deleted, as is one that runs longer than a submitted video may:
+ * such a submission never reaches an editor, so the submitter's counters are
+ * left alone.
+ */
+async function addAssetToSubmission (submissionId: TrickSubmissionDoc['id'], upload: TrickVideoUploadDoc, asset: ReadyAsset, context: MuxWebhookContext) {
+  const { dataSources, logger } = context
+
+  const submission = await dataSources.trickSubmissions.findOneById(submissionId)
+
+  if (!submission) {
+    const reason = 'The submission the video was uploaded for does not exist'
+    await tryDeleteAsset(asset.id, logger)
+    await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: reason }, context)
+    logger.warn({ uploadId: upload.id, submissionId, assetId: asset.id }, 'Deleted a Mux asset whose trick submission does not exist')
     return
   }
 
-  await dataSources.tricks.updateOnePartial(upload.trickId, { videos: FieldValue.arrayUnion(video) })
+  if (submission.status !== TrickSubmissionStatus.Pending) {
+    const reason = 'The submission was rejected before the video was ready'
+    await tryDeleteAsset(asset.id, logger)
+    await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: reason }, context)
+    logger.warn({ uploadId: upload.id, submissionId, assetId: asset.id, status: submission.status }, 'Deleted the Mux asset of a trick submission that was already reviewed')
+    return
+  }
+
+  if (asset.duration != null && asset.duration > MAX_SUBMISSION_VIDEO_SECONDS) {
+    const reason = `The video is longer than the ${MAX_SUBMISSION_VIDEO_SECONDS} seconds a submitted trick video may run for`
+    await tryDeleteAsset(asset.id, logger)
+    await dataSources.trickSubmissions.updateOnePartial(submissionId, {
+      status: TrickSubmissionStatus.Rejected,
+      reviewNote: reason,
+      expiresAt: rejectedSubmissionExpiry()
+    })
+    await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: reason }, context)
+    logger.warn({ uploadId: upload.id, submissionId, assetId: asset.id, duration: asset.duration }, 'Refused the video of a trick submission for being too long')
+    return
+  }
+
+  const video: MuxVideo = {
+    ...videoOfAsset(asset),
+    // a stand-in, the editor picks the real type when they accept the submission
+    type: VideoType.SlowMo,
+    attribution: submissionAttribution(submission)
+  }
+
+  // Mux retries a webhook until we acknowledge it, so the asset may already
+  // be on the submission
+  if (submission.video?.assetId === asset.id) {
+    logger.info({ submissionId, assetId: asset.id }, 'Mux asset is already on the trick submission')
+  } else {
+    await dataSources.trickSubmissions.updateOnePartial(submissionId, { video })
+  }
+
+  await finishUpload(upload.id, { status: VideoUploadStatus.Ready, assetId: asset.id }, context)
+  logger.info({ uploadId: upload.id, submissionId, assetId: asset.id, playbackId: asset.playbackId }, 'Added a Mux video to a trick submission')
 }
 
 async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhookContext) {
@@ -100,9 +176,10 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
       const playbackId = event.data.playback_ids?.find(p => p.policy === 'public')?.id
       if (playbackId == null) throw new Error(`Mux asset ${event.data.id} of upload ${upload.id} has no public playback ID`)
 
-      await addAssetToTrick(upload, { id: event.data.id, playbackId }, context)
-      await finishUpload(upload.id, { status: VideoUploadStatus.Ready, assetId: event.data.id }, context)
-      logger.info({ uploadId: upload.id, trickId: upload.trickId, assetId: event.data.id, playbackId }, 'Added a Mux video to a trick')
+      const asset = { id: event.data.id, playbackId, duration: event.data.duration }
+      if (upload.submissionId != null) await addAssetToSubmission(upload.submissionId, upload, asset, context)
+      else if (upload.trickId != null) await addAssetToTrick(upload.trickId, upload, asset, context)
+      else throw new Error(`Upload ${upload.id} belongs to neither a trick nor a trick submission`)
       break
     }
     case 'video.asset.errored': {
@@ -112,7 +189,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
       const errors = event.data.errors
       const error = [errors?.type, ...(errors?.messages ?? [])].filter(part => part != null && part !== '').join(': ')
       await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: error === '' ? 'Mux could not process the video' : error }, context)
-      logger.warn({ uploadId: upload.id, trickId: upload.trickId, assetId: event.data.id, error }, 'A Mux asset errored')
+      logger.warn({ uploadId: upload.id, trickId: upload.trickId, submissionId: upload.submissionId, assetId: event.data.id, error }, 'A Mux asset errored')
       break
     }
     case 'video.upload.errored': {
@@ -120,7 +197,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
       if (!upload) break
 
       await finishUpload(upload.id, { status: VideoUploadStatus.Errored, error: 'The upload timed out or failed before Mux received the file' }, context)
-      logger.warn({ uploadId: upload.id, trickId: upload.trickId }, 'A Mux upload errored')
+      logger.warn({ uploadId: upload.id, trickId: upload.trickId, submissionId: upload.submissionId }, 'A Mux upload errored')
       break
     }
     case 'video.upload.cancelled': {

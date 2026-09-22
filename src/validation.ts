@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { GrantType, GroupRole, TimingCueType, VerificationLevel } from './generated/graphql.js'
+import { Discipline, GrantType, GroupRole, TimingCueType, TrickType, VerificationLevel, VideoType } from './generated/graphql.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -71,6 +71,36 @@ export const youTubeVideoIdSchema = z.string().trim()
 export const slowMoStartSchema = z.number()
   .min(0, 'A slow motion start cannot be negative')
   .nullish()
+
+// Trick submissions
+
+/** The name a submitter asked to be credited by */
+const attributionNameSchema = z.string().trim()
+  .min(1, 'A name to be credited by is required')
+  .max(100, 'A name can be at most 100 characters')
+
+export const trickSubmissionSchema = z.object({
+  discipline: z.enum(Discipline),
+  trickType: z.enum(TrickType).nullish(),
+  lang: langSchema.nullish(),
+  name: trickLocalisationSchema.shape.name,
+  alternativeNames: trickLocalisationSchema.shape.alternativeNames.nullish(),
+  description: trickLocalisationSchema.shape.description.nullish(),
+  attributionName: attributionNameSchema,
+  acceptLicence: z.literal(true, 'The submission has to be licensed under CC BY 4.0 to be accepted')
+})
+
+export const acceptTrickSubmissionSchema = z.object({
+  discipline: z.enum(Discipline),
+  trickType: z.enum(TrickType),
+  slug: slugSchema,
+  localisation: trickLocalisationSchema,
+  videoType: z.enum(VideoType),
+  slowMoStart: slowMoStartSchema
+})
+
+export const reviewNoteSchema = z.string().trim()
+  .max(500, 'A note can be at most 500 characters')
 
 const superAdminGrantSchema = z.strictObject({ type: z.literal(GrantType.SuperAdmin) })
 const trickEditorGrantSchema = z.strictObject({ type: z.literal(GrantType.TrickEditor) })

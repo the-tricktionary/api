@@ -5,6 +5,7 @@ import { userResolvers } from './user.js'
 import { trickResolvers } from './trick.js'
 import { trickCompletionResolvers } from './trickCompletion.js'
 import { trickVideoResolvers } from './trickVideo.js'
+import { trickSubmissionResolvers } from './trickSubmission.js'
 import { speedResultResolvers } from './speedResult.js'
 import { groupResolvers } from './group.js'
 import { groupMemberResolvers } from './groupMember.js'
@@ -33,6 +34,7 @@ export const rootResolver = mergeResolvers([
   trickResolvers,
   trickCompletionResolvers,
   trickVideoResolvers,
+  trickSubmissionResolvers,
   userResolvers,
   eventDefinitionResolvers,
   rulesetResolvers,
