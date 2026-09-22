@@ -4,6 +4,7 @@ import { trickLocalisationId } from '../store/schema.js'
 
 import type { Transaction } from 'firebase-admin/firestore'
 import type { ApolloContext } from '../apollo.js'
+import type { Timestamp } from '@google-cloud/firestore'
 import type { Discipline, TrickType } from '../generated/graphql.js'
 import type { Attribution, TrickDoc, TrickLocalisationDoc, TrickSubmissionDoc, UserDoc, Video } from '../store/schema.js'
 
@@ -97,9 +98,14 @@ export function submitterProfile (user: UserDoc): UserDoc {
   }
 }
 
+/** A credit, without an account when none is known */
+export function attribution (name: string, at: Timestamp, userId?: UserDoc['id']): Attribution {
+  return { ...(userId != null ? { userId } : {}), name, at }
+}
+
 /** How a trick submission's contribution is credited, by the name the submitter chose */
 export function submissionAttribution (submission: TrickSubmissionDoc): Attribution {
-  return { userId: submission.userId, name: submission.attributionName, at: submission.submittedAt }
+  return attribution(submission.attributionName, submission.submittedAt, submission.userId)
 }
 
 /** An `Attribution` as the schema's `Contributor` */

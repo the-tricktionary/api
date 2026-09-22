@@ -179,6 +179,11 @@ const typeDefs = gql`
     """
     createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload!
     removeTrickVideo (trickId: ID!, videoId: String!): Trick!
+    """
+    Sets who a video is credited to, a null attribution removes the credit.
+    Editing a credit keeps the original contribution date.
+    """
+    setTrickVideoAttribution (trickId: ID!, videoId: String!, attribution: AttributionInput): Trick!
 
     # Trick submissions
     """Starts a trick submission. Upload the video file with a single PUT to \`upload.url\`."""
@@ -472,15 +477,26 @@ const typeDefs = gql`
     Explainer
   }
 
+  """
+  Who to credit a video to, by the name they want shown. The username or id
+  is optional and links the credit to an existing account.
+  """
+  input AttributionInput {
+    name: String!
+    usernameOrId: ID
+  }
+
   input YouTubeVideoInput {
     videoId: String!
     type: VideoType!
     slowMoStart: Float
+    attribution: AttributionInput
   }
 
   input VideoUploadInput {
     type: VideoType!
     slowMoStart: Float
+    attribution: AttributionInput
   }
 
   enum VideoUploadStatus {
@@ -503,6 +519,8 @@ const typeDefs = gql`
     url: String
     type: VideoType!
     slowMoStart: Float
+    """Who the video will be credited to once it is ready"""
+    attribution: Contributor
     status: VideoUploadStatus!
     """Why the upload failed, only set when the status is \`Errored\`"""
     error: String

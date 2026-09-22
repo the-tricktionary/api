@@ -72,12 +72,19 @@ export const slowMoStartSchema = z.number()
   .min(0, 'A slow motion start cannot be negative')
   .nullish()
 
-// Trick submissions
+// Attribution
 
-/** The name a submitter asked to be credited by */
+/** The name a contributor is credited by */
 const attributionNameSchema = z.string().trim()
   .min(1, 'A name to be credited by is required')
   .max(100, 'A name can be at most 100 characters')
+
+export const attributionInputSchema = z.object({
+  name: attributionNameSchema,
+  usernameOrId: z.string().trim().min(1).nullish()
+})
+
+// Trick submissions
 
 export const trickSubmissionSchema = z.object({
   discipline: z.enum(Discipline),
