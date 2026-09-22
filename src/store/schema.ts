@@ -183,6 +183,25 @@ export interface UiMessagesDoc extends DocBase {
 }
 export function isUiMessages (t: any): t is UiMessagesDoc { return t?.collection === 'ui-messages' }
 
+export interface NoticeTextFields {
+  body: string
+  /** one per entry of `linkUrls`, in the same order */
+  linkLabels: string[]
+}
+
+/** shown on the public site's home page */
+export interface NoticeDoc extends DocBase {
+  readonly collection: 'notices'
+
+  from?: Timestamp
+  until?: Timestamp
+  linkUrls: string[]
+  /** by language tag, `en` is always present */
+  texts: Record<string, NoticeTextFields>
+  updatedBy: UserDoc['id']
+}
+export function isNotice (t: any): t is NoticeDoc { return t?.collection === 'notices' }
+
 export interface RulesetDoc extends DocBase {
   readonly collection: 'rulesets'
 

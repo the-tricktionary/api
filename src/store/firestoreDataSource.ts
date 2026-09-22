@@ -8,7 +8,7 @@ import { groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { SpeedAthlete } from '../helpers/speedResults.js'
@@ -122,6 +122,13 @@ export const languageDataSource = (cache: KeyValueCache) => new LanguageDataSour
 
 export class UiMessagesDataSource extends FirestoreDataSource<UiMessagesDoc> {}
 export const uiMessagesDataSource = (cache: KeyValueCache) => new UiMessagesDataSource(collection<UiMessagesDoc>('ui-messages'), { logger: logger.child({ name: 'ui-messages-data-source' }), cache })
+
+export class NoticeDataSource extends FirestoreDataSource<NoticeDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+}
+export const noticeDataSource = (cache: KeyValueCache) => new NoticeDataSource(collection<NoticeDoc>('notices'), { logger: logger.child({ name: 'notice-data-source' }), cache })
 
 export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   async findAll (options?: QueryFindArgs) {
@@ -453,6 +460,7 @@ export function createDataSources () {
     groupInvites: groupInviteDataSource(dataSourceCache),
     groupMembers: groupMemberDataSource(dataSourceCache),
     languages: languageDataSource(dataSourceCache),
+    notices: noticeDataSource(dataSourceCache),
     rulesets: rulesetDataSource(dataSourceCache),
     speedResults: speedResultDataSource(dataSourceCache),
     tricks: trickDataSource(dataSourceCache),

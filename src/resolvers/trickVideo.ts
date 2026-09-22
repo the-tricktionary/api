@@ -6,7 +6,6 @@ import { createVideoUpload, tryDeleteAsset } from '../services/mux.js'
 import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
-import type { TrickVideoUploadWithUrl } from '../services/mux.js'
 import type { TrickDoc, YouTubeVideo } from '../store/schema.js'
 
 const youTubeVideoSchema = z.object({
@@ -85,11 +84,6 @@ export const trickVideoResolvers: Resolvers = {
     async pendingVideoUploads (trick, _, { dataSources, allowUser }) {
       if (!allowUser.getTrickVideoUploads()) return []
       return await dataSources.trickVideoUploads.findPendingByTrick(trick.id)
-    }
-  },
-  TrickVideoUpload: {
-    url (upload) {
-      return (upload as Partial<TrickVideoUploadWithUrl>).url ?? null
     }
   }
 }
