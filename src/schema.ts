@@ -55,6 +55,11 @@ const typeDefs = gql`
     Requested
   }
 
+  enum Theme {
+    Light
+    Dark
+  }
+
   type Query {
     me: User
     """
@@ -222,6 +227,8 @@ const typeDefs = gql`
     # Users
     """The signed in user's language, null clears it"""
     setUserLang (lang: String): User!
+    """The signed in user's colour theme, null follows the system"""
+    setUserTheme (theme: Theme): User!
     """The signed in user's name and username, both are set on every update"""
     updateUserProfile (data: UserProfileInput!): User!
     """What others get to see of the signed in user's profile"""
@@ -478,6 +485,8 @@ const typeDefs = gql`
     username: String
     name: String
     lang: String
+    """Null follows the system"""
+    theme: Theme
     photo: String
     """Only visible to the user themselves and to super admins"""
     email: String @cacheControl(maxAge: 0, scope: PRIVATE)
