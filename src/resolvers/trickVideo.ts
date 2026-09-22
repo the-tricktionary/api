@@ -122,10 +122,5 @@ export const trickVideoResolvers: Resolvers = {
       if (!allowUser.getTrickVideoUploads()) return []
       return await dataSources.trickVideoUploads.findPendingByTrick(trick.id)
     }
-  },
-  TrickVideoUpload: {
-    url (upload) {
-      return (upload as Partial<TrickVideoUploadWithUrl>).url ?? null
-    }
   }
 }
