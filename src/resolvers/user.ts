@@ -154,8 +154,7 @@ export const userResolvers: Resolvers = {
         if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
       }))
 
-      // someone's first grant starts their admin digest from now, rather than
-      // with everything that happened before they could act on it
+      // a first grant starts the admin digest from now rather than a week back
       const firstGrant = !target.grants?.length && parsedGrants.length > 0
 
       return await (dataSources.users.updateOnePartial(userId, {

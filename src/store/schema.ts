@@ -54,10 +54,7 @@ export interface TrickDoc extends DocBase {
 
   submittedBy: UserDoc['id']
   updatedBy?: UserDoc['id']
-  /**
-   * When the trick was added. `createdAt` comes from the document's own
-   * metadata (its `createTime`) and so cannot be queried or ordered on, this can.
-   */
+  /** Queryable, unlike `createdAt` */
   addedAt: Timestamp
 
   videos: Video[]
@@ -94,7 +91,6 @@ export interface TrickVideoUploadDoc extends DocBase {
 }
 export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t?.collection === 'trick-video-uploads' }
 
-/** An upload in one of these will not change again */
 export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
 
 export interface TrickLocalisationDoc extends DocBase {
@@ -291,21 +287,12 @@ export interface UserDoc extends DocBase {
   notifications?: UserNotifications
 }
 
-/** What the user is emailed about, and how far the emails have got */
 export interface UserNotifications {
-  /** The weekly admin digest is opt-out, so only `false` turns it off */
+  /** Opt-out, only `false` turns it off */
   adminDigest?: boolean
-  /**
-   * Everything before this has been covered by a digest, or happened before the
-   * user was given their first grant. Moved on for everyone with a grant each
-   * time the digest runs, whether or not they were sent anything.
-   */
+  /** The admin digest has covered everything before this */
   adminDigestSentUntil?: Timestamp
-  /**
-   * The hash of the site's English interface messages as of the user's last
-   * digest, see jobs/adminDigest.ts. Absent until their first digest, which
-   * records it without reporting a change.
-   */
+  /** Of the site's English messages, as of the user's last admin digest */
   siteMessagesHash?: string
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }

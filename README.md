@@ -13,38 +13,28 @@ valid shell identifiers from the environment it passes on.
 
 ## Admin digest (Mailjet)
 
-A weekly email to everyone with a grant, one per person, with only the sections
-their grants give them: pending trick submissions for trick editors and super
-admins, new tricks still missing a translation in a translator's languages or a
-level in a level editor's rulesets, and a note when the site's English
-interface texts (its `en.json`, fetched from `WEB_URL`) have changed, for
-translators and super admins. Someone with nothing new gets nothing, and
-anyone can turn it off in the admin's settings (`notificationOptions` on the
-user, the digest is on unless they do).
+A weekly email to everyone with a grant, with what is new for their grants:
+pending trick submissions (trick editors, super admins), new tricks missing a
+translation or level in their languages or rulesets (translators, level
+editors), and changes to the site's `en.json` (translators, super admins).
+It is opt-out, through `setNotificationOptions`.
 
-It is `src/jobs/adminDigest.ts`, run as the Cloud Run job
-`tricktionary-admin-digest` from the API's image, which a Cloud Scheduler job
-starts every week; both are in the infra repository, and the deploy workflow
-points the job at each new image. The job runs as its own service account,
-the only one that can read the two Mailjet secrets.
+`src/jobs/adminDigest.ts` runs as the Cloud Run job `tricktionary-admin-digest`
+on a Cloud Scheduler trigger, both in the infra repository, and the deploy
+workflow points the job at each new image. Its service account is the only one
+that can read the Mailjet secrets. Jobs run through `src/jobs/runJob.ts`, as a
+trace of their own and, when `JOB_SCHEDULE` is set, a Sentry cron monitor.
 
-Every user has their own window, from `notifications.adminDigestSentUntil` to
-midnight UTC on the day the job runs, so a run that fails or is missed is caught
-up by the next one, and a second run on the same day sends nothing. Someone's
-first grant starts their window then, rather than a week back. Tricks are
-found by `addedAt`, which `src/migrations/trick-added-at.ts` backfilled.
+Each user's window runs from `notifications.adminDigestSentUntil` to midnight
+UTC on the day of the run, and moves on whether or not anything was sent.
+Tricks are found by `addedAt`, backfilled by `src/migrations/trick-added-at.ts`.
 
-Mail goes out through Mailjet's Send API v3.1 from `noreply@the-tricktionary.com`,
-with replies to `contact@the-tricktionary.com`. The domain's DMARC policy is
-`p=reject`, so Mailjet's SPF include and DKIM record have to be in DNS (infra
-again) before it sends anything.
+Mail goes out from `noreply@the-tricktionary.com`, with replies to
+`contact@the-tricktionary.com`. With the domain's DMARC at `p=reject`, nothing
+arrives unless Mailjet's DKIM record is in DNS.
 
-```sh
-npx tsx src/jobs/adminDigest.ts --dry-run
-```
-
-logs every digest it would send instead of sending it, and moves no one's
-window, so it needs Firestore access but no Mailjet credentials.
+`npx tsx src/jobs/adminDigest.ts --dry-run` logs the emails instead of sending
+them and moves no windows.
 
 ## Speed event definitions and timing tracks
 

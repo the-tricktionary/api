@@ -57,7 +57,7 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
     return result[0]
   }
 
-  /** Added in `[from, until)` */
+  /** `[from, until)` */
   async findManyAddedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('addedAt', '>=', from).where('addedAt', '<', until), options)
   }
@@ -95,7 +95,7 @@ export class TrickSubmissionDataSource extends FirestoreDataSource<TrickSubmissi
     }, options)
   }
 
-  /** Newest first, the ones still waiting for a review that were submitted in `[from, until)` */
+  /** Newest first, `[from, until)` */
   async findManyPendingSubmittedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c
       .where('status', '==', TrickSubmissionStatus.Pending)

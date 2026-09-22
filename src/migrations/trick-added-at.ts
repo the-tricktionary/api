@@ -1,13 +1,7 @@
 /**
- * Backfills `addedAt` on every trick. `createdAt` cannot be queried: the data
- * source's converter strips it on write and derives it from the document's own
- * create time on read, so it is not a stored field. The admin digest asks for
- * the tricks added in a window, which needs one that is.
- *
- * The value comes from a stored `createdAt` where an older import left one, and
- * from the document's own create time otherwise. This reads the collection
- * without the data source's converter, which is the only way to see that
- * stored `createdAt`: on the converted path it is shadowed by the create time.
+ * Backfills `addedAt` on every trick, from a stored `createdAt` where an old
+ * import left one and the document's create time otherwise. Reads without the
+ * data source's converter, which hides a stored `createdAt`.
  *
  * Idempotent. Run with: npx tsx src/migrations/trick-added-at.ts [--dry-run]
  */

@@ -70,8 +70,6 @@ jobs:
     - name: Show Output
       run: echo ${{ steps.deploy.outputs.url }}
 
-    # The admin digest job runs from the same image, Terraform owns everything
-    # about it but the image
     - name: Deploy the admin digest job
       run: |-
         gcloud run jobs update "$DIGEST_JOB" \

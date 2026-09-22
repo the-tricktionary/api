@@ -1,26 +1,20 @@
-import { disciplineNames } from './adminDigest.js'
-
 import type { Timestamp } from '@google-cloud/firestore'
+import type { Discipline } from '../generated/graphql.js'
+import type { FlatMessages } from '../services/siteMessages.js'
 import type { AdminDigest } from './adminDigest.js'
 
-/**
- * The admin digest as an email, an HTML part and a plaintext part built from
- * the same sections. The HTML is kept plain on purpose: one column, system
- * fonts, inline styles only, so it reads the same in every mail client.
- */
-
 interface RenderOptions {
-  /** The admin interface, `ADMIN_URL` in the configuration */
   adminUrl: string
-  /** The recipient, to greet them by */
   name?: string
   from: Timestamp
   until: Timestamp
+  /** The site's English messages, for labels */
+  messages: FlatMessages
 }
 
 interface Line {
   text: string
-  /** Shown after the text, e.g. the languages a trick is missing in */
+  /** Shown in brackets after the text */
   detail?: string
   href: string
 }
@@ -39,7 +33,7 @@ export interface RenderedEmail {
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 
-/** `until` is exclusive, so the last day shown is the one before it */
+/** `until` is exclusive */
 function period (from: Timestamp, until: Timestamp) {
   const lastDay = new Date(until.toMillis() - 1)
   return `${dateFormat.format(from.toDate())} to ${dateFormat.format(lastDay)}`
@@ -49,8 +43,9 @@ function plural (count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`
 }
 
-function sections (digest: AdminDigest, adminUrl: string): Section[] {
+function sections (digest: AdminDigest, adminUrl: string, messages: FlatMessages): Section[] {
   const url = (path: string) => new URL(path, adminUrl).href
+  const discipline = (value: Discipline) => messages[`enums.discipline.${value}`] ?? value
   const result: Section[] = []
 
   if (digest.submissions.length > 0) {
@@ -59,7 +54,7 @@ function sections (digest: AdminDigest, adminUrl: string): Section[] {
       intro: `${plural(digest.submissions.length, 'trick was', 'tricks were')} submitted and ${digest.submissions.length === 1 ? 'is' : 'are'} waiting for a review.`,
       lines: digest.submissions.map(submission => ({
         text: submission.name,
-        detail: `${disciplineNames[submission.discipline]}, by ${submission.attributionName}`,
+        detail: `${discipline(submission.discipline)}, by ${submission.attributionName}`,
         href: url('/submissions')
       }))
     })
@@ -71,7 +66,7 @@ function sections (digest: AdminDigest, adminUrl: string): Section[] {
       intro: `${plural(digest.toTranslate.length, 'new trick is', 'new tricks are')} missing a translation in your languages.`,
       lines: digest.toTranslate.map(({ trick, langs }) => ({
         text: trick.name,
-        detail: `${disciplineNames[trick.discipline]}, ${langs.join(', ')}`,
+        detail: `${discipline(trick.discipline)}, ${langs.join(', ')}`,
         href: url(`/trick/${encodeURIComponent(trick.id)}`)
       }))
     })
@@ -83,7 +78,7 @@ function sections (digest: AdminDigest, adminUrl: string): Section[] {
       intro: `${plural(digest.toLevel.length, 'new trick has', 'new tricks have')} no level yet in your rulesets.`,
       lines: digest.toLevel.map(({ trick, rulesets }) => ({
         text: trick.name,
-        detail: `${disciplineNames[trick.discipline]}, ${rulesets.join(', ')}`,
+        detail: `${discipline(trick.discipline)}, ${rulesets.join(', ')}`,
         href: url(`/trick/${encodeURIComponent(trick.id)}`)
       }))
     })
@@ -119,6 +114,7 @@ function escapeHtml (value: string) {
     .replaceAll('\'', '&#39;')
 }
 
+/** Inline styles only, for mail clients that strip the rest */
 function renderHtml (title: string, greeting: string, summary: string, body: Section[], footer: { text: string, href: string, link: string }) {
   const sectionsHtml = body.map(section => `
 <h2 style="font-size:18px;margin:24px 0 8px">${escapeHtml(section.heading)}</h2>
@@ -168,8 +164,8 @@ function renderText (greeting: string, summary: string, body: Section[], footer:
   ].join('\n')
 }
 
-export function renderAdminDigest (digest: AdminDigest, { adminUrl, name, from, until }: RenderOptions): RenderedEmail {
-  const body = sections(digest, adminUrl)
+export function renderAdminDigest (digest: AdminDigest, { adminUrl, name, from, until, messages }: RenderOptions): RenderedEmail {
+  const body = sections(digest, adminUrl, messages)
   const greeting = name ? `Hi ${name},` : 'Hi,'
   const summary = `Here is what happened in the Tricktionary from ${period(from, until)} that needs your attention.`
   const footer = {

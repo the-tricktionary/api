@@ -9,8 +9,7 @@ import { GOOGLE_CLOUD_PROJECT } from '../config.js'
  * environment variable that overrides it, so there is no mapping table that can
  * drift out of sync with either side.
  *
- * The Mailjet ones are only read by the admin digest job (jobs/adminDigest.ts),
- * which runs as its own service account, the API's cannot read them.
+ * Only the admin digest job's service account can read the Mailjet ones.
  */
 export const SECRET_NAMES = [
   'tricktionary-api-stripe-sk',
