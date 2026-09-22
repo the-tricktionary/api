@@ -1,15 +1,12 @@
 import z from 'zod'
-import * as Sentry from '@sentry/node'
 import { FieldValue } from '@google-cloud/firestore'
-import { AuthorizationError, NotFoundError, UpstreamError } from '../errors.js'
-import { VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
-import { MUX_UPLOAD_CORS_ORIGIN } from '../config.js'
-import { mux } from '../services/mux.js'
-import { isAllowedOrigin } from '../helpers/cors.js'
+import { AuthorizationError, NotFoundError } from '../errors.js'
+import { VideoHost, VideoType } from '../generated/graphql.js'
+import { createVideoUpload, tryDeleteAsset } from '../services/mux.js'
 import { slowMoStartSchema, youTubeVideoIdSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
-import type { TrickDoc, TrickVideoUploadDoc, YouTubeVideo } from '../store/schema.js'
+import type { TrickDoc, YouTubeVideo } from '../store/schema.js'
 
 const youTubeVideoSchema = z.object({
   videoId: youTubeVideoIdSchema,
@@ -21,14 +18,6 @@ const videoUploadSchema = z.object({
   type: z.enum(VideoType),
   slowMoStart: slowMoStartSchema
 })
-
-/**
- * Mux hands out the URL of a direct upload exactly once, so it's returned with
- * the upload it was created for rather than stored on the document.
- */
-interface TrickVideoUploadWithUrl extends TrickVideoUploadDoc {
-  url: string
-}
 
 export const trickVideoResolvers: Resolvers = {
   Mutation: {
@@ -62,30 +51,13 @@ export const trickVideoResolvers: Resolvers = {
       const trick = await dataSources.tricks.findOneById(trickId)
       if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
 
-      // the signed upload URL only accepts a browser upload from the origin
-      // it was created for, so it has to be the caller's own one
-      const origin = req.get('origin')
-      const upload = await mux.video.uploads.create({
-        cors_origin: isAllowedOrigin(origin) ? origin : MUX_UPLOAD_CORS_ORIGIN,
-        new_asset_settings: {
-          playback_policies: ['public'],
-          video_quality: 'basic',
-          passthrough: trickId
-        }
-      })
-      if (!upload.url) throw new UpstreamError(`Mux did not return an upload URL for upload ${upload.id}`, { extensions: { upstream: 'mux' } })
-
-      const uploadDoc = await (dataSources.trickVideoUploads.createOne({
-        id: upload.id,
-        trickId,
+      return await createVideoUpload({
+        owner: { trickId },
         userId: user.id,
         type,
-        status: VideoUploadStatus.Waiting,
-        ...(slowMoStart != null ? { slowMoStart } : {})
-      }) as Promise<TrickVideoUploadDoc>)
-
-      const withUrl: TrickVideoUploadWithUrl = { ...uploadDoc, url: upload.url }
-      return withUrl
+        slowMoStart,
+        origin: req.get('origin')
+      }, { dataSources })
     },
     async removeTrickVideo (_, { trickId, videoId }, { dataSources, allowUser, user, logger }) {
       allowUser.editTrickVideos.assert()
@@ -103,16 +75,7 @@ export const trickVideoResolvers: Resolvers = {
         updatedBy: user.id
       }) as Promise<TrickDoc>)
 
-      // the trick no longer references the asset either way, so a failed
-      // deletion leaves an orphan in Mux rather than failing the mutation
-      if (removed.host === VideoHost.Mux) {
-        try {
-          await mux.video.assets.delete(removed.assetId)
-        } catch (err) {
-          logger.error(err, `Failed to delete the Mux asset ${removed.assetId}`)
-          Sentry.captureException(err)
-        }
-      }
+      if (removed.host === VideoHost.Mux) await tryDeleteAsset(removed.assetId, logger)
 
       return updated
     }

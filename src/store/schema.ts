@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -8,12 +8,21 @@ export interface DocBase {
   readonly updatedAt: Timestamp
 }
 
+/** Who contributed a piece of a trick and the name they asked to be credited by */
+export interface Attribution {
+  userId?: UserDoc['id']
+  name: string
+  at: Timestamp
+}
+
 interface VideoBase {
   host: VideoHost
   /** Host-specific identifier of the video, see the individual hosts */
   videoId: string
   type: VideoType
   slowMoStart?: number | null
+  /** Who this video is credited to, absent for videos the Tricktionary filmed itself */
+  attribution?: Attribution
 }
 
 export interface YouTubeVideo extends VideoBase {
@@ -49,11 +58,16 @@ export interface TrickDoc extends DocBase {
 }
 export function isTrick (t: any): t is TrickDoc { return t?.collection === 'tricks' }
 
-/** The document ID is the Mux upload ID, which is what Mux's webhooks identify the upload by */
+/**
+ * The document ID is the Mux upload ID, which is what Mux's webhooks identify
+ * the upload by. Exactly one of `trickId` and `submissionId` is set, naming
+ * what the video belongs to.
+ */
 export interface TrickVideoUploadDoc extends DocBase {
   readonly collection: 'trick-video-uploads'
 
-  trickId: TrickDoc['id']
+  trickId?: TrickDoc['id']
+  submissionId?: TrickSubmissionDoc['id']
   userId: UserDoc['id']
 
   type: VideoType
@@ -84,6 +98,8 @@ export interface TrickLocalisationDoc extends DocBase {
 
   submittedBy: UserDoc['id']
   updatedBy?: UserDoc['id']
+  /** Who this text is credited to, absent for text the Tricktionary wrote itself */
+  attribution?: Attribution
 }
 export function isTrickLocalisation (t: any): t is TrickLocalisationDoc { return t?.collection === 'trick-localisations' }
 
@@ -91,6 +107,51 @@ export function trickLocalisationId (trickId: TrickDoc['id'], lang: string) { re
 
 export function trickLocalisationLang (id: TrickLocalisationDoc['id'], trickId: TrickDoc['id']) {
   return id.startsWith(`${trickId}-`) ? id.slice(trickId.length + 1) : undefined
+}
+
+/** A trick a signed in user has offered, waiting for a trick editor to review it */
+export interface TrickSubmissionDoc extends DocBase {
+  readonly collection: 'trick-submissions'
+
+  userId: UserDoc['id']
+  /** Whether the submitter counted as trusted when this was created, picks the global daily pool it counts toward */
+  trusted: boolean
+  attributionName: string
+  licenceAcceptedAt: Timestamp
+  /**
+   * When it was submitted. `createdAt` comes from the document's own metadata
+   * (its `createTime`) and so cannot be queried or ordered on, this can.
+   */
+  submittedAt: Timestamp
+
+  discipline: Discipline
+  trickType?: TrickType
+  /** Language of `name`, `alternativeNames` and `description` */
+  lang: string
+  name: string
+  alternativeNames?: string[]
+  description?: string
+
+  status: TrickSubmissionStatus
+  /** The Mux upload the video arrives through, the document ID in `trick-video-uploads` */
+  uploadId: TrickVideoUploadDoc['id']
+  /** Set by the Mux webhook once the asset is ready */
+  video?: MuxVideo
+
+  reviewedBy?: UserDoc['id']
+  reviewedAt?: Timestamp
+  reviewNote?: string
+  /** The trick an accepted submission became */
+  trickId?: TrickDoc['id']
+  /** Firestore's TTL policy deletes the document once this passes, set on rejection */
+  expiresAt?: Timestamp
+}
+export function isTrickSubmission (t: any): t is TrickSubmissionDoc { return t?.collection === 'trick-submissions' }
+
+export const TRICK_SUBMISSION_REJECTED_TTL_DAYS = 30
+
+export function rejectedSubmissionExpiry () {
+  return Timestamp.fromMillis(Date.now() + (TRICK_SUBMISSION_REJECTED_TTL_DAYS * 24 * 60 * 60 * 1000))
 }
 
 export interface LanguageDoc extends DocBase {
@@ -214,6 +275,8 @@ export interface UserDoc extends DocBase {
   email?: string
   profile: Omit<ProfileOptions, '__typename'>
   grants?: Grant[]
+  /** How the user's trick submissions have been reviewed, what their trust is worked out from */
+  submissionStats?: { accepted: number, rejected: number }
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
 

@@ -18,7 +18,10 @@ generates:
         User: ../store/schema.js#UserDoc
         Trick: ../store/schema.js#TrickDoc
         TrickLevel: ../store/schema.js#TrickLevelDoc
+        TrickLocalisation: ../store/schema.js#TrickLocalisationDoc
         TrickVideoUpload: ../store/schema.js#TrickVideoUploadDoc
+        TrickSubmission: ../store/schema.js#TrickSubmissionDoc
+        Video: ../store/schema.js#Video as VideoModel
         Ruleset: ../store/schema.js#RulesetDoc
         Language: ../store/schema.js#LanguageDoc
         TrickCompletion: ../store/schema.js#TrickCompletionDoc

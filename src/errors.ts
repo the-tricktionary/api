@@ -150,6 +150,19 @@ export class ResolverRemovedError<Extensions extends Record<string, any> | undef
   }
 }
 
+interface RateLimitErrorExtensions { scope: 'user' | 'global', limit: number }
+/** The caller, or everyone together, has done as much of this as they may for now */
+export class RateLimitError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions & RateLimitErrorExtensions, Private> {
+  constructor (errorOrMsg: string | Error, options: ExtendedErrorOptions<Extensions & RateLimitErrorExtensions, Private>) {
+    super(errorOrMsg, {
+      name: 'RateLimitError',
+      code: 'RATE_LIMITED',
+      httpStatusCode: 429,
+      ...options
+    })
+  }
+}
+
 // ----------
 // 5xx Errors
 // ----------

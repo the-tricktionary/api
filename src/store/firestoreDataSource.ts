@@ -8,8 +8,8 @@ import { groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
-import { GroupInviteStatus, GroupRole } from '../generated/graphql.js'
+import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { SpeedAthlete } from '../helpers/speedResults.js'
 import type { FindArgs, QueryFindArgs } from 'apollo-datasource-firestore'
@@ -34,6 +34,11 @@ export async function deleteInChunks (refs: Array<DocumentReference<any>>) {
   await writeInChunks(refs, (batch, ref) => { batch.delete(ref) })
 }
 
+/** Counted by Firestore itself, so a limit check doesn't read what it counts */
+async function countDocuments (query: Query<any>) {
+  return (await query.count().get()).data().count
+}
+
 // the collection type is only ever what the document type says it is
 function collection<T extends DocumentData> (name: string) {
   return firestore.collection(name) as CollectionReference<T>
@@ -55,7 +60,11 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
 }
 export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(collection<TrickDoc>('tricks'), { logger: logger.child({ name: 'trick-data-source' }), cache })
 
-export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {}
+export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {
+  async findManyByTrick (trickId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('trickId', '==', trickId), options)
+  }
+}
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(collection<TrickLocalisationDoc>('trick-localisations'), { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
 
 export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUploadDoc> {
@@ -66,6 +75,43 @@ export class TrickVideoUploadDataSource extends FirestoreDataSource<TrickVideoUp
   }
 }
 export const trickVideoUploadDataSource = (cache: KeyValueCache) => new TrickVideoUploadDataSource(collection<TrickVideoUploadDoc>('trick-video-uploads'), { logger: logger.child({ name: 'trick-video-upload-data-source' }), cache })
+
+export class TrickSubmissionDataSource extends FirestoreDataSource<TrickSubmissionDoc> {
+  /** Newest first */
+  async findManyByUser (userId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('userId', '==', userId).orderBy('submittedAt', 'desc'), options)
+  }
+
+  /** Newest first, every status when none is given */
+  async findManyByStatus (status?: TrickSubmissionStatus | null, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => {
+      let q: Query<TrickSubmissionDoc> = c
+      if (status) q = q.where('status', '==', status)
+      return q.orderBy('submittedAt', 'desc')
+    }, options)
+  }
+
+  /** The user's submissions nobody has reviewed yet */
+  async countPendingByUser (userId: string) {
+    return await countDocuments(this.collection
+      .where('userId', '==', userId)
+      .where('status', '==', TrickSubmissionStatus.Pending))
+  }
+
+  async countByUserSince (userId: string, since: Timestamp) {
+    return await countDocuments(this.collection
+      .where('userId', '==', userId)
+      .where('submittedAt', '>=', since))
+  }
+
+  /** Everyone's submissions in one of the two trust pools, see `TrickSubmissionDoc.trusted` */
+  async countByTrustSince (trusted: boolean, since: Timestamp) {
+    return await countDocuments(this.collection
+      .where('trusted', '==', trusted)
+      .where('submittedAt', '>=', since))
+  }
+}
+export const trickSubmissionDataSource = (cache: KeyValueCache) => new TrickSubmissionDataSource(collection<TrickSubmissionDoc>('trick-submissions'), { logger: logger.child({ name: 'trick-submission-data-source' }), cache })
 
 export class LanguageDataSource extends FirestoreDataSource<LanguageDoc> {
   async findAll (options?: QueryFindArgs) {
@@ -422,6 +468,7 @@ export function createDataSources () {
     trickPrerequisites: trickPrerequisiteDataSource(dataSourceCache),
     trickLevels: trickLevelDataSource(dataSourceCache),
     trickCompletions: trickCompletionDataSource(dataSourceCache),
+    trickSubmissions: trickSubmissionDataSource(dataSourceCache),
     trickVideoUploads: trickVideoUploadDataSource(dataSourceCache),
     uiMessages: uiMessagesDataSource(dataSourceCache),
     users: userDataSource(dataSourceCache),
