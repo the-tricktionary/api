@@ -293,15 +293,10 @@ export const eventDefinitionUpdateSchema = z.object({
 
 // Notices
 
-const noticeUrlSchema = z.string().trim().max(2000)
-  .refine(url => {
-    if (url.startsWith('/')) return /^\/(?!\/)[^\s]*$/.test(url)
-    try {
-      return ['http:', 'https:'].includes(new URL(url).protocol)
-    } catch {
-      return false
-    }
-  }, 'A link must be a path such as `/tricks` or an absolute http(s) URL')
+const noticeUrlSchema = z.union([
+  z.string().trim().max(2000).regex(/^\/(?!\/)\S*$/),
+  z.url({ protocol: /^https?$/ }).max(2000)
+], 'A link must be a path such as `/tricks` or an absolute http(s) URL')
 
 const noticeTextSchema = z.object({
   lang: langSchema,

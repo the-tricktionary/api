@@ -84,12 +84,6 @@ export const noticeResolvers: Resolvers = {
     }
   },
   Notice: {
-    from (notice) {
-      return notice.from ?? null
-    },
-    until (notice) {
-      return notice.until ?? null
-    },
     text (notice, { lang }) {
       return noticeText(notice, lang ? langSchema.parse(lang) : 'en')
     },
