@@ -149,7 +149,7 @@ export const trickSubmissionResolvers: Resolvers = {
       // they did not write it in english
       const ownText: NewTrickLocalisation = {
         name: submission.name,
-        alternativeNames: submission.alternativeNames ?? [],
+        alternativeNames: submission.alternativeNames,
         description: submission.description ?? '',
         submittedBy: submission.userId,
         attribution

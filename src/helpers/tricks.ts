@@ -5,18 +5,12 @@ import { trickLocalisationId } from '../store/schema.js'
 import type { Transaction } from 'firebase-admin/firestore'
 import type { ApolloContext } from '../apollo.js'
 import type { Discipline, TrickType } from '../generated/graphql.js'
-import type { Attribution, TrickDoc, TrickSubmissionDoc, UserDoc, Video } from '../store/schema.js'
+import type { Attribution, TrickDoc, TrickLocalisationDoc, TrickSubmissionDoc, UserDoc, Video } from '../store/schema.js'
 
 type Context = Pick<ApolloContext, 'dataSources' | 'logger'>
 
 /** The text of one localisation of a new trick, and who it came from */
-export interface NewTrickLocalisation {
-  name: string
-  alternativeNames: string[]
-  description: string
-  submittedBy: UserDoc['id']
-  attribution?: Attribution
-}
+export type NewTrickLocalisation = Pick<TrickLocalisationDoc, 'name' | 'alternativeNames' | 'description' | 'submittedBy' | 'attribution'>
 
 export interface NewTrick {
   discipline: Discipline
@@ -66,7 +60,7 @@ export async function createTrickWithLocalisation (trick: NewTrick, { dataSource
       t.create(localisationCollection.doc(trickLocalisationId(dRef.id, lang)).withConverter(null), {
         trickId: dRef.id,
         name: localisation.name,
-        alternativeNames: localisation.alternativeNames,
+        alternativeNames: localisation.alternativeNames ?? [],
         description: localisation.description,
         submittedBy: localisation.submittedBy,
         updatedBy: trick.updatedBy,
