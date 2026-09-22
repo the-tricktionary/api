@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -209,6 +209,7 @@ export interface UserDoc extends DocBase {
   username?: string
   name?: string
   lang?: string
+  theme?: Theme
   photo?: string
   email?: string
   profile: Omit<ProfileOptions, '__typename'>

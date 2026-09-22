@@ -93,6 +93,16 @@ export const userResolvers: Resolvers = {
 
       return await (dataSources.users.updateOnePartial(user.id, { lang: parsedLang }) as Promise<UserDoc>)
     },
+    async setUserTheme (_, { theme }, { dataSources, allowUser, user }) {
+      allowUser.setUserTheme.assert()
+      if (!user) throw new AuthorizationError()
+
+      if (theme == null) {
+        return await (dataSources.users.updateOnePartial(user.id, { theme: FieldValue.delete() }) as Promise<UserDoc>)
+      }
+
+      return await (dataSources.users.updateOnePartial(user.id, { theme }) as Promise<UserDoc>)
+    },
     async updateUserProfile (_, { data: rawData }, { dataSources, allowUser, user }) {
       allowUser.editProfile.assert()
       if (!user) throw new AuthorizationError()
