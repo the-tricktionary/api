@@ -36,6 +36,12 @@ const envSchema = z.object({
   // The public site, whose sitemap this serves, and whose English interface
   // messages the booklets are labelled with
   WEB_URL: z.url().default('https://the-tricktionary.com'),
+  // Linked to from the admin digest
+  ADMIN_URL: z.url().default('https://admin.the-tricktionary.com'),
+  // A job's crontab schedule in UTC, for its Sentry cron monitor
+  JOB_SCHEDULE: z.string().optional(),
+  // Set by Cloud Run in jobs
+  CLOUD_RUN_EXECUTION: z.string().optional(),
   // The Typst binary that typesets booklets, see the README
   TYPST_BIN: z.string().default('typst')
 })
@@ -50,5 +56,8 @@ export const {
   MUX_UPLOAD_CORS_ORIGIN,
   TIMING_TRACK_BUCKET,
   WEB_URL,
+  ADMIN_URL,
+  JOB_SCHEDULE,
+  CLOUD_RUN_EXECUTION,
   TYPST_BIN
 } = envSchema.parse(process.env)

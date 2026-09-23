@@ -8,13 +8,17 @@ import { GOOGLE_CLOUD_PROJECT } from '../config.js'
  * A name is both the Secret Manager secret ID and, prefixed with `GSM_`, the
  * environment variable that overrides it, so there is no mapping table that can
  * drift out of sync with either side.
+ *
+ * Only the admin digest job's service account can read the Mailjet ones.
  */
 export const SECRET_NAMES = [
   'tricktionary-api-stripe-sk',
   'tricktionary-api-algolia-api-key',
   'tricktionary-api-mux-token-id',
   'tricktionary-api-mux-token-secret',
-  'tricktionary-api-mux-webhook-secret'
+  'tricktionary-api-mux-webhook-secret',
+  'tricktionary-api-mailjet-api-key',
+  'tricktionary-api-mailjet-secret-key'
 ] as const
 
 export type SecretName = typeof SECRET_NAMES[number]

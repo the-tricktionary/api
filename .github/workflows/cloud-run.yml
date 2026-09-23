@@ -8,6 +8,7 @@ on:
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   SERVICE: tricktionary-api
+  DIGEST_JOB: tricktionary-admin-digest
   REGION: ${{ vars.GCP_REGION }}
 
 jobs:
@@ -68,6 +69,12 @@ jobs:
 
     - name: Show Output
       run: echo ${{ steps.deploy.outputs.url }}
+
+    - name: Deploy the admin digest job
+      run: |-
+        gcloud run jobs update "$DIGEST_JOB" \
+          --image "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
+          --region "$REGION"
 
   sentry-release:
     name: Create Sentry release

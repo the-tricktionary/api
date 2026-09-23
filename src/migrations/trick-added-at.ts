@@ -1,0 +1,64 @@
+/**
+ * Backfills `addedAt` on every trick, from a stored `createdAt` where an old
+ * import left one and the document's create time otherwise. Reads without the
+ * data source's converter, which hides a stored `createdAt`.
+ *
+ * Idempotent. Run with: npx tsx src/migrations/trick-added-at.ts [--dry-run]
+ */
+import '../config.js'
+import { Firestore, Timestamp } from '@google-cloud/firestore'
+import { logger } from '../services/logger.js'
+
+const firestore = new Firestore()
+const BATCH_SIZE = 200
+const dryRun = process.argv.includes('--dry-run')
+
+async function migrate () {
+  const qSnap = await firestore.collection('tricks').get()
+  logger.info({ total: qSnap.size, dryRun }, 'Found tricks')
+
+  let backfilled = 0
+  let fromStored = 0
+  let skipped = 0
+  let batch = firestore.batch()
+  let inBatch = 0
+
+  for (const dSnap of qSnap.docs) {
+    const data = dSnap.data()
+    if (data.addedAt instanceof Timestamp) {
+      skipped++
+      continue
+    }
+
+    const stored: unknown = data.createdAt
+    const addedAt = stored instanceof Timestamp ? stored : dSnap.createTime
+    if (stored instanceof Timestamp) fromStored++
+
+    if (!dryRun) {
+      batch.update(dSnap.ref, { addedAt })
+      inBatch++
+    }
+    backfilled++
+
+    if (inBatch >= BATCH_SIZE) {
+      await batch.commit()
+      batch = firestore.batch()
+      inBatch = 0
+    }
+  }
+  if (inBatch > 0) await batch.commit()
+
+  logger.info(
+    { backfilled, fromStored, fromCreateTime: backfilled - fromStored, skipped, dryRun },
+    'Tricks backfilled with addedAt'
+  )
+}
+
+migrate()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch(err => {
+    logger.error(err)
+    process.exit(1)
+  })

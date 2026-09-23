@@ -71,7 +71,7 @@ interface OldTrickLevelDoc {
   rulesId?: string
 }
 
-type NewTrickLevelDoc = Omit<TrickLevelDoc, 'collection' | 'id'>
+type NewTrickLevelDoc = Omit<TrickLevelDoc, 'collection' | 'id' | 'updatedAt'>
 
 function rulesIdFor ({ organisation, rulesVersion }: OldTrickLevelDoc) {
   switch (organisation) {
@@ -119,7 +119,7 @@ function newestIjruRulesId (rulesIds: string[]) {
 function isBetterLevel (candidate: NewTrickLevelDoc, current: NewTrickLevelDoc) {
   const rankDiff = verificationLevelRank(candidate.verificationLevel) - verificationLevelRank(current.verificationLevel)
   if (rankDiff !== 0) return rankDiff > 0
-  return candidate.updatedAt.toMillis() > current.updatedAt.toMillis()
+  return candidate.changedAt.toMillis() > current.changedAt.toMillis()
 }
 
 async function main () {
@@ -157,7 +157,7 @@ async function main () {
         : {}),
       ...(level.verifiedBy ? { updatedBy: level.verifiedBy } : {}),
       createdAt,
-      updatedAt
+      changedAt: updatedAt
     }
 
     const newId = trickLevelId(level.trickId, rulesId)

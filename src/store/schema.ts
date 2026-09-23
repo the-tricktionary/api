@@ -1,4 +1,5 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType, VideoUploadStatus } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
+import { VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -53,6 +54,8 @@ export interface TrickDoc extends DocBase {
 
   submittedBy: UserDoc['id']
   updatedBy?: UserDoc['id']
+  /** Queryable, unlike `createdAt` */
+  addedAt: Timestamp
 
   videos: Video[]
 }
@@ -87,6 +90,8 @@ export interface TrickVideoUploadDoc extends DocBase {
   expiresAt?: Timestamp
 }
 export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t?.collection === 'trick-video-uploads' }
+
+export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
 
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'
@@ -233,6 +238,8 @@ export interface TrickLevelDoc extends DocBase {
   verifiedAt?: Timestamp
   /** absent on levels migrated from before edits were tracked */
   updatedBy?: UserDoc['id']
+  /** Queryable, unlike `updatedAt`, set on every change to the level or its verification */
+  changedAt: Timestamp
 }
 export function isTrickLevel (t: any): t is TrickLevelDoc { return t?.collection === 'trick-levels' }
 
@@ -279,6 +286,16 @@ export interface UserDoc extends DocBase {
   grants?: Grant[]
   /** How the user's trick submissions have been reviewed, what their trust is worked out from */
   submissionStats?: { accepted: number, rejected: number }
+  notifications?: UserNotifications
+}
+
+export interface UserNotifications {
+  /** Opt-out, only `false` turns it off */
+  adminDigest?: boolean
+  /** The admin digest has covered everything before this */
+  adminDigestSentUntil?: Timestamp
+  /** Of the site's English messages, as of the user's last admin digest */
+  siteMessagesHash?: string
 }
 export function isUser (t: any): t is TrickDoc { return t?.collection === 'users' }
 

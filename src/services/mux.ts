@@ -15,8 +15,6 @@ const [tokenId, tokenSecret] = await Promise.all([getSecret('tricktionary-api-mu
 
 export const mux = new Mux({ tokenId, tokenSecret })
 
-export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
-
 /**
  * Mux hands out the URL of a direct upload exactly once, so it's returned with
  * the upload it was created for rather than stored on the document.

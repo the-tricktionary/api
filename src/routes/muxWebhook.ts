@@ -4,7 +4,7 @@ import { TrickSubmissionStatus, VideoHost, VideoType, VideoUploadStatus } from '
 import { submissionAttribution } from '../helpers/tricks.js'
 import { mux, tryDeleteAsset } from '../services/mux.js'
 import { getSecret } from '../services/secrets.js'
-import { logger as baseLogger } from '../services/logger.js'
+import { requestLogger } from '../helpers/requestLogger.js'
 import { MAX_SUBMISSION_VIDEO_SECONDS } from '../services/submissionLimits.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
 import { rejectedSubmissionExpiry } from '../store/schema.js'
@@ -222,7 +222,7 @@ async function handleMuxWebhookEvent (event: MuxWebhookEvent, context: MuxWebhoo
  * mounted with `express.raw()` rather than the JSON body parser.
  */
 export const muxWebhookHandler: RequestHandler = async (req, res) => {
-  const logger = baseLogger.child({ name: 'mux-webhook' })
+  const logger = requestLogger(req, { name: 'mux-webhook' })
   const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : ''
 
   let event: MuxWebhookEvent

@@ -11,6 +11,12 @@ be `.env` rather than an exported variable if you start the API through an npm
 script: the names contain hyphens, and npm drops variables whose names are not
 valid shell identifiers from the environment it passes on.
 
+## Jobs
+
+`src/jobs/` holds Cloud Run jobs that run from the API's image on Cloud Scheduler
+triggers, both set up in the infra repository. Each runs through `runJob`, as a
+trace of its own and, with `JOB_SCHEDULE` set, a Sentry cron monitor.
+
 ## Speed event definitions and timing tracks
 
 Speed scores refer to an event definition (`event-definitions`), which speed
