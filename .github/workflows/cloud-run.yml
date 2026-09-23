@@ -9,6 +9,7 @@ env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   SERVICE: tricktionary-api
   DIGEST_JOB: tricktionary-admin-digest
+  STATS_JOB: tricktionary-global-stats
   REGION: ${{ vars.GCP_REGION }}
 
 jobs:
@@ -73,6 +74,12 @@ jobs:
     - name: Deploy the admin digest job
       run: |-
         gcloud run jobs update "$DIGEST_JOB" \
+          --image "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
+          --region "$REGION"
+
+    - name: Deploy the global stats job
+      run: |-
+        gcloud run jobs update "$STATS_JOB" \
           --image "$REGION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
           --region "$REGION"
 

@@ -33,6 +33,7 @@ generates:
         GroupMember: ../store/schema.js#GroupMemberDoc
         GroupInvite: ../store/schema.js#GroupInviteDoc
         Notice: ../store/schema.js#NoticeDoc
+        GlobalStats: ../store/schema.js#GlobalStatsDoc
         UiMessageEntry: ../helpers/uiMessages.js#UiMessageEntry as UiMessageEntryModel
         NoticeText: ../helpers/notices.js#NoticeTextModel
         SpeedSegmentResult: ../helpers/speedResults.js#SpeedSegmentResult as SpeedSegmentResultModel

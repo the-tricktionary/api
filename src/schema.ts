@@ -118,6 +118,11 @@ const typeDefs = gql`
     notices: [Notice!]! @cacheControl(maxAge: 60)
     """Every notice, live or not. Super admins only."""
     allNotices: [Notice!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+
+    """The latest weekly snapshot"""
+    globalStats: GlobalStats @cacheControl(maxAge: 3600)
+    """Oldest first, counted in \`[from, until)\`, unbounded on a side left out"""
+    globalStatsHistory (from: Timestamp, until: Timestamp): [GlobalStats!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
@@ -846,6 +851,31 @@ const typeDefs = gql`
     level: String!
     completed: Int!
     total: Int!
+  }
+
+  type GlobalStats {
+    countedAt: Timestamp!
+    tricks: Int!
+    """Including tricks without a Tricktionary level"""
+    completions: Int!
+    """Athletes with at least one completed trick, with an account or managed by a group"""
+    athletes: Int!
+    """Per athlete"""
+    averageCompletions: Float!
+    maxCompletions: Int!
+    """One entry per Tricktionary level that has tricks, lowest first"""
+    levels: [GlobalLevelStats!]!
+    acceptedSubmissions: Int!
+    speedResults: Int!
+    speedSteps: Float!
+  }
+
+  type GlobalLevelStats {
+    level: String!
+    tricks: Int!
+    completions: Int!
+    """Per athlete with at least one completed trick"""
+    averageCompletions: Float!
   }
 
   type TrickCompletion {

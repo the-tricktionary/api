@@ -482,3 +482,28 @@ export interface EventDefinitionDoc extends DocBase {
   updatedBy?: UserDoc['id']
 }
 export function isEventDefinition (t: any): t is EventDefinitionDoc { return t?.collection === 'event-definitions' }
+
+export interface GlobalLevelStats {
+  level: string
+  tricks: number
+  completions: number
+}
+
+/** The document ID is the UTC date it was counted on */
+export interface GlobalStatsDoc extends DocBase {
+  readonly collection: 'global-stats'
+  /** Queryable, unlike `createdAt` */
+  countedAt: Timestamp
+
+  tricks: number
+  completions: number
+  /** Athletes with at least one completed trick, with an account or managed by a group */
+  athletes: number
+  maxCompletions: number
+  /** One entry per Tricktionary level that has tricks, lowest first */
+  levels: GlobalLevelStats[]
+  acceptedSubmissions: number
+  speedResults: number
+  speedSteps: number
+}
+export function isGlobalStats (t: any): t is GlobalStatsDoc { return t?.collection === 'global-stats' }
