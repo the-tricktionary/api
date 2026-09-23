@@ -46,6 +46,7 @@ export const trickLevelResolvers: Resolvers = {
           rulesId,
           level: parsedLevel,
           updatedBy: user.id,
+          changedAt: Timestamp.now(),
           ...verification
         }) as Promise<TrickLevelDoc>)
       }
@@ -64,12 +65,13 @@ export const trickLevelResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
 
       return await (dataSources.trickLevels.updateOnePartial(id, verificationLevel != null
-        ? { verificationLevel, verifiedBy: user.id, verifiedAt: Timestamp.now(), updatedBy: user.id }
+        ? { verificationLevel, verifiedBy: user.id, verifiedAt: Timestamp.now(), updatedBy: user.id, changedAt: Timestamp.now() }
         : {
             verificationLevel: FieldValue.delete(),
             verifiedBy: FieldValue.delete(),
             verifiedAt: FieldValue.delete(),
-            updatedBy: user.id
+            updatedBy: user.id,
+            changedAt: Timestamp.now()
           }
       ) as Promise<TrickLevelDoc>)
     }

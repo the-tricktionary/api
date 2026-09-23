@@ -238,6 +238,11 @@ export interface TrickLevelDoc extends DocBase {
   verifiedAt?: Timestamp
   /** absent on levels migrated from before edits were tracked */
   updatedBy?: UserDoc['id']
+  /**
+   * Queryable, unlike `updatedAt`, set on every change to the level or its
+   * verification. Absent on levels last changed before it was tracked.
+   */
+  changedAt?: Timestamp
 }
 export function isTrickLevel (t: any): t is TrickLevelDoc { return t?.collection === 'trick-levels' }
 

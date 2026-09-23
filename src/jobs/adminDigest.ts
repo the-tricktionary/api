@@ -18,10 +18,9 @@ import { trickLevelId, trickLocalisationId } from '../store/schema.js'
 import { runJob } from './runJob.js'
 
 import type { DocumentData, DocumentReference } from 'firebase-admin/firestore'
-import type { VerificationLevel } from '../generated/graphql.js'
 import type { DigestTrick } from '../helpers/adminDigest.js'
 import type { Email } from '../services/mail.js'
-import type { UserDoc } from '../store/schema.js'
+import type { TrickLevelDoc, UserDoc } from '../store/schema.js'
 
 const logger = baseLogger.child({ name: 'admin-digest' })
 const dryRun = process.argv.includes('--dry-run')
@@ -62,14 +61,20 @@ async function adminDigest () {
     for (const rulesId of interests.rulesIds.keys()) rulesIds.add(rulesId)
   }
 
-  const [submissions, trickDocs, rulesets, messages] = await Promise.all([
+  const [submissions, addedTricks, changedLevels, rulesets, messages] = await Promise.all([
     dataSources.trickSubmissions.findManyPendingSubmittedBetween(earliest, until),
     dataSources.tricks.findManyAddedBetween(earliest, until),
+    rulesIds.size > 0 ? dataSources.trickLevels.findManyChangedBetween(earliest, until) : [],
     dataSources.rulesets.findAll(),
     siteEnglishMessages({ webUrl: WEB_URL, logger })
   ])
   const hash = hashMessages(messages)
   if (hash == null) logger.warn('Could not hash the site\'s English messages, leaving them out')
+
+  const addedIds = new Set(addedTricks.map(trick => trick.id))
+  const olderIds = new Set(changedLevels.flatMap(level => rulesIds.has(level.rulesId) && !addedIds.has(level.trickId) ? [level.trickId] : []))
+  const olderTricks = await dataSources.tricks.findManyByIds([...olderIds])
+  const trickDocs = [...addedTricks, ...olderTricks.filter(trick => trick != null)]
 
   const localisations = dataSources.trickLocalisations.collection
   const levels = dataSources.trickLevels.collection
@@ -83,16 +88,16 @@ async function adminDigest () {
   }))
 
   const [translated, levelled] = await Promise.all([
-    existingDocs(tricks.flatMap(trick => [...langs].map(lang => localisations.doc(trickLocalisationId(trick.id, lang))))),
+    existingDocs(addedTricks.flatMap(trick => [...langs].map(lang => localisations.doc(trickLocalisationId(trick.id, lang))))),
     existingDocs(tricks.flatMap(trick => [...rulesIds].map(rulesId => levels.doc(trickLevelId(trick.id, rulesId)))))
   ])
   const sources = {
     submissions,
     tricks,
-    missingLangs: new Map(tricks.map(trick => [trick.id, new Set([...langs].filter(lang => !translated.has(trickLocalisationId(trick.id, lang))))])),
+    missingLangs: new Map(addedTricks.map(trick => [trick.id, new Set([...langs].filter(lang => !translated.has(trickLocalisationId(trick.id, lang))))])),
     levels: new Map(tricks.map(trick => [trick.id, new Map([...rulesIds].flatMap(rulesId => {
-      const level = levelled.get(trickLevelId(trick.id, rulesId))
-      return level ? [[rulesId, (level.verificationLevel as VerificationLevel | undefined) ?? null] as const] : []
+      const level = levelled.get(trickLevelId(trick.id, rulesId)) as Partial<TrickLevelDoc> | undefined
+      return level ? [[rulesId, { verificationLevel: level.verificationLevel, changedAt: level.changedAt }] as const] : []
     }))])),
     rulesets: new Map(rulesets.map(ruleset => [ruleset.id, ruleset]))
   }

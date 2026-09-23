@@ -162,6 +162,11 @@ export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc> {
   async findManyByRuleset (rulesId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('rulesId', '==', rulesId), options)
   }
+
+  /** `[from, until)` */
+  async findManyChangedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('changedAt', '>=', from).where('changedAt', '<', until), options)
+  }
 }
 export const trickLevelDataSource = (cache: KeyValueCache) => new TrickLevelDataSource(collection<TrickLevelDoc>('trick-levels'), { logger: logger.child({ name: 'trick-level-data-source' }), cache })
 

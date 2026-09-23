@@ -16,11 +16,17 @@ export interface DigestTrick {
 export interface DigestSources {
   /** Pending ones */
   submissions: readonly TrickSubmissionDoc[]
+  /** The ones added in any window, and those with a level changed in one */
   tricks: readonly DigestTrick[]
   missingLangs: ReadonlyMap<TrickDoc['id'], ReadonlySet<string>>
-  /** Per trick and ruleset, null for an unverified level, absent for none */
-  levels: ReadonlyMap<TrickDoc['id'], ReadonlyMap<RulesetDoc['id'], VerificationLevel | null>>
+  /** Per trick and ruleset, absent where there is no level */
+  levels: ReadonlyMap<TrickDoc['id'], ReadonlyMap<RulesetDoc['id'], DigestLevel>>
   rulesets: ReadonlyMap<RulesetDoc['id'], RulesetDoc>
+}
+
+export interface DigestLevel {
+  verificationLevel?: VerificationLevel
+  changedAt?: Timestamp
 }
 
 export interface AdminDigest {
@@ -65,7 +71,8 @@ export function adminDigestFor (
   sources: DigestSources
 ): AdminDigest {
   const interests = digestInterests(user)
-  const tricks = sources.tricks.filter(trick => inWindow(trick.addedAt, from, until)).sort(byName)
+  const tricks = [...sources.tricks].sort(byName)
+  const isNew = (trick: DigestTrick) => inWindow(trick.addedAt, from, until)
 
   const submissions = interests.submissions
     ? sources.submissions
@@ -74,18 +81,20 @@ export function adminDigestFor (
       .sort(byName)
     : []
 
-  const toTranslate = tricks.flatMap(trick => {
+  const toTranslate = tricks.filter(isNew).flatMap(trick => {
     const langs = [...sources.missingLangs.get(trick.id) ?? []].filter(lang => interests.langs.has(lang)).sort()
     return langs.length > 0 ? [{ trick, langs }] : []
   })
 
-  // a level the user could verify higher than it is counts too
+  // a new trick without a level, or a new or changed level the user could verify higher
   const toLevel = tricks.flatMap(trick => {
     const levels = sources.levels.get(trick.id)
     const rulesets = [...interests.rulesIds].flatMap(([rulesId, rank]) => {
       const level = levels?.get(rulesId)
-      if (level !== undefined && verificationLevelRank(level) >= rank) return []
-      return [{ name: sources.rulesets.get(rulesId)?.names.en ?? rulesId, verify: level !== undefined }]
+      const name = sources.rulesets.get(rulesId)?.names.en ?? rulesId
+      if (!level) return isNew(trick) ? [{ name, verify: false }] : []
+      const changed = isNew(trick) || (level.changedAt != null && inWindow(level.changedAt, from, until))
+      return changed && verificationLevelRank(level.verificationLevel) < rank ? [{ name, verify: true }] : []
     }).sort((a, b) => a.name.localeCompare(b.name))
     return rulesets.length > 0 ? [{ trick, rulesets }] : []
   })
