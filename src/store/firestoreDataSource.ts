@@ -7,7 +7,7 @@ import { FINAL_UPLOAD_STATUSES, groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { ChecklistAthlete, TagDoc, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { SpeedAthlete } from '../helpers/speedResults.js'
@@ -55,6 +55,15 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
   async findOneBySlug ({ discipline, slug }: { discipline: Discipline, slug: string }, options?: QueryFindArgs) {
     const result = await this.findManyByQuery(c => c.where('discipline', '==', discipline).where('slug', '==', slug), options)
     return result[0]
+  }
+
+  /** The tricks carrying a tag, ordering on a field leaves out the documents without it */
+  async findManyByTag (tagId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.orderBy(new FieldPath('tags', tagId)), options)
+  }
+
+  async countByTag (tagId: string) {
+    return await countDocuments(this.collection.orderBy(new FieldPath('tags', tagId)))
   }
 
   /** `[from, until)` */
@@ -157,6 +166,13 @@ export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   }
 }
 export const rulesetDataSource = (cache: KeyValueCache) => new RulesetDataSource(collection<RulesetDoc>('rulesets'), { logger: logger.child({ name: 'ruleset-data-source' }), cache })
+
+export class TagDataSource extends FirestoreDataSource<TagDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+}
+export const tagDataSource = (cache: KeyValueCache) => new TagDataSource(collection<TagDoc>('tags'), { logger: logger.child({ name: 'tag-data-source' }), cache })
 
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc> {
   async findManyByTrick ({ trickId, rulesId }: { trickId: string, rulesId?: string | null }, options?: QueryFindArgs) {
@@ -528,6 +544,7 @@ export function createDataSources () {
     notices: noticeDataSource(dataSourceCache),
     rulesets: rulesetDataSource(dataSourceCache),
     speedResults: speedResultDataSource(dataSourceCache),
+    tags: tagDataSource(dataSourceCache),
     tricks: trickDataSource(dataSourceCache),
     trickLocalisations: trickLocalisationDataSource(dataSourceCache),
     trickPrerequisites: trickPrerequisiteDataSource(dataSourceCache),

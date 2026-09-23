@@ -2,6 +2,7 @@ import { Timestamp } from '@google-cloud/firestore'
 import { CollisionError } from '../errors.js'
 import { tryIndexTrick } from '../services/algolia.js'
 import { trickLocalisationId } from '../store/schema.js'
+import { trickTypeTag } from './tags.js'
 
 import type { Transaction } from 'firebase-admin/firestore'
 import type { ApolloContext } from '../apollo.js'
@@ -52,7 +53,9 @@ export async function createTrickWithLocalisation (trick: NewTrick, { dataSource
     t.create(dRef.withConverter(null), {
       slug: trick.slug,
       discipline: trick.discipline,
+      // the legacy field is written alongside the tag until nothing reads it
       trickType: trick.trickType,
+      tags: trickTypeTag(trick.trickType),
       submittedBy: trick.submittedBy,
       updatedBy: trick.updatedBy,
       addedAt: Timestamp.now(),

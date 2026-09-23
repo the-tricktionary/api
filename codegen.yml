@@ -23,6 +23,9 @@ generates:
         TrickSubmission: ../store/schema.js#TrickSubmissionDoc
         Video: ../store/schema.js#Video as VideoModel
         Ruleset: ../store/schema.js#RulesetDoc
+        Tag: ../store/schema.js#TagDoc
+        TagValue: ../helpers/tags.js#TagValueModel
+        TrickTag: ../helpers/tags.js#TrickTagModel
         Language: ../store/schema.js#LanguageDoc
         TrickCompletion: ../store/schema.js#TrickCompletionDoc
         SpeedResult: ../store/schema.js#SpeedResultDoc

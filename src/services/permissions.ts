@@ -47,6 +47,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === GrantType.SuperAdmin) })
   const editTricks = enrich(function editTricks () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.TrickEditor) })
   const editEventDefinitions = enrich(function editEventDefinitions () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.SpeedEditor) })
+  const manageTags = enrich(function manageTags () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.TagWrangler) })
 
   return {
     getTricks: everyone,
@@ -66,6 +67,11 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editTrickVideos: editTricks,
     getTrickVideoUploads: editTricks,
     reviewTrickSubmissions: editTricks,
+    editTrickTags: editTricks,
+
+    createTag: manageTags,
+    editTag: manageTags,
+    deleteTag: manageTags,
 
     createLanguage: isSuperAdmin,
     setLanguageEnabled: isSuperAdmin,
@@ -87,6 +93,16 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
         return isSuperAdmin() ||
           (lang === 'en' && editTricks()) ||
           grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
+      })
+
+      return { edit }
+    },
+
+    tagLocalisation (lang: string) {
+      // a tag's english names are part of its definition, which is up to tag
+      // wranglers, the other languages are translated like the rest
+      const edit = enrich(function editTagLocalisation () {
+        return isSuperAdmin() || grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
       })
 
       return { edit }

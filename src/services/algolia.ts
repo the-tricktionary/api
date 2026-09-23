@@ -4,11 +4,12 @@ import { ALGOLIA_APP_ID } from '../config.js'
 import { getSecret } from './secrets.js'
 import { logger as baseLogger } from './logger.js'
 import { TRICKTIONARY_RULES_ID, trickLocalisationLang } from '../store/schema.js'
+import { tagSearchNames, trickTagValues, trickTypeOf } from '../helpers/tags.js'
 
 import type Pino from 'pino'
 import type { IndexSettings, SupportedLanguage } from 'algoliasearch'
 import type { Discipline } from '../generated/graphql.js'
-import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
+import type { TagDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema.js'
 import type { DataSources } from '../store/firestoreDataSource.js'
 
 const client = algoliasearch(ALGOLIA_APP_ID, await getSecret('tricktionary-api-algolia-api-key'))
@@ -52,7 +53,8 @@ function trickIndexSettings (lang: string): IndexSettings {
   // (or a region subtag) is passed through and ignored by the engine
   const languages = [lang as SupportedLanguage]
   return {
-    searchableAttributes: ['unordered(name,alternativeNames)', 'unordered(enName,enAlternativeNames)', 'description'],
+    // the tags last, a trick named or described like the query ranks above one that is merely tagged like it
+    searchableAttributes: ['unordered(name,alternativeNames)', 'unordered(enName,enAlternativeNames)', 'description', 'unordered(tagNames)'],
     attributesForFaceting: ['filterOnly(discipline)', 'filterOnly(trickType)'],
     customRanking: ['asc(ttLevel)'],
     indexLanguages: languages,
@@ -75,25 +77,28 @@ export async function setTrickIndexSettings (lang: string) {
 }
 
 interface TrickRecordInput {
-  trick: Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'trickType'>
+  trick: Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'trickType' | 'tags'>
   lang: string
   localisation: Pick<TrickLocalisationDoc, 'name' | 'alternativeNames' | 'description'>
   /** the english localisation, its names are searchable in every language */
   enLocalisation?: Pick<TrickLocalisationDoc, 'name' | 'alternativeNames'>
   /** the trick's level in the `tricktionary` ruleset, e.g. `"5"` or `"2-5"` */
   level?: string | null
+  /** every tag by ID, or at least those the trick carries */
+  tags: ReadonlyMap<string, TagDoc>
 }
 
-export function trickRecord ({ trick, lang, localisation, enLocalisation, level }: TrickRecordInput) {
+export function trickRecord ({ trick, lang, localisation, enLocalisation, level, tags }: TrickRecordInput) {
   const ttLevel = level != null ? parseInt(level, 10) : NaN
   return {
     objectID: trick.id,
     slug: trick.slug,
     discipline: trick.discipline,
-    trickType: trick.trickType,
+    trickType: trickTypeOf(trick),
     name: localisation.name,
     alternativeNames: localisation.alternativeNames ?? [],
     description: localisation.description ?? '',
+    tagNames: tagSearchNames(trickTagValues(trick), tags, lang),
     // the english index has the english names in `name` already
     ...(lang === 'en' || !enLocalisation
       ? {}
@@ -114,37 +119,70 @@ export async function saveTrickRecords (lang: string, records: Array<ReturnType<
   logger.debug({ indexName, records: records.length }, 'Saved trick records to Algolia')
 }
 
-/** Reindexes a single trick in every language it has a localisation for */
-async function indexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
-  const [trick, localisations, levels] = await Promise.all([
-    dataSources.tricks.findOneById(trickId),
-    dataSources.trickLocalisations.findManyByQuery(c => c.where('trickId', '==', trickId)),
-    dataSources.trickLevels.findManyByTrick({ trickId, rulesId: TRICKTIONARY_RULES_ID })
+/** Firestore takes at most 30 values in an `in` filter */
+const IN_CHUNK = 30
+
+async function findLocalisations (trickIds: readonly string[], dataSources: DataSources) {
+  const chunks: string[][] = []
+  for (let idx = 0; idx < trickIds.length; idx += IN_CHUNK) chunks.push(trickIds.slice(idx, idx + IN_CHUNK))
+  return (await Promise.all(chunks.map(async chunk => await dataSources.trickLocalisations.findManyByQuery(c => c.where('trickId', 'in', chunk))))).flat()
+}
+
+/** Reindexes tricks in every language they have a localisation for, one write per language */
+async function indexTricks (trickIds: readonly string[], { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
+  const ids = [...new Set(trickIds)]
+  if (ids.length === 0) return
+
+  const [tricks, localisations, levels, tags] = await Promise.all([
+    dataSources.tricks.findManyByIds(ids),
+    findLocalisations(ids, dataSources),
+    ids.length === 1
+      ? dataSources.trickLevels.findManyByTrick({ trickId: ids[0], rulesId: TRICKTIONARY_RULES_ID })
+      : dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID),
+    dataSources.tags.findAll({ ttl: 3600 })
   ])
 
-  if (!trick) {
-    logger.warn({ trickId }, 'Not indexing a trick that does not exist')
-    return
-  }
-
-  const level = levels[0]?.level
-  const langs = new Map<string, TrickLocalisationDoc>()
+  const tagsById = new Map(tags.map(tag => [tag.id, tag]))
+  const levelByTrick = new Map<string, TrickLevelDoc>(levels.map(level => [level.trickId, level]))
+  const localisationsByTrick = new Map<string, Map<string, TrickLocalisationDoc>>()
   for (const localisation of localisations) {
-    const lang = trickLocalisationLang(localisation.id, trickId)
+    const lang = trickLocalisationLang(localisation.id, localisation.trickId)
     if (!lang) {
-      logger.warn({ trickId, localisationId: localisation.id }, 'Could not determine the language of a trick localisation')
+      logger.warn({ trickId: localisation.trickId, localisationId: localisation.id }, 'Could not determine the language of a trick localisation')
       continue
+    }
+    let langs = localisationsByTrick.get(localisation.trickId)
+    if (!langs) {
+      langs = new Map()
+      localisationsByTrick.set(localisation.trickId, langs)
     }
     langs.set(lang, localisation)
   }
 
-  const enLocalisation = langs.get('en')
-
-  for (const [lang, localisation] of langs) {
-    await saveTrickRecords(lang, [trickRecord({ trick, lang, localisation, enLocalisation, level })], { logger })
+  const recordsByLang = new Map<string, Array<ReturnType<typeof trickRecord>>>()
+  for (const [idx, trick] of tricks.entries()) {
+    if (!trick) {
+      logger.warn({ trickId: ids[idx] }, 'Not indexing a trick that does not exist')
+      continue
+    }
+    const langs = localisationsByTrick.get(trick.id) ?? new Map<string, TrickLocalisationDoc>()
+    const enLocalisation = langs.get('en')
+    const level = levelByTrick.get(trick.id)?.level
+    for (const [lang, localisation] of langs) {
+      let records = recordsByLang.get(lang)
+      if (!records) {
+        records = []
+        recordsByLang.set(lang, records)
+      }
+      records.push(trickRecord({ trick, lang, localisation, enLocalisation, level, tags: tagsById }))
+    }
   }
 
-  logger.info({ trickId, langs: [...langs.keys()] }, 'Indexed trick')
+  for (const [lang, records] of recordsByLang) {
+    await saveTrickRecords(lang, records, { logger })
+  }
+
+  logger.info({ trickIds: ids.length === 1 ? ids : undefined, tricks: ids.length, langs: [...recordsByLang.keys()] }, 'Indexed tricks')
 }
 
 /**
@@ -154,9 +192,19 @@ async function indexTrick (trickId: string, { dataSources, logger = baseLogger }
  */
 export async function tryIndexTrick (trickId: string, { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
   try {
-    await indexTrick(trickId, { dataSources, logger })
+    await indexTricks([trickId], { dataSources, logger })
   } catch (err) {
     logger.error(err, `Failed to index trick ${trickId} in Algolia`)
+    Sentry.captureException(err)
+  }
+}
+
+/** Best effort like `tryIndexTrick`, for the tricks a change to a tag touches */
+export async function tryIndexTricks (trickIds: readonly string[], { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
+  try {
+    await indexTricks(trickIds, { dataSources, logger })
+  } catch (err) {
+    logger.error(err, `Failed to index ${trickIds.length} tricks in Algolia`)
     Sentry.captureException(err)
   }
 }

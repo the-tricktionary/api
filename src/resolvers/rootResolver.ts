@@ -18,6 +18,7 @@ import { trickLevelResolvers } from './trickLevel.js'
 import { uiMessageResolvers } from './uiMessages.js'
 import { noticeResolvers } from './notices.js'
 import { globalStatsResolvers } from './globalStats.js'
+import { tagResolvers } from './tag.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 
@@ -44,5 +45,6 @@ export const rootResolver = mergeResolvers([
   trickLevelResolvers,
   uiMessageResolvers,
   noticeResolvers,
-  globalStatsResolvers
+  globalStatsResolvers,
+  tagResolvers
 ]) as Resolvers

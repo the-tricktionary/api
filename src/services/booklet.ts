@@ -3,7 +3,8 @@ import { NotFoundError } from '../errors.js'
 import { Discipline, TrickType } from '../generated/graphql.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug, disciplineSlug } from '../helpers/disciplines.js'
 import { uiMessageValues } from '../helpers/uiMessages.js'
-import { TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
+import { trickTypeOf } from '../helpers/tags.js'
+import { TRICK_TYPE_TAG_ID, TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
 import { langSchema, rulesIdSchema } from '../validation.js'
 import { compileTypst } from './typst.js'
 import { renderDotToSvg } from './graphviz.js'
@@ -12,7 +13,7 @@ import { siteEnglishMessages } from './siteMessages.js'
 
 import type Pino from 'pino'
 import type { DataSources } from '../store/firestoreDataSource.js'
-import type { RulesetDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc, TrickPrereqDoc } from '../store/schema.js'
+import type { RulesetDoc, TagDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc, TrickPrereqDoc } from '../store/schema.js'
 import type { FlatMessages } from './siteMessages.js'
 
 export const PAPERS = ['a4', 'letter'] as const
@@ -90,6 +91,8 @@ export interface BookletSources {
   ruleset: Pick<RulesetDoc, 'id' | 'names'> | null
   /** The prerequisite edges between the tricks, `parentId` builds on `childId`. Only loaded for the trick map. */
   prerequisites: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>
+  /** The tag holding the trick types, whose names label them; the messages do until it exists */
+  trickTypeTag?: Pick<TagDoc, 'values'> | null
   /**
    * The site's English messages with the language's translations laid over
    * them, keyed like the site's `en.json`; a key that neither has is shown as
@@ -194,13 +197,14 @@ interface LoadContext {
 export async function loadBookletSources (options: BookletOptions, { dataSources, logger, webUrl }: LoadContext): Promise<BookletSources> {
   const { lang, rulesId, discipline, layout } = options
 
-  const [language, ruleset, tricks, siteMessages, translations, prerequisites] = await Promise.all([
+  const [language, ruleset, tricks, siteMessages, translations, prerequisites, trickTypeTag] = await Promise.all([
     dataSources.languages.findOneById(lang, { ttl: 3600 }),
     rulesId == null ? null : dataSources.rulesets.findOneById(rulesId, { ttl: 3600 }),
     dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 }),
     siteEnglishMessages({ webUrl, logger }),
     lang === 'en' ? null : dataSources.uiMessages.findOneById(lang, { ttl: 3600 }),
-    layout === 'print' ? dataSources.trickPrerequisites.findAll({ ttl: 3600 }) : []
+    layout === 'print' ? dataSources.trickPrerequisites.findAll({ ttl: 3600 }) : [],
+    dataSources.tags.findOneById(TRICK_TYPE_TAG_ID, { ttl: 3600 })
   ])
   if (!language?.enabled) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
   if (rulesId != null && !ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
@@ -218,7 +222,8 @@ export async function loadBookletSources (options: BookletOptions, { dataSources
   const inDiscipline = new Set(trickIds)
 
   return {
-    tricks,
+    tricks: tricks.map(trick => ({ id: trick.id, slug: trick.slug, discipline: trick.discipline, trickType: trickTypeOf(trick) })),
+    trickTypeTag: trickTypeTag ?? null,
     localisations: localisations.filter(localisation => localisation != null),
     levels: [...tricktionaryLevels, ...rulesetLevels].filter(level => inDiscipline.has(level.trickId)),
     ruleset: ruleset ?? null,
@@ -293,6 +298,10 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
 
   const collator = new Intl.Collator(lang)
   const listFormat = new Intl.ListFormat(lang, { style: 'long', type: 'disjunction' })
+  const typeLabel = (type: TrickType) => {
+    const names = sources.trickTypeTag?.values?.[type]?.names
+    return names?.[lang] ?? names?.en ?? t(enumKey('trickType', type))
+  }
 
   const localisations = new Map(sources.localisations.map(localisation => [localisation.id, localisation]))
   const tricktionaryLevels = new Map<string, string>()
@@ -346,7 +355,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     mapNodes.push({ id: trick.id, name, trickType: trick.trickType })
   }
 
-  const typeOrder = Object.values(TrickType).sort((a, b) => collator.compare(t(enumKey('trickType', a)), t(enumKey('trickType', b))))
+  const typeOrder = Object.values(TrickType).sort((a, b) => collator.compare(typeLabel(a), typeLabel(b)))
   const levelOrder = [...groups.keys()].sort((a, b) => {
     if (a === null) return 1
     if (b === null) return -1
@@ -383,7 +392,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         size: null,
         legend: typeOrder
           .filter(type => mapNodes.some(node => node.trickType === type))
-          .map(type => ({ label: t(enumKey('trickType', type)), colour: TRICK_TYPE_COLOURS[type] }))
+          .map(type => ({ label: typeLabel(type), colour: TRICK_TYPE_COLOURS[type] }))
       }
     : null
 
@@ -416,7 +425,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         const tricks = groups.get(level)?.get(type) ?? []
         if (tricks.length === 0) return []
         return [{
-          title: t(enumKey('trickType', type)),
+          title: typeLabel(type),
           tricks: tricks.sort((a, b) => collator.compare(a.name, b.name))
         }]
       })

@@ -12,7 +12,8 @@
  *   2. applies the current index settings to `tricktionary_<lang>` for every
  *      language that has at least one localisation, creating the indices that
  *      don't exist yet
- *   3. writes one record per trick and language into those indices
+ *   3. writes one record per trick and language into those indices, with the
+ *      names of the trick's tags in that language
  *
  * Nothing is ever deleted from Algolia, records for tricks that have since
  * been removed from Firestore have to be cleaned up by hand.
@@ -34,7 +35,7 @@ import { saveTrickRecords, setTrickIndexSettings, trickIndexName, trickRecord } 
 
 import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
 
-import type { TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema.js'
+import type { TagDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema.js'
 
 const { values: args } = parseArgs({
   options: {
@@ -70,11 +71,16 @@ async function main () {
   const tQSnap = await firestore.collection('tricks').get()
   const lQSnap = await localisationsRef.get()
   const vQSnap = await firestore.collection('trick-levels').where('rulesId', '==', TRICKTIONARY_RULES_ID).get()
+  const gQSnap = await firestore.collection('tags').get()
 
   const tricks = new Map<string, TrickDoc>()
   for (const dSnap of tQSnap.docs) {
     const trick = dSnap.data() as TrickDoc
     tricks.set(dSnap.id, { ...trick, id: dSnap.id })
+  }
+  const tags = new Map<string, TagDoc>()
+  for (const dSnap of gQSnap.docs) {
+    tags.set(dSnap.id, { ...(dSnap.data() as TagDoc), id: dSnap.id })
   }
   const levels = new Map<string, string>()
   for (const dSnap of vQSnap.docs) {
@@ -156,7 +162,7 @@ async function main () {
 
     for (const [lang, localisation] of byLang) {
       const langRecords = records.get(lang) ?? []
-      langRecords.push(trickRecord({ trick, lang, localisation, enLocalisation, level }))
+      langRecords.push(trickRecord({ trick, lang, localisation, enLocalisation, level, tags }))
       records.set(lang, langRecords)
     }
   }
