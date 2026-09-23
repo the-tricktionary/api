@@ -1,6 +1,6 @@
+import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { tricktionaryLevels } from './checklist.js'
 
-import type { DataSources } from '../store/firestoreDataSource.js'
 import type { GlobalStatsDoc, TrickCompletionDoc, TrickLevelDoc } from '../store/schema.js'
 
 type Completion = Pick<TrickCompletionDoc, 'userId' | 'memberId' | 'trickId'>
@@ -40,19 +40,14 @@ export function averagePerAthlete (completions: number, athletes: number) {
   return athletes > 0 ? completions / athletes : 0
 }
 
-const TTL_MS = 60 * 60 * 1000
+/** Query results for an hour, the snapshots change once a week */
+const cache = new InMemoryLRUCache<GlobalStatsDoc[]>({ maxSize: 5 * 2 ** 20 })
+const TTL_SECONDS = 3600
 
-let cached: { snapshots: GlobalStatsDoc[], fetchedAt: number } | undefined
-let inflight: Promise<GlobalStatsDoc[]> | undefined
-
-/** Every snapshot, oldest first, cached for an hour */
-export async function allGlobalStats (dataSources: Pick<DataSources, 'globalStats'>) {
-  if (cached && Date.now() - cached.fetchedAt < TTL_MS) return cached.snapshots
-  inflight ??= dataSources.globalStats.findAllOrdered()
-    .then(snapshots => {
-      cached = { snapshots, fetchedAt: Date.now() }
-      return snapshots
-    })
-    .finally(() => { inflight = undefined })
-  return await inflight
+export async function cachedGlobalStats (key: string, find: () => Promise<GlobalStatsDoc[]>) {
+  const hit = await cache.get(key)
+  if (hit) return hit
+  const snapshots = await find()
+  await cache.set(key, snapshots, { ttl: TTL_SECONDS })
+  return snapshots
 }
