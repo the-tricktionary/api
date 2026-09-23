@@ -1,13 +1,13 @@
 /**
- * Backfills `changedAt` on every trick level, from the later of a stored
- * `updatedAt` (which the rulesets migration carried over) and `verifiedAt`,
- * and the document's update time for levels with neither. Reads without the
- * data source's converter, which hides a stored `updatedAt`.
+ * Replaces the stored `updatedAt` that the rulesets migration carried over on
+ * trick levels with `changedAt`, the later of it and `verifiedAt`, or the
+ * document's update time for levels with neither. Reads without the data
+ * source's converter, which hides a stored `updatedAt`.
  *
  * Idempotent. Run with: npx tsx src/migrations/trick-level-changed-at.ts [--dry-run]
  */
 import '../config.js'
-import { Firestore, Timestamp } from '@google-cloud/firestore'
+import { FieldValue, Firestore, Timestamp } from '@google-cloud/firestore'
 import { logger } from '../services/logger.js'
 
 const firestore = new Firestore()
@@ -26,19 +26,22 @@ async function migrate () {
 
   for (const dSnap of qSnap.docs) {
     const data = dSnap.data()
-    if (data.changedAt instanceof Timestamp) {
+    if (data.changedAt instanceof Timestamp && data.updatedAt === undefined) {
       skipped++
       continue
     }
 
     const stored = [data.updatedAt, data.verifiedAt].filter((at: unknown): at is Timestamp => at instanceof Timestamp)
-    const changedAt = stored.length > 0
-      ? stored.reduce((latest, at) => at.toMillis() > latest.toMillis() ? at : latest)
-      : dSnap.updateTime
-    if (stored.length > 0) fromStored++
+    let changedAt = dSnap.updateTime
+    if (data.changedAt instanceof Timestamp) {
+      changedAt = data.changedAt
+    } else if (stored.length > 0) {
+      changedAt = stored.reduce((latest, at) => at.toMillis() > latest.toMillis() ? at : latest)
+      fromStored++
+    }
 
     if (!dryRun) {
-      batch.update(dSnap.ref, { changedAt })
+      batch.update(dSnap.ref, { changedAt, updatedAt: FieldValue.delete() })
       inBatch++
     }
     backfilled++
@@ -52,8 +55,8 @@ async function migrate () {
   if (inBatch > 0) await batch.commit()
 
   logger.info(
-    { backfilled, fromStored, fromUpdateTime: backfilled - fromStored, skipped, dryRun },
-    'Trick levels backfilled with changedAt'
+    { migrated: backfilled, fromStored, skipped, dryRun },
+    'Trick levels moved from updatedAt to changedAt'
   )
 }
 

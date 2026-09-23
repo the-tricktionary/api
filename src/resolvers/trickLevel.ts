@@ -77,6 +77,9 @@ export const trickLevelResolvers: Resolvers = {
     }
   },
   TrickLevel: {
+    updatedAt (trickLevel) {
+      return trickLevel.changedAt
+    },
     async trick (trickLevel, _, { dataSources }) {
       const trick = await dataSources.tricks.findOneById(trickLevel.trickId, { ttl: 3600 })
       if (!trick) throw new NotFoundError('Trick not found', { extensions: { entity: 'trick', id: trickLevel.trickId } })
