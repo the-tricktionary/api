@@ -1,4 +1,4 @@
-import { Firestore } from 'firebase-admin/firestore'
+import { AggregateField, FieldPath, Firestore } from 'firebase-admin/firestore'
 import { FirestoreDataSource } from 'apollo-datasource-firestore'
 import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { logger } from '../services/logger.js'
@@ -7,7 +7,7 @@ import { FINAL_UPLOAD_STATUSES, groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { SpeedAthlete } from '../helpers/speedResults.js'
@@ -60,6 +60,10 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
   /** `[from, until)` */
   async findManyAddedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('addedAt', '>=', from).where('addedAt', '<', until), options)
+  }
+
+  async countAll () {
+    return await countDocuments(this.collection)
   }
 }
 export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(collection<TrickDoc>('tricks'), { logger: logger.child({ name: 'trick-data-source' }), cache })
@@ -115,6 +119,10 @@ export class TrickSubmissionDataSource extends FirestoreDataSource<TrickSubmissi
     return await countDocuments(this.collection
       .where('userId', '==', userId)
       .where('submittedAt', '>=', since))
+  }
+
+  async countByStatus (status: TrickSubmissionStatus) {
+    return await countDocuments(this.collection.where('status', '==', status))
   }
 
   /** Everyone's submissions in one of the two trust pools, see `TrickSubmissionDoc.trusted` */
@@ -344,6 +352,23 @@ export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompleti
       : c.where('memberId', '==', athlete.memberId)
     ).where('trickId', '==', trickId).limit(1)))[0]
   }
+
+  /**
+   * Every completion, only the fields saying whose it is and of what, read a
+   * page at a time straight from Firestore rather than through the cache
+   */
+  async * streamAthletesAndTricks (pageSize = 5000) {
+    const query = this.collection.withConverter(null)
+      .select('userId', 'memberId', 'trickId')
+      .orderBy(FieldPath.documentId())
+      .limit(pageSize)
+    let qSnap = await query.get()
+    while (!qSnap.empty) {
+      for (const dSnap of qSnap.docs) yield dSnap.data() as Pick<TrickCompletionDoc, 'userId' | 'memberId' | 'trickId'>
+      if (qSnap.size < pageSize) break
+      qSnap = await query.startAfter(qSnap.docs[qSnap.size - 1]).get()
+    }
+  }
 }
 export const trickCompletionDataSource = (cache: KeyValueCache) => new TrickCompletionDataSource(collection<TrickCompletionDoc>('trick-completions'), { logger: logger.child({ name: 'trick-completion-source' }), cache })
 
@@ -373,6 +398,14 @@ function mergeNewest (lists: ReadonlyArray<readonly SpeedResultDoc[]>, limit?: n
 }
 
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
+  /** The number of results and the steps of all of them, counted by Firestore itself */
+  async countWithSteps () {
+    const aSnap = await this.collection
+      .aggregate({ results: AggregateField.count(), steps: AggregateField.sum('count') })
+      .get()
+    return aSnap.data()
+  }
+
   /** The scores the user competed in, whether or not they entered them */
   async findManyByAthleteUser (userId: string, { ttl, ...feed }: SpeedFeedArgs = {}) {
     return await this.findManyByQuery(c => newestFirst(c.where('athleteUserIds', 'array-contains', userId), feed), { ttl })
@@ -469,11 +502,24 @@ export class EventDefinitionDataSource extends FirestoreDataSource<EventDefiniti
 }
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(collection<EventDefinitionDoc>('event-definitions'), { logger: logger.child({ name: 'event-definition-data-source' }), cache })
 
+export class GlobalStatsDataSource extends FirestoreDataSource<GlobalStatsDoc> {
+  /** Oldest first */
+  async findManyCountedSince (since: Timestamp, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('countedAt', '>=', since).orderBy('countedAt', 'asc'), options)
+  }
+
+  async findLatest (options?: QueryFindArgs) {
+    return (await this.findManyByQuery(c => c.orderBy('countedAt', 'desc').limit(1), options))[0]
+  }
+}
+export const globalStatsDataSource = (cache: KeyValueCache) => new GlobalStatsDataSource(collection<GlobalStatsDoc>('global-stats'), { logger: logger.child({ name: 'global-stats-data-source' }), cache })
+
 export const dataSourceCache = new InMemoryLRUCache()
 
 export function createDataSources () {
   return {
     eventDefinitions: eventDefinitionDataSource(dataSourceCache),
+    globalStats: globalStatsDataSource(dataSourceCache),
     groups: groupDataSource(dataSourceCache),
     groupInvites: groupInviteDataSource(dataSourceCache),
     groupMembers: groupMemberDataSource(dataSourceCache),

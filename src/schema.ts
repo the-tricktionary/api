@@ -118,6 +118,11 @@ const typeDefs = gql`
     notices: [Notice!]! @cacheControl(maxAge: 60)
     """Every notice, live or not. Super admins only."""
     allNotices: [Notice!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+
+    """The latest weekly snapshot of the Tricktionary's numbers, null before the first one"""
+    globalStats: GlobalStats @cacheControl(maxAge: 3600)
+    """The weekly snapshots of the last twelve months, oldest first"""
+    globalStatsHistory: [GlobalStats!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
@@ -846,6 +851,37 @@ const typeDefs = gql`
     level: String!
     completed: Int!
     total: Int!
+  }
+
+  """The Tricktionary's numbers as they were counted at one point in time"""
+  type GlobalStats {
+    countedAt: Timestamp!
+    tricks: Int!
+    """Completed tricks of every athlete, including ones without a Tricktionary level"""
+    completions: Int!
+    """Athletes with at least one completed trick, with an account or managed by a group"""
+    athletes: Int!
+    """Completed tricks per athlete with at least one"""
+    averageCompletions: Float!
+    """The most completed tricks of any one athlete"""
+    maxCompletions: Int!
+    """One entry per Tricktionary level that has tricks, lowest first"""
+    levels: [GlobalLevelStats!]!
+    """Submitted tricks that became tricks"""
+    acceptedSubmissions: Int!
+    speedResults: Int!
+    """The steps of every speed result together"""
+    speedSteps: Float!
+  }
+
+  type GlobalLevelStats {
+    level: String!
+    """Tricks at the level"""
+    tricks: Int!
+    """Completions of the level's tricks, of every athlete"""
+    completions: Int!
+    """Completions of the level's tricks per athlete with at least one completed trick"""
+    averageCompletions: Float!
   }
 
   type TrickCompletion {
