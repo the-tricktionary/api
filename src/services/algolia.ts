@@ -4,7 +4,7 @@ import { ALGOLIA_APP_ID } from '../config.js'
 import { getSecret } from './secrets.js'
 import { logger as baseLogger } from './logger.js'
 import { TRICKTIONARY_RULES_ID, trickLocalisationLang } from '../store/schema.js'
-import { tagSearchNames, trickTagValues, trickTypeOf } from '../helpers/tags.js'
+import { tagSearchNames, trickTagValues } from '../helpers/tags.js'
 
 import type Pino from 'pino'
 import type { IndexSettings, SupportedLanguage } from 'algoliasearch'
@@ -53,9 +53,9 @@ function trickIndexSettings (lang: string): IndexSettings {
   // (or a region subtag) is passed through and ignored by the engine
   const languages = [lang as SupportedLanguage]
   return {
-    // the tags last, a trick named or described like the query ranks above one that is merely tagged like it
     searchableAttributes: ['unordered(name,alternativeNames)', 'unordered(enName,enAlternativeNames)', 'description', 'unordered(tagNames)'],
-    attributesForFaceting: ['filterOnly(discipline)', 'filterOnly(trickType)'],
+    // tag filters are applied by the API, see the tricks query
+    attributesForFaceting: ['filterOnly(discipline)'],
     customRanking: ['asc(ttLevel)'],
     indexLanguages: languages,
     queryLanguages: languages,
@@ -84,17 +84,16 @@ interface TrickRecordInput {
   enLocalisation?: Pick<TrickLocalisationDoc, 'name' | 'alternativeNames'>
   /** the trick's level in the `tricktionary` ruleset, e.g. `"5"` or `"2-5"` */
   level?: string | null
-  /** every tag by ID, or at least those the trick carries */
+  /** at least the tags the trick carries */
   tags: ReadonlyMap<string, TagDoc>
 }
 
-export function trickRecord ({ trick, lang, localisation, enLocalisation, level, tags }: TrickRecordInput) {
+function trickRecord ({ trick, lang, localisation, enLocalisation, level, tags }: TrickRecordInput) {
   const ttLevel = level != null ? parseInt(level, 10) : NaN
   return {
     objectID: trick.id,
     slug: trick.slug,
     discipline: trick.discipline,
-    trickType: trickTypeOf(trick),
     name: localisation.name,
     alternativeNames: localisation.alternativeNames ?? [],
     description: localisation.description ?? '',
@@ -111,7 +110,7 @@ export function trickRecord ({ trick, lang, localisation, enLocalisation, level,
 }
 
 /** Writes records to a language index, creating and configuring it if needed */
-export async function saveTrickRecords (lang: string, records: Array<ReturnType<typeof trickRecord>>, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
+async function saveTrickRecords (lang: string, records: Array<ReturnType<typeof trickRecord>>, { logger = baseLogger }: { logger?: Pino.Logger } = {}) {
   if (records.length === 0) return
   await refreshKnownIndices({ logger })
   const indexName = knownIndices.has(trickIndexName(lang)) ? trickIndexName(lang) : await setTrickIndexSettings(lang)
@@ -128,8 +127,8 @@ async function findLocalisations (trickIds: readonly string[], dataSources: Data
   return (await Promise.all(chunks.map(async chunk => await dataSources.trickLocalisations.findManyByQuery(c => c.where('trickId', 'in', chunk))))).flat()
 }
 
-/** Reindexes tricks in every language they have a localisation for, one write per language */
-async function indexTricks (trickIds: readonly string[], { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
+/** In every language the tricks have a localisation in, one write per language */
+export async function indexTricks (trickIds: readonly string[], { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
   const ids = [...new Set(trickIds)]
   if (ids.length === 0) return
 
@@ -199,7 +198,7 @@ export async function tryIndexTrick (trickId: string, { dataSources, logger = ba
   }
 }
 
-/** Best effort like `tryIndexTrick`, for the tricks a change to a tag touches */
+/** Best effort, see `tryIndexTrick` */
 export async function tryIndexTricks (trickIds: readonly string[], { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
   try {
     await indexTricks(trickIds, { dataSources, logger })

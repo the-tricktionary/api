@@ -1,4 +1,5 @@
 import { Timestamp } from '@google-cloud/firestore'
+import { servedLang } from './localised.js'
 
 import type { NoticeDoc } from '../store/schema.js'
 
@@ -10,7 +11,7 @@ export interface NoticeTextModel {
 }
 
 export function noticeText (notice: NoticeDoc, lang: string): NoticeTextModel {
-  const served = [lang, lang.split('-')[0], 'en'].find(tag => notice.texts[tag] != null) ?? 'en'
+  const served = servedLang(notice.texts, lang)
   const text = notice.texts[served]
   return {
     lang: served,

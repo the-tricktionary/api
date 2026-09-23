@@ -2,8 +2,9 @@ import z from 'zod'
 import { NotFoundError } from '../errors.js'
 import { Discipline, TrickType } from '../generated/graphql.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug, disciplineSlug } from '../helpers/disciplines.js'
-import { uiMessageValues } from '../helpers/uiMessages.js'
+import { localised } from '../helpers/localised.js'
 import { trickTypeOf } from '../helpers/tags.js'
+import { uiMessageValues } from '../helpers/uiMessages.js'
 import { TRICK_TYPE_TAG_ID, TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
 import { langSchema, rulesIdSchema } from '../validation.js'
 import { compileTypst } from './typst.js'
@@ -91,8 +92,8 @@ export interface BookletSources {
   ruleset: Pick<RulesetDoc, 'id' | 'names'> | null
   /** The prerequisite edges between the tricks, `parentId` builds on `childId`. Only loaded for the trick map. */
   prerequisites: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>
-  /** The tag holding the trick types, whose names label them; the messages do until it exists */
-  trickTypeTag?: Pick<TagDoc, 'values'> | null
+  /** Its value names label the trick types */
+  trickTypeTag: Pick<TagDoc, 'values'> | null
   /**
    * The site's English messages with the language's translations laid over
    * them, keyed like the site's `en.json`; a key that neither has is shown as
@@ -240,11 +241,10 @@ function interpolate (message: string, values: Record<string, string>) {
   return message.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match)
 }
 
-/** The message key of an enum member's label, e.g. `enums.trickType.Basic` for `basic` */
-function enumKey (name: 'discipline' | 'trickType', value: string) {
-  const members: Record<string, string> = name === 'discipline' ? Discipline : TrickType
-  const member = Object.entries(members).find(([, enumValue]) => enumValue === value)?.[0]
-  return `enums.${name}.${member ?? value}`
+/** The message key of a discipline's label, e.g. `enums.discipline.SingleRope` */
+function disciplineKey (discipline: Discipline) {
+  const member = Object.entries(Discipline).find(([, value]) => value === discipline)?.[0]
+  return `enums.discipline.${member ?? discipline}`
 }
 
 function splitLang (tag: string): { lang: string, region: string | null } {
@@ -298,10 +298,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
 
   const collator = new Intl.Collator(lang)
   const listFormat = new Intl.ListFormat(lang, { style: 'long', type: 'disjunction' })
-  const typeLabel = (type: TrickType) => {
-    const names = sources.trickTypeTag?.values?.[type]?.names
-    return names?.[lang] ?? names?.en ?? t(enumKey('trickType', type))
-  }
+  const typeLabel = (type: TrickType) => localised(sources.trickTypeTag?.values?.[type]?.names ?? {}, lang) || type
 
   const localisations = new Map(sources.localisations.map(localisation => [localisation.id, localisation]))
   const tricktionaryLevels = new Map<string, string>()
@@ -310,7 +307,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     if (level.rulesId === TRICKTIONARY_RULES_ID) tricktionaryLevels.set(level.trickId, level.level)
     else if (level.rulesId === rulesId) rulesetLevels.set(level.trickId, level)
   }
-  const rulesetName = sources.ruleset ? (sources.ruleset.names[lang] ?? sources.ruleset.names.en ?? sources.ruleset.id) : null
+  const rulesetName = sources.ruleset ? (localised(sources.ruleset.names, lang) || sources.ruleset.id) : null
 
   // levels in numerical order, tricks without one last
   const groups = new Map<string | null, Map<TrickType, BookletTrick[]>>()
@@ -400,7 +397,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     lang: baseLang,
     region,
     title: 'the Tricktionary',
-    discipline: t(enumKey('discipline', options.discipline)),
+    discipline: t(disciplineKey(options.discipline)),
     page,
     padToMultipleOf: layout === 'pages' ? 1 : 4,
     // the map is the inside of the back cover, the back cover the very last page

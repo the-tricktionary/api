@@ -4,7 +4,7 @@ import type Pino from 'pino'
 
 /**
  * The public site's English interface messages, from its `en.json`, flattened
- * to dotted keys like `enums.trickType.Basic`. English is the site's source
+ * to dotted keys like `enums.discipline.SingleRope`. English is the site's source
  * language and lives in its repository, the API only holds translations, so
  * this is where the booklets get their English labels. Cached for an hour,
  * and served stale rather than failing when the site can't be reached.

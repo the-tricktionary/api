@@ -29,8 +29,6 @@ export const trickResolvers: Resolvers = {
     async tricks (_, { discipline, searchQuery, filter }, { dataSources, allowUser, user }) {
       allowUser.getTricks.assert()
       let tricks: TrickDoc[]
-      // the tag filters are applied here rather than by Algolia, a query of
-      // nothing but tags never reaches it
       const { text, tokens } = parseTagQuery(searchQuery ?? '')
       if (text !== '') {
         const hits = await searchTricks(text, { discipline: discipline ?? undefined, lang: user?.lang, userId: user?.id })
@@ -139,8 +137,7 @@ export const trickResolvers: Resolvers = {
         }
       }
 
-      // the legacy field is written alongside the tag until nothing reads it,
-      // a merge only replaces the one tag
+      // a merge replaces only this tag
       const changes = {
         updatedBy: user.id,
         ...(discipline != null ? { discipline } : {}),
@@ -241,20 +238,20 @@ export const trickResolvers: Resolvers = {
         if (tag.system) throw new ValidationError(`The ${tag.id} tag is set through updateTrickDetails`)
 
         const value = trickTagValueFromInput(tag, input)
-        const problem = value === undefined
-          ? `the tag ${tag.id} is a ${tag.valueType} tag`
-          : trickTagProblem(tag, value, trick.discipline)
-        if (problem != null || value === undefined) problems.push(problem ?? `the tag ${tag.id} has no value`)
+        if (value === undefined) {
+          problems.push(`the tag ${tag.id} is a ${tag.valueType} tag`)
+          continue
+        }
+        const problem = trickTagProblem(tag, value, trick.discipline)
+        if (problem) problems.push(problem)
         else next[tag.id] = value
       }
       if (problems.length > 0) throw new ValidationError(`The tags cannot be set: ${problems.join('; ')}`)
 
-      // the trick type stays as it is, also for a trick that so far only has
-      // the legacy field, or whose tag the migration hasn't created yet
       const trickType = trickTagValues(trick)[TRICK_TYPE_TAG_ID]
       if (trickType != null) next[TRICK_TYPE_TAG_ID] = trickType
 
-      // an update replaces the whole map, where a merge would keep removed tags
+      // update rather than merge, so removed tags go
       await dataSources.tricks.collection.doc(trickId).withConverter(null).update({ tags: next, updatedBy: user.id })
       await dataSources.tricks.deleteFromCacheById(trickId)
 

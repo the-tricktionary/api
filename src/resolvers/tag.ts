@@ -1,7 +1,8 @@
 import { FieldPath, FieldValue } from 'firebase-admin/firestore'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { TagValueType } from '../generated/graphql.js'
-import { byTagOrder, localisedName, localisedStrings, tagAppliesTo, tagValues, trickTagProblem } from '../helpers/tags.js'
+import { localised, localisedStrings } from '../helpers/localised.js'
+import { byTagOrder, tagAppliesTo, tagValues, trickTagProblem } from '../helpers/tags.js'
 import { tryIndexTricks } from '../services/algolia.js'
 import { writeInChunks } from '../store/firestoreDataSource.js'
 import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
@@ -15,7 +16,7 @@ import type { TagDoc, TagEnumValue, TrickDoc } from '../store/schema.js'
 type ParsedTag = z.output<typeof tagInputSchema>
 type TagFields = Omit<TagDoc, 'id' | 'collection' | 'createdAt' | 'updatedAt'>
 
-/** How many of the tricks in the way a refusal names */
+/** How many offending tricks a refusal lists */
 const LISTED_TRICKS = 10
 
 async function existingTag (tagId: string, { dataSources }: Pick<ApolloContext, 'dataSources'>) {
@@ -24,20 +25,14 @@ async function existingTag (tagId: string, { dataSources }: Pick<ApolloContext, 
   return tag
 }
 
-/**
- * The tricks carrying a tag. The trick type tag is carried by every trick,
- * including those that only have the legacy field so far.
- */
+/** Every trick carries the trick type, some only in the legacy field */
 async function tricksCarrying (tag: TagDoc, { dataSources }: Pick<ApolloContext, 'dataSources'>) {
   return tag.system
     ? await dataSources.tricks.findManyByDiscipline()
     : await dataSources.tricks.findManyByTag(tag.id)
 }
 
-/**
- * The document of a tag as defined, the names in other languages carried over
- * from what it was, including those of values that are kept
- */
+/** Keeps the existing translations of the tag and of the values it keeps */
 function tagFields (parsed: ParsedTag, existing: TagDoc | undefined, updatedBy: string): TagFields {
   return {
     valueType: parsed.valueType,
@@ -60,12 +55,12 @@ function tagFields (parsed: ParsedTag, existing: TagDoc | undefined, updatedBy: 
   }
 }
 
-/** What the search index finds a trick by through the tag in english, the other languages change through setTagLocalisation */
+/** Changes when the tag's English search names change */
 function englishSearchNames (tag: Pick<TagDoc, 'names' | 'values'>) {
   return [tag.names.en, ...tagValues(tag).map(value => `${value.id}=${value.names.en}`)].join('\n')
 }
 
-/** `names` with the name in `lang` set, removed when empty and left alone when absent */
+/** Removes the name when empty, leaves it alone when absent */
 function withName (names: Record<string, string>, lang: string, name: string | null | undefined) {
   if (name == null) return names
   const others = Object.fromEntries(Object.entries(names).filter(([key]) => key !== lang))
@@ -78,7 +73,7 @@ function refuse (message: string, problems: Array<{ trick: TrickDoc, problem: st
   throw new ValidationError(`${message}: ${listed.join('; ')}${more}`)
 }
 
-/** The trick type tag's values are the `TrickType` enum, so only its names may change */
+/** The trick type tag's values are the `TrickType` enum */
 function assertSystemTagShape (existing: TagDoc, parsed: ParsedTag) {
   const existingIds = tagValues(existing).map(value => value.id).sort()
   const ids = (parsed.values ?? []).map(value => value.id).sort()
@@ -111,7 +106,6 @@ export const tagResolvers: Resolvers = {
       const id = tagIdSchema.parse(tagId)
       const parsed = tagInputSchema.parse(data)
 
-      // reserved even before the migration that creates it has run
       if (id === TRICK_TYPE_TAG_ID) throw new CollisionError(`The tag ${id} is built in`, { extensions: { entity: 'tag', id } })
 
       const collection = dataSources.tags.collection
@@ -134,16 +128,8 @@ export const tagResolvers: Resolvers = {
       if (existing.system) {
         assertSystemTagShape(existing, parsed)
       } else {
-        const next: TagDoc = { ...existing, ...tagFields(parsed, existing, user.id) }
-        // the fields tagFields leaves out are ones the tag no longer has
-        if (parsed.min == null) delete next.min
-        if (parsed.max == null) delete next.max
-        if (parsed.step == null) delete next.step
-        if (parsed.valueType !== TagValueType.Enum) {
-          delete next.multiple
-          delete next.values
-        }
-
+        const { id, collection, createdAt, updatedAt } = existing
+        const next: TagDoc = { id, collection, createdAt, updatedAt, ...tagFields(parsed, existing, user.id) }
         const problems = carrying.flatMap(trick => {
           const value = trick.tags?.[existing.id]
           if (value == null) return []
@@ -153,7 +139,7 @@ export const tagResolvers: Resolvers = {
         if (problems.length > 0) refuse(`The tag ${existing.id} cannot change like that, tricks carrying it would no longer fit it`, problems)
       }
 
-      // in a transaction, so a translation saved meanwhile isn't lost
+      // a transaction keeps a concurrent translation
       const collection = dataSources.tags.collection
       const updated = await collection.firestore.runTransaction(async t => {
         const current = (await t.get(collection.doc(existing.id))).data()
@@ -176,7 +162,7 @@ export const tagResolvers: Resolvers = {
       const tag = await existingTag(tagId, { dataSources })
       if (tag.system) throw new ValidationError(`The ${tag.id} tag is built in and cannot be deleted`)
 
-      // off the tricks first, so a failure part way leaves a tag that can be deleted again
+      // tricks first, so a failed delete can be retried
       const tricks = await dataSources.tricks.findManyByTag(tag.id)
       await writeInChunks(tricks, (batch, trick) => {
         batch.update(dataSources.tricks.collection.doc(trick.id).withConverter(null), new FieldPath('tags', tag.id), FieldValue.delete(), 'updatedBy', user.id)
@@ -229,7 +215,7 @@ export const tagResolvers: Resolvers = {
   },
   Tag: {
     name (tag, { lang }) {
-      return localisedName(tag.names, lang)
+      return localised(tag.names, lang)
     },
     names (tag) {
       return localisedStrings(tag.names)
@@ -260,7 +246,7 @@ export const tagResolvers: Resolvers = {
   },
   TagValue: {
     name (value, { lang }) {
-      return localisedName(value.names, lang)
+      return localised(value.names, lang)
     },
     names (value) {
       return localisedStrings(value.names)

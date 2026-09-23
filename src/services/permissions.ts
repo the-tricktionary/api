@@ -48,6 +48,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const editTricks = enrich(function editTricks () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.TrickEditor) })
   const editEventDefinitions = enrich(function editEventDefinitions () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.SpeedEditor) })
   const manageTags = enrich(function manageTags () { return isSuperAdmin() || grants.some(grant => grant.type === GrantType.TagWrangler) })
+  const translates = (lang: string) => grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
 
   return {
     getTricks: everyone,
@@ -90,20 +91,15 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
       // english is the source language of the Tricktionary, trick editors are
       // its translators rather than anyone with a translator grant
       const edit = enrich(function editLocalisation () {
-        return isSuperAdmin() ||
-          (lang === 'en' && editTricks()) ||
-          grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
+        return isSuperAdmin() || (lang === 'en' && editTricks()) || translates(lang)
       })
 
       return { edit }
     },
 
     tagLocalisation (lang: string) {
-      // a tag's english names are part of its definition, which is up to tag
-      // wranglers, the other languages are translated like the rest
-      const edit = enrich(function editTagLocalisation () {
-        return isSuperAdmin() || grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
-      })
+      // english names are part of the tag's definition, see editTag
+      const edit = enrich(function editTagLocalisation () { return isSuperAdmin() || translates(lang) })
 
       return { edit }
     },
@@ -111,9 +107,7 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     uiMessages (lang: string) {
       // the site's english interface strings live in the site's own repository,
       // so unlike trick localisations english is never edited through the API
-      const edit = enrich(function editUiMessages () {
-        return isSuperAdmin() || grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
-      })
+      const edit = enrich(function editUiMessages () { return isSuperAdmin() || translates(lang) })
 
       return { edit }
     },

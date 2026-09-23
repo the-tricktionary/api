@@ -1,73 +1,54 @@
 import { TagValueType, TrickType } from '../generated/graphql.js'
 import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
+import { localised } from './localised.js'
 
 import type { Discipline } from '../generated/graphql.js'
 import type { TagDoc, TagEnumValue, TrickDoc, TrickTagValue } from '../store/schema.js'
 
-/** A value of an enum tag as the schema's `TagValue` */
 export interface TagValueModel {
   id: string
   names: TagEnumValue['names']
 }
 
-/** A tag on a trick as the schema's `TrickTag` */
 export interface TrickTagModel {
   tag: TagDoc
   value: TrickTagValue
 }
 
-/** How close to a whole number of steps a number has to be, floats being floats */
+/** Allowance for floating point error when checking steps */
 const STEP_EPSILON = 1e-9
 
 function isTrickType (value: unknown): value is TrickType {
   return (Object.values(TrickType) as unknown[]).includes(value)
 }
 
-/**
- * The tags a trick carries. A trick written before the trick type became a tag
- * only has the legacy `trickType` field, which stands in for the tag.
- */
+/** The legacy `trickType` field stands in for a missing `trick-type` tag */
 export function trickTagValues (trick: Pick<TrickDoc, 'tags' | 'trickType'>): Record<string, TrickTagValue> {
   const tags = { ...trick.tags }
   if (tags[TRICK_TYPE_TAG_ID] == null && isTrickType(trick.trickType)) tags[TRICK_TYPE_TAG_ID] = [trick.trickType]
   return tags
 }
 
-/** The trick type, from the `trick-type` tag or, before a trick has one, the legacy field */
 export function trickTypeOf (trick: Pick<TrickDoc, 'tags' | 'trickType'>): TrickType {
-  const value = trick.tags?.[TRICK_TYPE_TAG_ID]
-  const [fromTag] = Array.isArray(value) ? value : []
-  return isTrickType(fromTag) ? fromTag : trick.trickType
+  const value = trickTagValues(trick)[TRICK_TYPE_TAG_ID]
+  const [trickType] = Array.isArray(value) ? value : []
+  return isTrickType(trickType) ? trickType : trick.trickType
 }
 
-/** The `tags` field of a trick of this type, the trick type tag is always an array like any enum tag's */
 export function trickTypeTag (trickType: TrickType): Record<string, TrickTagValue> {
   return { [TRICK_TYPE_TAG_ID]: [trickType] }
 }
 
-/** A name in `lang`, falling back to english */
-export function localisedName (names: Record<string, string>, lang?: string | null) {
-  return names[lang ?? 'en'] ?? names.en ?? ''
-}
-
-/** A `lang -> value` map as the schema's `LocalisedString`s, sorted by language */
-export function localisedStrings (names: Record<string, string>) {
-  return Object.entries(names)
-    .map(([lang, value]) => ({ lang, value }))
-    .sort((a, b) => a.lang.localeCompare(b.lang))
-}
-
-/** The values of an enum tag in order */
 export function tagValues (tag: Pick<TagDoc, 'values'>): TagValueModel[] {
   return Object.entries(tag.values ?? {})
     .sort(([idA, a], [idB, b]) => a.order - b.order || idA.localeCompare(idB))
     .map(([id, value]) => ({ id, names: value.names }))
 }
 
-/** The trick type first, then by english name */
+/** The trick type first, then by English name */
 export function byTagOrder (a: TagDoc, b: TagDoc) {
   if (!!a.system !== !!b.system) return a.system ? -1 : 1
-  return localisedName(a.names).localeCompare(localisedName(b.names)) || a.id.localeCompare(b.id)
+  return localised(a.names).localeCompare(localised(b.names)) || a.id.localeCompare(b.id)
 }
 
 export function tagAppliesTo (tag: Pick<TagDoc, 'disciplines'>, discipline: Discipline) {
@@ -93,10 +74,7 @@ function numberAllowed (tag: Pick<TagDoc, 'min' | 'max' | 'step'>, value: number
   return true
 }
 
-/**
- * Why a trick of the discipline couldn't hold the value under the tag as
- * defined, null when it can
- */
+/** Why a trick of the discipline can't hold the value, null when it can */
 export function trickTagProblem (tag: TagDoc, value: TrickTagValue, discipline: Discipline): string | null {
   if (!tagAppliesTo(tag, discipline)) return `the tag ${tag.id} does not apply to ${discipline} tricks`
 
@@ -118,7 +96,7 @@ export function trickTagProblem (tag: TagDoc, value: TrickTagValue, discipline: 
   }
 }
 
-/** What a trick holds of a tag, from the schema's `TrickTagInput`, not yet checked against the tag */
+/** Undefined when the input doesn't match the tag's type */
 export function trickTagValueFromInput (tag: Pick<TagDoc, 'valueType'>, input: { number?: number | null, values?: string[] | null }): TrickTagValue | undefined {
   switch (tag.valueType) {
     case TagValueType.Flag:
@@ -134,7 +112,7 @@ export function trickTagValueFromInput (tag: Pick<TagDoc, 'valueType'>, input: {
 
 // Search
 
-/** A `#tag` or `#tag:value` token of a search query, lowercased, the value not yet made sense of */
+/** Lowercased, the value is interpreted against the tag's type when matching */
 export interface TagQueryToken {
   tagId: string
   value?: string
@@ -143,10 +121,7 @@ export interface TagQueryToken {
 const TAG_TOKEN = /^#([a-z0-9]+(?:-[a-z0-9]+)*)(?::(\S+))?$/
 const NUMBER_CONDITION = /^(>=|<=|>|<|=)?(-?\d+(?:\.\d+)?)$/
 
-/**
- * Splits the `#tag` and `#tag:value` tokens out of a search query. A `#`
- * word that isn't a well formed tag token is left in the text.
- */
+/** A `#` word that isn't a well formed token stays in the text */
 export function parseTagQuery (query: string): { text: string, tokens: TagQueryToken[] } {
   const tokens: TagQueryToken[] = []
   const words: string[] = []
@@ -158,10 +133,7 @@ export function parseTagQuery (query: string): { text: string, tokens: TagQueryT
   return { text: words.join(' '), tokens }
 }
 
-/**
- * Whether a trick matches a token under the tag it names. An unknown tag, and
- * a value the tag could never hold, match nothing.
- */
+/** An unknown tag, or a value the tag can't hold, matches nothing */
 function tokenMatches (token: TagQueryToken, tag: TagDoc | undefined, value: TrickTagValue | undefined) {
   if (!tag || value == null) return false
   if (token.value == null) return true
@@ -186,26 +158,23 @@ function tokenMatches (token: TagQueryToken, tag: TagDoc | undefined, value: Tri
   }
 }
 
-/** Whether a trick matches every token, `tags` holds at least the tags the tokens name */
+/** `tags` has to hold at least the tags the tokens name */
 export function matchesTagQuery (trick: Pick<TrickDoc, 'tags' | 'trickType'>, tokens: readonly TagQueryToken[], tags: ReadonlyMap<string, TagDoc>) {
   const values = trickTagValues(trick)
   return tokens.every(token => tokenMatches(token, tags.get(token.tagId), values[token.tagId]))
 }
 
-/**
- * The names a trick is found by through its tags in a language: the tags'
- * names, and the names of the enum values it holds
- */
+/** The names of a trick's tags and of the enum values it holds */
 export function tagSearchNames (values: Record<string, TrickTagValue>, tags: ReadonlyMap<string, TagDoc>, lang: string) {
   const names = new Set<string>()
   for (const [tagId, value] of Object.entries(values)) {
     const tag = tags.get(tagId)
     if (!tag) continue
-    names.add(localisedName(tag.names, lang))
+    names.add(localised(tag.names, lang))
     if (!Array.isArray(value)) continue
     for (const valueId of value) {
       const enumValue = tag.values?.[valueId]
-      if (enumValue) names.add(localisedName(enumValue.names, lang))
+      if (enumValue) names.add(localised(enumValue.names, lang))
     }
   }
   names.delete('')

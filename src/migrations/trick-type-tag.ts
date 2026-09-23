@@ -1,34 +1,25 @@
 /**
  * Migration: the trick type becomes the `trick-type` tag.
  *
- *   1. creates the `trick-type` tag unless it exists: an enum tag with a value
- *      per `TrickType`, that every trick carries. Its names come from the
- *      site's messages, english from its en.json and the other languages from
- *      the translations in `ui-messages`: the tag is named like the submission
- *      form's `submit.trickType` label, its values like `enums.trickType.*`
- *   2. sets `tags['trick-type']` on every trick that doesn't have it yet, from
- *      its legacy `trickType` field
+ *   1. creates the `trick-type` tag unless it exists, with the site's English
+ *      names and the translations of `submit.trickType` and
+ *      `enums.trickType.*` from `ui-messages`
+ *   2. tags every trick without it from its `trickType` field
  *
- * The API reads the legacy field for a trick without the tag, so this can run
- * any time after the API that writes the tag is deployed. Run the Algolia
- * reindex (src/migrations/algolia-reindex.ts) after it, which applies the
- * index settings that make the names of tags searchable.
- *
+ * Run the Algolia reindex (src/migrations/algolia-reindex.ts) after it.
  * Idempotent, an existing tag is left as it is.
  *
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
  *     access to the `tags` and `tricks` collections
- *   - WEB_URL in the environment when the site isn't the production one
  *
  * Usage:
  *   npx tsx src/migrations/trick-type-tag.ts [--dry-run]
  */
-import { WEB_URL } from '../config.js'
+import '../config.js'
 import { FieldPath, Firestore } from '@google-cloud/firestore'
 import { TagValueType, TrickType } from '../generated/graphql.js'
 import { logger } from '../services/logger.js'
-import { siteEnglishMessages } from '../services/siteMessages.js'
 import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
 
 import type { TagDoc, TagEnumValue, TrickDoc, UiMessagesDoc } from '../store/schema.js'
@@ -37,23 +28,25 @@ const firestore = new Firestore()
 const BATCH_SIZE = 400
 const dryRun = process.argv.includes('--dry-run')
 
-const TAG_NAME_KEY = 'submit.trickType'
-
-function valueKey (member: string) { return `enums.trickType.${member}` }
+/** The site's messages the names come from, with their English */
+const TAG_NAME = { key: 'submit.trickType', en: 'Type of trick' }
+const VALUES = [
+  { id: TrickType.Basic, key: 'enums.trickType.Basic', en: 'Basic' },
+  { id: TrickType.Manipulation, key: 'enums.trickType.Manipulation', en: 'Manipulation' },
+  { id: TrickType.Multiple, key: 'enums.trickType.Multiple', en: 'Multiple' },
+  { id: TrickType.Power, key: 'enums.trickType.Power', en: 'Power' },
+  { id: TrickType.Release, key: 'enums.trickType.Release', en: 'Release' },
+  { id: TrickType.Impossible, key: 'enums.trickType.Impossible', en: 'Impossible' }
+]
 
 async function tagDocument (): Promise<Omit<TagDoc, 'id' | 'collection' | 'createdAt' | 'updatedAt'>> {
-  const english = await siteEnglishMessages({ webUrl: WEB_URL, logger })
-  const members = Object.entries(TrickType)
-  const missing = [TAG_NAME_KEY, ...members.map(([member]) => valueKey(member))].filter(key => english[key] == null)
-  if (missing.length > 0) throw new Error(`The site's en.json at ${WEB_URL} lacks ${missing.join(', ')}`)
-
   const translations = (await firestore.collection('ui-messages').get()).docs
     .map(dSnap => ({ lang: dSnap.id, messages: (dSnap.data() as UiMessagesDoc).messages ?? {} }))
 
-  function names (key: string) {
-    const localised: Record<string, string> = { en: english[key] }
+  function names ({ key, en }: { key: string, en: string }) {
+    const localised: Record<string, string> = { en }
     for (const { lang, messages } of translations) {
-      const value = messages[key]?.value?.trim()
+      const value = messages[key]?.value.trim()
       if (value) localised[lang] = value
     }
     return localised
@@ -61,10 +54,10 @@ async function tagDocument (): Promise<Omit<TagDoc, 'id' | 'collection' | 'creat
 
   return {
     valueType: TagValueType.Enum,
-    names: names(TAG_NAME_KEY),
+    names: names(TAG_NAME),
     disciplines: [],
     multiple: false,
-    values: Object.fromEntries(members.map(([member, value], order): [string, TagEnumValue] => [value, { names: names(valueKey(member)), order }])),
+    values: Object.fromEntries(VALUES.map((value, order): [string, TagEnumValue] => [value.id, { names: names(value), order }])),
     system: true
   }
 }

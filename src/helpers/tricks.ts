@@ -53,7 +53,6 @@ export async function createTrickWithLocalisation (trick: NewTrick, { dataSource
     t.create(dRef.withConverter(null), {
       slug: trick.slug,
       discipline: trick.discipline,
-      // the legacy field is written alongside the tag until nothing reads it
       trickType: trick.trickType,
       tags: trickTypeTag(trick.trickType),
       submittedBy: trick.submittedBy,

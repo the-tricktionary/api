@@ -57,7 +57,7 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
     return result[0]
   }
 
-  /** The tricks carrying a tag, ordering on a field leaves out the documents without it */
+  /** Ordering on a field leaves out the documents without it */
   async findManyByTag (tagId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.orderBy(new FieldPath('tags', tagId)), options)
   }

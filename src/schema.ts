@@ -108,7 +108,7 @@ const typeDefs = gql`
       filter: TrickFilter
     ): [Trick!]!
 
-    """Every tag, or only those a trick of the discipline may carry. The trick type first, then by english name."""
+    """Every tag, or those a trick of the discipline may carry. The trick type first, then by English name."""
     tags (discipline: Discipline): [Tag!]! @cacheControl(maxAge: 3600)
     tag (id: ID!): Tag @cacheControl(maxAge: 3600)
 
@@ -151,10 +151,7 @@ const typeDefs = gql`
     setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation!
     addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
     removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
-    """
-    Replaces the tags on a trick. The trick type is left alone, it is set
-    through \`trickType\` in updateTrickDetails.
-    """
+    """Replaces the tags on a trick, but its trick type, which updateTrickDetails sets"""
     setTrickTags (trickId: ID!, tags: [TrickTagInput!]!): Trick!
 
     # Tags (tag wranglers)
@@ -167,9 +164,8 @@ const typeDefs = gql`
     """Removes the tag from every trick carrying it. The trick type tag cannot be deleted."""
     deleteTag (tagId: ID!): Tag!
     """
-    Sets the names of a tag and its values in a language other than english,
-    which is set with updateTag. Names that aren't included are left alone,
-    an empty one removes the translation.
+    Names of a tag and its values in a language other than English, which
+    updateTag sets. Names left out stay, an empty one removes the translation.
     """
     setTagLocalisation (tagId: ID!, lang: String!, data: TagLocalisationInput!): Tag!
 
@@ -309,7 +305,7 @@ const typeDefs = gql`
     slug: String!
     discipline: Discipline!
     trickType: TrickType! @deprecated(reason: "The \`trick-type\` tag in \`tags\` holds the trick type")
-    """The trick type first, then by english name"""
+    """The trick type first, then by English name"""
     tags: [TrickTag!]!
 
     # defaults to english
@@ -373,27 +369,26 @@ const typeDefs = gql`
     description: String!
   }
 
-  """Something tricks can be tagged with"""
   type Tag @cacheControl(maxAge: 3600) {
-    """A slug, which is what search queries and tricks refer to the tag by"""
+    """A slug, as search queries spell it"""
     id: ID!
-    """Display name in \`lang\`, falling back to english"""
+    """The name in \`lang\`, falling back to its primary subtag and then to English"""
     name (lang: String): String!
     names: [LocalisedString!]!
     valueType: TagValueType!
-    """The disciplines whose tricks may carry the tag, empty for every discipline"""
+    """Empty for every discipline"""
     disciplines: [Discipline!]!
     """Number tags only"""
     min: Float
     """Number tags only"""
     max: Float
-    """Number tags only, values are a whole number of steps from \`min\`, or from 0 without one"""
+    """Number tags only, values are whole steps from \`min\`, or from 0"""
     step: Float
-    """Enum tags only, whether a trick may hold several of the values"""
+    """Enum tags only, whether a trick may hold several values"""
     multiple: Boolean!
     """Enum tags only, in order"""
     values: [TagValue!]!
-    """Built into the Tricktionary: it cannot be deleted, and its type and values are fixed"""
+    """Built in: cannot be deleted, and its type and values are fixed"""
     system: Boolean!
     """How many tricks carry the tag"""
     trickCount: Int! @cacheControl(maxAge: 60)
@@ -402,13 +397,9 @@ const typeDefs = gql`
   }
 
   type TagValue @cacheControl(inheritMaxAge: true) {
-    """
-    A slug, which is what search queries and tricks refer to the value by.
-    Unique within its tag only, so a client cache that normalises by id has to
-    leave values inside their tag.
-    """
+    """A slug, as search queries spell it. Unique within its tag only, so caches must not normalise values by it."""
     id: ID!
-    """Display name in \`lang\`, falling back to english"""
+    """The name in \`lang\`, falling back to its primary subtag and then to English"""
     name (lang: String): String!
     names: [LocalisedString!]!
   }
@@ -431,7 +422,7 @@ const typeDefs = gql`
   }
 
   input TagInput {
-    """The english name, other languages are set with setTagLocalisation"""
+    """English, setTagLocalisation sets the other languages"""
     name: String!
     valueType: TagValueType!
     """Empty for every discipline"""
@@ -444,7 +435,7 @@ const typeDefs = gql`
     step: Float
     """Enum tags only"""
     multiple: Boolean
-    """Enum tags only, in order, with their english names"""
+    """Enum tags only, in order, with their English names"""
     values: [TagValueInput!]
   }
 
@@ -481,7 +472,7 @@ const typeDefs = gql`
 
   type Ruleset @cacheControl(maxAge: 3600) {
     id: ID!
-    """Display name in \`lang\`, falling back to english"""
+    """The name in \`lang\`, falling back to its primary subtag and then to English"""
     name (lang: String): String!
     names: [LocalisedString!]!
     isPrimary: Boolean!
@@ -789,7 +780,7 @@ const typeDefs = gql`
     LevelEditor
     """May manage speed event definitions and their timing tracks"""
     SpeedEditor
-    """May create, edit and delete tags, and set their english names"""
+    """May create, edit and delete tags, and set their English names"""
     TagWrangler
   }
 

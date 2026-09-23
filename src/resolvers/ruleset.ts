@@ -1,4 +1,5 @@
 import { CollisionError, NotFoundError } from '../errors.js'
+import { localised, localisedStrings } from '../helpers/localised.js'
 import { localisedStringsSchema, rulesIdSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
@@ -80,12 +81,10 @@ export const rulesetResolvers: Resolvers = {
   },
   Ruleset: {
     name (ruleset, { lang }) {
-      return ruleset.names[lang ?? 'en'] ?? ruleset.names.en
+      return localised(ruleset.names, lang)
     },
     names (ruleset) {
-      return Object.entries(ruleset.names)
-        .map(([lang, value]) => ({ lang, value }))
-        .sort((a, b) => a.lang.localeCompare(b.lang))
+      return localisedStrings(ruleset.names)
     }
   }
 }

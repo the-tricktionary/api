@@ -50,13 +50,8 @@ export interface TrickDoc extends DocBase {
   readonly collection: 'tricks'
   slug: string
   discipline: Discipline
-  /**
-   * Legacy: the `trick-type` tag holds the trick type, this is written
-   * alongside it until every reader has moved over, see helpers/tags.ts
-   * trickTypeOf
-   */
+  /** Legacy, mirrors the `trick-type` tag */
   trickType: TrickType
-  /** Tag ID -> the value the trick holds, see `TrickTagValue` */
   tags?: Record<TagDoc['id'], TrickTagValue>
 
   submittedBy: UserDoc['id']
@@ -100,50 +95,43 @@ export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t
 
 export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
 
-/**
- * What a trick holds of a tag: `true` for a flag, a number, or the IDs of the
- * enum values it holds, an array even for a tag that allows only one
- */
+/** `true` for a flag, a number, or enum value IDs, an array even when the tag allows only one */
 export type TrickTagValue = true | number | string[]
 
 export interface TagEnumValue {
   /** lang -> display name, `en` is required */
   names: Record<string, string>
-  /** Position among the tag's values, lowest first */
   order: number
 }
 
-/** Something tricks can be tagged with, the document ID is the tag's slug */
+/** The document ID is the tag's slug */
 export interface TagDoc extends DocBase {
   readonly collection: 'tags'
 
   valueType: TagValueType
   /** lang -> display name, `en` is required */
   names: Record<string, string>
-  /** The disciplines whose tricks may carry the tag, empty for every discipline */
+  /** Empty for every discipline */
   disciplines: Discipline[]
 
-  /** Number tags only, each bound is optional */
+  /** Number tags only */
   min?: number
   max?: number
-  /** Number tags only, values are a whole number of steps from `min`, or from 0 without one */
+  /** Number tags only, values are whole steps from `min`, or from 0 */
   step?: number
 
-  /** Enum tags only, whether a trick may hold more than one of the values */
+  /** Enum tags only, whether a trick may hold several values */
   multiple?: boolean
-  /** Enum tags only, by value ID, which is a slug like the tag's own */
+  /** Enum tags only, by value ID */
   values?: Record<string, TagEnumValue>
 
-  /**
-   * Built into the Tricktionary, see `TRICK_TYPE_TAG_ID`: it cannot be
-   * deleted, its type and values are fixed and only its names are edited
-   */
+  /** The built in `trick-type` tag, only its names can change */
   system?: true
   updatedBy?: UserDoc['id']
 }
 export function isTag (t: any): t is TagDoc { return t?.collection === 'tags' }
 
-/** The tag that holds a trick's type, its values are the `TrickType` enum */
+/** Its values are the `TrickType` enum */
 export const TRICK_TYPE_TAG_ID = 'trick-type'
 
 export interface TrickLocalisationDoc extends DocBase {

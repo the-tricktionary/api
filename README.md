@@ -70,34 +70,25 @@ the PDFs.
 
 ## Tags
 
-Tricks carry tags from the `tags` collection, whose document ID is the tag's
-slug. A tag is a flag, which a trick carries or not, a number, optionally
-bounded and stepped, or an enum, whose values have slugs and names of their
-own; an enum tag says whether a trick may hold several of its values. A tag
-may be limited to disciplines. A trick stores what it holds in its `tags` map,
-see `TrickTagValue` in `src/store/schema.ts`.
+Tricks carry tags from the `tags` collection, keyed by slug. A tag is a flag, a
+number (optionally bounded and stepped) or an enum with named values, and may be
+limited to disciplines. Tag wranglers define tags and their English names,
+translators translate them and trick editors apply them. A change that would
+leave a tagged trick with a value the tag no longer allows is refused.
 
-Tag wranglers (the `TagWrangler` grant) define tags and their English names,
-translators translate the names, and trick editors put tags on tricks. A change
-that would leave a tagged trick holding a value the tag no longer allows is
-refused.
-
-The `trick-type` tag is built in: it holds the trick type, cannot be deleted,
-and its values are the `TrickType` enum. The legacy `trickType` field on tricks
-is still written alongside it, and read for a trick without the tag, until
-nothing reads it any more. `npx tsx src/migrations/trick-type-tag.ts` creates
+The built in `trick-type` tag holds the trick type. Tricks still carry the
+legacy `trickType` field too. `npx tsx src/migrations/trick-type-tag.ts` creates
 the tag and tags every trick, run the Algolia reindex after it.
 
-A search query can filter by tag, `#tag`, `#tag:value` or `#tag:>3`, see the
-`tricks` query in `src/schema.ts`. The API applies those filters to the tricks
-itself, only the rest of the query goes to Algolia, which finds tricks by the
-names of their tags as well.
+Search queries filter by tag with `#tag`, `#tag:value` or `#tag:>3`, see the
+`tricks` query. The API applies these filters itself, only the rest of the
+query goes to Algolia.
 
 ## Search (Algolia)
 
 Tricks are indexed once per language in `tricktionary_<lang>`, the index
-settings live in `src/services/algolia.ts`. A change to the names of a tag
-reindexes the tricks carrying it.
+settings live in `src/services/algolia.ts`. Records carry the names of the
+trick's tags, a change to a tag's names reindexes the tricks carrying it.
 The `tricktionary-api-algolia-api-key` secret needs write access to the indices.
 
 `npx tsx src/migrations/algolia-reindex.ts` rebuilds every index from Firestore
