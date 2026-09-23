@@ -1,5 +1,3 @@
-import { Timestamp } from '@google-cloud/firestore'
-import { subMonths } from 'date-fns'
 import { tricktionaryLevels } from './checklist.js'
 
 import type { DataSources } from '../store/firestoreDataSource.js'
@@ -47,10 +45,10 @@ const TTL_MS = 60 * 60 * 1000
 let cached: { snapshots: GlobalStatsDoc[], fetchedAt: number } | undefined
 let inflight: Promise<GlobalStatsDoc[]> | undefined
 
-/** The last twelve months of snapshots, oldest first, cached for an hour */
-export async function recentGlobalStats (dataSources: Pick<DataSources, 'globalStats'>) {
+/** Every snapshot, oldest first, cached for an hour */
+export async function allGlobalStats (dataSources: Pick<DataSources, 'globalStats'>) {
   if (cached && Date.now() - cached.fetchedAt < TTL_MS) return cached.snapshots
-  inflight ??= dataSources.globalStats.findManyCountedSince(Timestamp.fromDate(subMonths(new Date(), 12)))
+  inflight ??= dataSources.globalStats.findAllOrdered()
     .then(snapshots => {
       cached = { snapshots, fetchedAt: Date.now() }
       return snapshots

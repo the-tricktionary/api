@@ -499,8 +499,8 @@ export class EventDefinitionDataSource extends FirestoreDataSource<EventDefiniti
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(collection<EventDefinitionDoc>('event-definitions'), { logger: logger.child({ name: 'event-definition-data-source' }), cache })
 
 export class GlobalStatsDataSource extends FirestoreDataSource<GlobalStatsDoc> {
-  async findManyCountedSince (since: Timestamp, options?: QueryFindArgs) {
-    return await this.findManyByQuery(c => c.where('countedAt', '>=', since).orderBy('countedAt', 'asc'), options)
+  async findAllOrdered (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.orderBy('countedAt', 'asc'), options)
   }
 }
 export const globalStatsDataSource = (cache: KeyValueCache) => new GlobalStatsDataSource(collection<GlobalStatsDoc>('global-stats'), { logger: logger.child({ name: 'global-stats-data-source' }), cache })

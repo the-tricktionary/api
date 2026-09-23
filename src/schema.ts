@@ -119,10 +119,10 @@ const typeDefs = gql`
     """Every notice, live or not. Super admins only."""
     allNotices: [Notice!]! @cacheControl(maxAge: 0, scope: PRIVATE)
 
-    """The latest weekly snapshot, null when there is none from the last twelve months"""
+    """The latest weekly snapshot"""
     globalStats: GlobalStats @cacheControl(maxAge: 3600)
-    """Oldest first"""
-    globalStatsHistory: [GlobalStats!]! @cacheControl(maxAge: 3600)
+    """Oldest first, counted in \`[from, until)\`, unbounded on a side left out"""
+    globalStatsHistory (from: Timestamp, until: Timestamp): [GlobalStats!]! @cacheControl(maxAge: 3600)
   }
 
   type Mutation {
