@@ -1,21 +1,14 @@
-import { averagePerAthlete, cachedGlobalStats } from '../helpers/globalStats.js'
+import { averagePerAthlete } from '../helpers/globalStats.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 
 export const globalStatsResolvers: Resolvers = {
   Query: {
     async globalStats (_, args, { dataSources }) {
-      const [latest] = await cachedGlobalStats('latest', async () => {
-        const stats = await dataSources.globalStats.findLatest()
-        return stats ? [stats] : []
-      })
-      return latest ?? null
+      return await dataSources.globalStats.findLatest() ?? null
     },
     async globalStatsHistory (_, { from, until }, { dataSources }) {
-      return await cachedGlobalStats(
-        `history:${from?.toMillis() ?? ''}:${until?.toMillis() ?? ''}`,
-        async () => await dataSources.globalStats.findManyCountedBetween({ from, until })
-      )
+      return await dataSources.globalStats.findManyCountedBetween({ from, until })
     }
   },
   GlobalStats: {

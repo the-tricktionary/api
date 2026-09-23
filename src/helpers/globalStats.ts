@@ -1,4 +1,3 @@
-import { InMemoryLRUCache } from '@apollo/utils.keyvaluecache'
 import { tricktionaryLevels } from './checklist.js'
 
 import type { GlobalStatsDoc, TrickCompletionDoc, TrickLevelDoc } from '../store/schema.js'
@@ -38,16 +37,4 @@ export async function tallyCompletions (completions: AsyncIterable<Completion>, 
 
 export function averagePerAthlete (completions: number, athletes: number) {
   return athletes > 0 ? completions / athletes : 0
-}
-
-/** Query results for an hour, the snapshots change once a week */
-const cache = new InMemoryLRUCache<GlobalStatsDoc[]>({ maxSize: 5 * 2 ** 20 })
-const TTL_SECONDS = 3600
-
-export async function cachedGlobalStats (key: string, find: () => Promise<GlobalStatsDoc[]>) {
-  const hit = await cache.get(key)
-  if (hit) return hit
-  const snapshots = await find()
-  await cache.set(key, snapshots, { ttl: TTL_SECONDS })
-  return snapshots
 }
