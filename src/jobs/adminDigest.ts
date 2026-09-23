@@ -6,66 +6,47 @@
 import * as Sentry from '@sentry/node'
 import { createHash } from 'node:crypto'
 import { Timestamp } from '@google-cloud/firestore'
+import { format, startOfDay, subDays } from 'date-fns'
+import { utc } from '@date-fns/utc'
 import { ADMIN_URL, WEB_URL } from '../config.js'
 import { adminDigestFor, digestInterests, isEmptyDigest } from '../helpers/adminDigest.js'
 import { renderAdminDigest } from '../helpers/adminDigestEmail.js'
 import { logger as baseLogger } from '../services/logger.js'
 import { siteEnglishMessages } from '../services/siteMessages.js'
-import { createDataSources, firestore } from '../store/firestoreDataSource.js'
+import { createDataSources, firestore, writeInChunks } from '../store/firestoreDataSource.js'
 import { trickLevelId, trickLocalisationId } from '../store/schema.js'
 import { runJob } from './runJob.js'
 
-import type { DocumentReference } from 'firebase-admin/firestore'
-import type { AdminDigest, DigestTrick } from '../helpers/adminDigest.js'
-import type { FlatMessages } from '../services/siteMessages.js'
+import type { DocumentData, DocumentReference } from 'firebase-admin/firestore'
+import type { VerificationLevel } from '../generated/graphql.js'
+import type { DigestTrick } from '../helpers/adminDigest.js'
+import type { Email } from '../services/mail.js'
 import type { UserDoc } from '../store/schema.js'
 
 const logger = baseLogger.child({ name: 'admin-digest' })
 const dryRun = process.argv.includes('--dry-run')
 
-const DAY_MS = 24 * 60 * 60 * 1000
 /** How far back the digest reaches for someone without a cursor */
 const FIRST_WINDOW_DAYS = 7
 
-function startOfUtcDay (millis: number) {
-  const date = new Date(millis)
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-}
-
 /** Undefined without messages, which is what an unreachable site gives */
-function hashMessages (messages: FlatMessages) {
+function hashMessages (messages: Record<string, string>) {
   const entries = Object.entries(messages).sort(([a], [b]) => a.localeCompare(b))
   if (entries.length === 0) return undefined
   return createHash('sha256').update(JSON.stringify(entries)).digest('hex')
 }
 
-async function existingIds (refs: readonly DocumentReference[]) {
-  if (refs.length === 0) return new Set<string>()
+/** The existing ones, by ID */
+async function existingDocs (refs: readonly DocumentReference[]) {
+  if (refs.length === 0) return new Map<string, DocumentData>()
   const snaps = await firestore.getAll(...refs)
-  return new Set(snaps.filter(dSnap => dSnap.exists).map(dSnap => dSnap.id))
-}
-
-async function send (user: UserDoc, email: string, digest: AdminDigest, window: { from: Timestamp, until: Timestamp }, messages: FlatMessages) {
-  const rendered = renderAdminDigest(digest, { adminUrl: ADMIN_URL, name: user.name, messages, ...window })
-
-  if (dryRun) {
-    logger.info({ userId: user.id, to: email, subject: rendered.subject }, `Would send:\n${rendered.text}`)
-    return
-  }
-
-  // a dry run needs no Mailjet credentials
-  const { sendEmail } = await import('../services/mail.js')
-  await sendEmail({
-    to: { email, ...(user.name ? { name: user.name } : {}) },
-    ...rendered,
-    customId: `admin-digest:${user.id}:${window.until.toDate().toISOString().slice(0, 10)}`
-  })
+  return new Map(snaps.flatMap(dSnap => dSnap.exists ? [[dSnap.id, dSnap.data() ?? {}] as const] : []))
 }
 
 async function adminDigest () {
   const dataSources = createDataSources()
-  const until = Timestamp.fromMillis(startOfUtcDay(Date.now()))
-  const firstFrom = Timestamp.fromMillis(until.toMillis() - (FIRST_WINDOW_DAYS * DAY_MS))
+  const until = Timestamp.fromDate(startOfDay(new Date(), { in: utc }))
+  const firstFrom = Timestamp.fromDate(subDays(until.toDate(), FIRST_WINDOW_DAYS))
 
   const admins = (await dataSources.users.findManyWithGrants())
     .map(user => ({ user, from: user.notifications?.adminDigestSentUntil ?? firstFrom }))
@@ -78,7 +59,7 @@ async function adminDigest () {
   for (const { user } of admins) {
     const interests = digestInterests(user)
     for (const lang of interests.langs) langs.add(lang)
-    for (const rulesId of interests.rulesIds) rulesIds.add(rulesId)
+    for (const rulesId of interests.rulesIds.keys()) rulesIds.add(rulesId)
   }
 
   const [submissions, trickDocs, rulesets, messages] = await Promise.all([
@@ -102,51 +83,75 @@ async function adminDigest () {
   }))
 
   const [translated, levelled] = await Promise.all([
-    existingIds(tricks.flatMap(trick => [...langs].map(lang => localisations.doc(trickLocalisationId(trick.id, lang))))),
-    existingIds(tricks.flatMap(trick => [...rulesIds].map(rulesId => levels.doc(trickLevelId(trick.id, rulesId)))))
+    existingDocs(tricks.flatMap(trick => [...langs].map(lang => localisations.doc(trickLocalisationId(trick.id, lang))))),
+    existingDocs(tricks.flatMap(trick => [...rulesIds].map(rulesId => levels.doc(trickLevelId(trick.id, rulesId)))))
   ])
   const sources = {
     submissions,
     tricks,
     missingLangs: new Map(tricks.map(trick => [trick.id, new Set([...langs].filter(lang => !translated.has(trickLocalisationId(trick.id, lang))))])),
-    missingRulesIds: new Map(tricks.map(trick => [trick.id, new Set([...rulesIds].filter(rulesId => !levelled.has(trickLevelId(trick.id, rulesId))))])),
+    levels: new Map(tricks.map(trick => [trick.id, new Map([...rulesIds].flatMap(rulesId => {
+      const level = levelled.get(trickLevelId(trick.id, rulesId))
+      return level ? [[rulesId, (level.verificationLevel as VerificationLevel | undefined) ?? null] as const] : []
+    }))])),
     rulesets: new Map(rulesets.map(ruleset => [ruleset.id, ruleset]))
   }
 
-  let sent = 0
-  let failed = 0
+  const outgoing: Array<{ user: UserDoc, email: Email }> = []
+  const done: UserDoc[] = []
   for (const { user, from } of admins) {
-    try {
-      const seenHash = user.notifications?.siteMessagesHash
-      // a first digest records the hash rather than reporting every string as changed
-      const siteMessagesChanged = hash != null && seenHash != null && seenHash !== hash
-      const digest = adminDigestFor(user, { from, until, siteMessagesChanged }, sources)
+    const seenHash = user.notifications?.siteMessagesHash
+    // a first digest records the hash rather than reporting every string as changed
+    const siteMessagesChanged = hash != null && seenHash != null && seenHash !== hash
+    const digest = adminDigestFor(user, { from, until, siteMessagesChanged }, sources)
 
-      if (user.notifications?.adminDigest !== false && !isEmptyDigest(digest)) {
-        if (user.email) {
-          await send(user, user.email, digest, { from, until }, messages)
-          sent++
-        } else {
-          logger.warn({ userId: user.id }, 'No verified email address to send the digest to')
+    if (user.notifications?.adminDigest === false || isEmptyDigest(digest)) {
+      done.push(user)
+    } else if (!user.email) {
+      logger.warn({ userId: user.id }, 'No verified email address to send the digest to')
+      done.push(user)
+    } else {
+      outgoing.push({
+        user,
+        email: {
+          to: { email: user.email, ...(user.name ? { name: user.name } : {}) },
+          ...renderAdminDigest(digest, { adminUrl: ADMIN_URL, name: user.name, messages, from, until }),
+          customId: `admin-digest:${user.id}:${format(until.toDate(), 'yyyy-MM-dd', { in: utc })}`
         }
-      }
-
-      if (!dryRun) {
-        await dataSources.users.updateOnePartial(user.id, {
-          notifications: {
-            adminDigestSentUntil: until,
-            ...(hash != null ? { siteMessagesHash: hash } : {})
-          }
-        })
-      }
-    } catch (err) {
-      failed++
-      logger.error({ err, userId: user.id }, 'Could not send the digest')
-      Sentry.captureException(err, { user: { id: user.id } })
+      })
     }
   }
 
-  logger.info({ admins: admins.length, sent, failed, dryRun, until: until.toDate() }, 'Admin digest done')
+  if (dryRun) {
+    for (const { user, email } of outgoing) logger.info({ userId: user.id, to: email.to.email, subject: email.subject }, `Would send:\n${email.text}`)
+    return
+  }
+
+  // imported here so a dry run needs no Mailjet credentials
+  const { sendEmails } = await import('../services/mail.js')
+  const errors = await sendEmails(outgoing.map(({ email }) => email))
+  let failed = 0
+  for (const [idx, { user }] of outgoing.entries()) {
+    const err = errors[idx]
+    if (!err) {
+      done.push(user)
+      continue
+    }
+    failed++
+    logger.error({ err, userId: user.id }, 'Could not send the digest')
+    Sentry.captureException(err, { user: { id: user.id } })
+  }
+
+  await writeInChunks(done, (batch, user) => {
+    batch.set(dataSources.users.collection.doc(user.id).withConverter(null), {
+      notifications: {
+        adminDigestSentUntil: until,
+        ...(hash != null ? { siteMessagesHash: hash } : {})
+      }
+    }, { merge: true })
+  })
+
+  logger.info({ admins: admins.length, sent: outgoing.length - failed, failed, until: until.toDate() }, 'Admin digest done')
   // their cursors stayed put, so a retry only reaches them
   if (failed > 0) throw new Error(`${failed} of ${admins.length} admin digests failed`)
 }

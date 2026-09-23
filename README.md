@@ -11,30 +11,11 @@ be `.env` rather than an exported variable if you start the API through an npm
 script: the names contain hyphens, and npm drops variables whose names are not
 valid shell identifiers from the environment it passes on.
 
-## Admin digest (Mailjet)
+## Jobs
 
-A weekly email to everyone with a grant, with what is new for their grants:
-pending trick submissions (trick editors, super admins), new tricks missing a
-translation or level in their languages or rulesets (translators, level
-editors), and changes to the site's `en.json` (translators, super admins).
-It is opt-out, through `setNotificationOptions`.
-
-`src/jobs/adminDigest.ts` runs as the Cloud Run job `tricktionary-admin-digest`
-on a Cloud Scheduler trigger, both in the infra repository, and the deploy
-workflow points the job at each new image. Its service account is the only one
-that can read the Mailjet secrets. Jobs run through `src/jobs/runJob.ts`, as a
-trace of their own and, when `JOB_SCHEDULE` is set, a Sentry cron monitor.
-
-Each user's window runs from `notifications.adminDigestSentUntil` to midnight
-UTC on the day of the run, and moves on whether or not anything was sent.
-Tricks are found by `addedAt`, backfilled by `src/migrations/trick-added-at.ts`.
-
-Mail goes out from `noreply@the-tricktionary.com`, with replies to
-`contact@the-tricktionary.com`. With the domain's DMARC at `p=reject`, nothing
-arrives unless Mailjet's DKIM record is in DNS.
-
-`npx tsx src/jobs/adminDigest.ts --dry-run` logs the emails instead of sending
-them and moves no windows.
+`src/jobs/` holds Cloud Run jobs that run from the API's image on Cloud Scheduler
+triggers, both set up in the infra repository. Each runs through `runJob`, as a
+trace of its own and, with `JOB_SCHEDULE` set, a Sentry cron monitor.
 
 ## Speed event definitions and timing tracks
 

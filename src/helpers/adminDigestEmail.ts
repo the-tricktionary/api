@@ -1,3 +1,6 @@
+import { format, subDays } from 'date-fns'
+import { utc } from '@date-fns/utc'
+
 import type { Timestamp } from '@google-cloud/firestore'
 import type { Discipline } from '../generated/graphql.js'
 import type { FlatMessages } from '../services/siteMessages.js'
@@ -31,12 +34,10 @@ export interface RenderedEmail {
   text: string
 }
 
-const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-
 /** `until` is exclusive */
 function period (from: Timestamp, until: Timestamp) {
-  const lastDay = new Date(until.toMillis() - 1)
-  return `${dateFormat.format(from.toDate())} to ${dateFormat.format(lastDay)}`
+  const day = (date: Date) => format(date, 'd MMMM yyyy', { in: utc })
+  return `${day(from.toDate())} to ${day(subDays(until.toDate(), 1))}`
 }
 
 function plural (count: number, one: string, many: string) {
@@ -75,10 +76,10 @@ function sections (digest: AdminDigest, adminUrl: string, messages: FlatMessages
   if (digest.toLevel.length > 0) {
     result.push({
       heading: 'New tricks to level',
-      intro: `${plural(digest.toLevel.length, 'new trick has', 'new tricks have')} no level yet in your rulesets.`,
+      intro: `${plural(digest.toLevel.length, 'new trick needs', 'new tricks need')} a level, or a level verified, in your rulesets.`,
       lines: digest.toLevel.map(({ trick, rulesets }) => ({
         text: trick.name,
-        detail: `${discipline(trick.discipline)}, ${rulesets.join(', ')}`,
+        detail: `${discipline(trick.discipline)}, ${rulesets.map(({ name, verify }) => verify ? `${name} to verify` : name).join(', ')}`,
         href: url(`/trick/${encodeURIComponent(trick.id)}`)
       }))
     })

@@ -1,7 +1,8 @@
 import { GrantType } from '../generated/graphql.js'
+import { verificationLevelRank } from '../services/permissions.js'
 
 import type { Timestamp } from '@google-cloud/firestore'
-import type { Discipline } from '../generated/graphql.js'
+import type { Discipline, VerificationLevel } from '../generated/graphql.js'
 import type { RulesetDoc, TrickDoc, TrickSubmissionDoc, UserDoc } from '../store/schema.js'
 
 export interface DigestTrick {
@@ -17,15 +18,15 @@ export interface DigestSources {
   submissions: readonly TrickSubmissionDoc[]
   tricks: readonly DigestTrick[]
   missingLangs: ReadonlyMap<TrickDoc['id'], ReadonlySet<string>>
-  missingRulesIds: ReadonlyMap<TrickDoc['id'], ReadonlySet<RulesetDoc['id']>>
+  /** Per trick and ruleset, null for an unverified level, absent for none */
+  levels: ReadonlyMap<TrickDoc['id'], ReadonlyMap<RulesetDoc['id'], VerificationLevel | null>>
   rulesets: ReadonlyMap<RulesetDoc['id'], RulesetDoc>
 }
 
 export interface AdminDigest {
   submissions: Array<Pick<TrickSubmissionDoc, 'id' | 'name' | 'discipline' | 'attributionName'>>
   toTranslate: Array<{ trick: DigestTrick, langs: string[] }>
-  /** By ruleset name */
-  toLevel: Array<{ trick: DigestTrick, rulesets: string[] }>
+  toLevel: Array<{ trick: DigestTrick, rulesets: Array<{ name: string, verify: boolean }> }>
   siteMessagesChanged: boolean
 }
 
@@ -34,7 +35,12 @@ export function digestInterests (user: Pick<UserDoc, 'grants'>) {
   const isSuperAdmin = grants.some(grant => grant.type === GrantType.SuperAdmin)
   // super admins only hear about the languages and rulesets they have a grant for
   const langs = new Set(grants.flatMap(grant => grant.type === GrantType.Translator ? [grant.lang] : []))
-  const rulesIds = new Set(grants.flatMap(grant => grant.type === GrantType.LevelEditor ? [grant.rulesId] : []))
+  /** The highest rank the user may verify at, per ruleset */
+  const rulesIds = new Map<RulesetDoc['id'], number>()
+  for (const grant of grants) {
+    if (grant.type !== GrantType.LevelEditor) continue
+    rulesIds.set(grant.rulesId, Math.max(rulesIds.get(grant.rulesId) ?? 0, verificationLevelRank(grant.verificationLevel)))
+  }
 
   return {
     submissions: isSuperAdmin || grants.some(grant => grant.type === GrantType.TrickEditor),
@@ -73,11 +79,14 @@ export function adminDigestFor (
     return langs.length > 0 ? [{ trick, langs }] : []
   })
 
+  // a level the user could verify higher than it is counts too
   const toLevel = tricks.flatMap(trick => {
-    const rulesets = [...sources.missingRulesIds.get(trick.id) ?? []]
-      .filter(rulesId => interests.rulesIds.has(rulesId))
-      .map(rulesId => sources.rulesets.get(rulesId)?.names.en ?? rulesId)
-      .sort()
+    const levels = sources.levels.get(trick.id)
+    const rulesets = [...interests.rulesIds].flatMap(([rulesId, rank]) => {
+      const level = levels?.get(rulesId)
+      if (level !== undefined && verificationLevelRank(level) >= rank) return []
+      return [{ name: sources.rulesets.get(rulesId)?.names.en ?? rulesId, verify: level !== undefined }]
+    }).sort((a, b) => a.name.localeCompare(b.name))
     return rulesets.length > 0 ? [{ trick, rulesets }] : []
   })
 
