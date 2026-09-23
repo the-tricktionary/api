@@ -26,7 +26,7 @@ export interface DigestSources {
 
 export interface DigestLevel {
   verificationLevel?: VerificationLevel
-  changedAt?: Timestamp
+  changedAt: Timestamp
 }
 
 export interface AdminDigest {
@@ -93,7 +93,7 @@ export function adminDigestFor (
       const level = levels?.get(rulesId)
       const name = sources.rulesets.get(rulesId)?.names.en ?? rulesId
       if (!level) return isNew(trick) ? [{ name, verify: false }] : []
-      const changed = isNew(trick) || (level.changedAt != null && inWindow(level.changedAt, from, until))
+      const changed = isNew(trick) || inWindow(level.changedAt, from, until)
       return changed && verificationLevelRank(level.verificationLevel) < rank ? [{ name, verify: true }] : []
     }).sort((a, b) => a.name.localeCompare(b.name))
     return rulesets.length > 0 ? [{ trick, rulesets }] : []

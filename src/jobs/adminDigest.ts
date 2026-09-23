@@ -96,7 +96,7 @@ async function adminDigest () {
     tricks,
     missingLangs: new Map(addedTricks.map(trick => [trick.id, new Set([...langs].filter(lang => !translated.has(trickLocalisationId(trick.id, lang))))])),
     levels: new Map(tricks.map(trick => [trick.id, new Map([...rulesIds].flatMap(rulesId => {
-      const level = levelled.get(trickLevelId(trick.id, rulesId)) as Partial<TrickLevelDoc> | undefined
+      const level = levelled.get(trickLevelId(trick.id, rulesId)) as TrickLevelDoc | undefined
       return level ? [[rulesId, { verificationLevel: level.verificationLevel, changedAt: level.changedAt }] as const] : []
     }))])),
     rulesets: new Map(rulesets.map(ruleset => [ruleset.id, ruleset]))

@@ -157,7 +157,8 @@ async function main () {
         : {}),
       ...(level.verifiedBy ? { updatedBy: level.verifiedBy } : {}),
       createdAt,
-      updatedAt
+      updatedAt,
+      changedAt: updatedAt
     }
 
     const newId = trickLevelId(level.trickId, rulesId)
