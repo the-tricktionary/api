@@ -402,7 +402,11 @@ const typeDefs = gql`
   }
 
   type TagValue @cacheControl(inheritMaxAge: true) {
-    """A slug, which is what search queries and tricks refer to the value by"""
+    """
+    A slug, which is what search queries and tricks refer to the value by.
+    Unique within its tag only, so a client cache that normalises by id has to
+    leave values inside their tag.
+    """
     id: ID!
     """Display name in \`lang\`, falling back to english"""
     name (lang: String): String!
