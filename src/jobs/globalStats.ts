@@ -1,7 +1,5 @@
 /**
- * A weekly snapshot of the Tricktionary's numbers, served by the `globalStats`
- * and `globalStatsHistory` queries. Reads every trick completion, the rest is
- * counted by Firestore itself.
+ * Snapshots the Tricktionary's numbers into `global-stats`.
  *
  * Run with: npx tsx src/jobs/globalStats.ts [--dry-run]
  */
@@ -47,7 +45,7 @@ async function globalStats () {
     return
   }
 
-  // a second run on the same day replaces that day's snapshot
+  // a rerun on the same day overwrites
   await dataSources.globalStats.collection.doc(id).withConverter(null).set(snapshot)
   logger.info({ id, snapshot }, 'Global stats done')
 }

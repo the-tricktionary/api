@@ -1,16 +1,14 @@
-import { Timestamp } from '@google-cloud/firestore'
-import { subMonths } from 'date-fns'
-import { averagePerAthlete } from '../helpers/globalStats.js'
+import { averagePerAthlete, recentGlobalStats } from '../helpers/globalStats.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 
 export const globalStatsResolvers: Resolvers = {
   Query: {
     async globalStats (_, args, { dataSources }) {
-      return await dataSources.globalStats.findLatest({ ttl: 3600 }) ?? null
+      return (await recentGlobalStats(dataSources)).at(-1) ?? null
     },
     async globalStatsHistory (_, args, { dataSources }) {
-      return await dataSources.globalStats.findManyCountedSince(Timestamp.fromDate(subMonths(new Date(), 12)), { ttl: 3600 })
+      return await recentGlobalStats(dataSources)
     }
   },
   GlobalStats: {

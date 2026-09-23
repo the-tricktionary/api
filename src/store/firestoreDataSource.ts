@@ -353,10 +353,7 @@ export class TrickCompletionDataSource extends FirestoreDataSource<TrickCompleti
     ).where('trickId', '==', trickId).limit(1)))[0]
   }
 
-  /**
-   * Every completion, only the fields saying whose it is and of what, read a
-   * page at a time straight from Firestore rather than through the cache
-   */
+  /** Paged, bypassing the cache */
   async * streamAthletesAndTricks (pageSize = 5000) {
     const query = this.collection.withConverter(null)
       .select('userId', 'memberId', 'trickId')
@@ -398,7 +395,6 @@ function mergeNewest (lists: ReadonlyArray<readonly SpeedResultDoc[]>, limit?: n
 }
 
 export class SpeedResultDataSource extends FirestoreDataSource<SpeedResultDoc> {
-  /** The number of results and the steps of all of them, counted by Firestore itself */
   async countWithSteps () {
     const aSnap = await this.collection
       .aggregate({ results: AggregateField.count(), steps: AggregateField.sum('count') })
@@ -503,13 +499,8 @@ export class EventDefinitionDataSource extends FirestoreDataSource<EventDefiniti
 export const eventDefinitionDataSource = (cache: KeyValueCache) => new EventDefinitionDataSource(collection<EventDefinitionDoc>('event-definitions'), { logger: logger.child({ name: 'event-definition-data-source' }), cache })
 
 export class GlobalStatsDataSource extends FirestoreDataSource<GlobalStatsDoc> {
-  /** Oldest first */
   async findManyCountedSince (since: Timestamp, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('countedAt', '>=', since).orderBy('countedAt', 'asc'), options)
-  }
-
-  async findLatest (options?: QueryFindArgs) {
-    return (await this.findManyByQuery(c => c.orderBy('countedAt', 'desc').limit(1), options))[0]
   }
 }
 export const globalStatsDataSource = (cache: KeyValueCache) => new GlobalStatsDataSource(collection<GlobalStatsDoc>('global-stats'), { logger: logger.child({ name: 'global-stats-data-source' }), cache })

@@ -1,18 +1,18 @@
-import type { GlobalLevelStats, GlobalStatsDoc, TrickCompletionDoc, TrickLevelDoc } from '../store/schema.js'
+import { Timestamp } from '@google-cloud/firestore'
+import { subMonths } from 'date-fns'
+import { tricktionaryLevels } from './checklist.js'
+
+import type { DataSources } from '../store/firestoreDataSource.js'
+import type { GlobalStatsDoc, TrickCompletionDoc, TrickLevelDoc } from '../store/schema.js'
 
 type Completion = Pick<TrickCompletionDoc, 'userId' | 'memberId' | 'trickId'>
 
 /**
- * Completions in total, per Tricktionary level and per athlete, counting an
- * athlete with an account by their user and one a group manages by their
- * member. Unlevelled tricks, deleted ones included, count only towards the
- * total, like on a profile.
+ * An athlete is their user, or their group member when they have no account.
+ * Completions of unlevelled or deleted tricks count only towards the total.
  */
 export async function tallyCompletions (completions: AsyncIterable<Completion>, trickLevels: readonly TrickLevelDoc[]) {
-  const levelOfTrick = new Map(trickLevels.map(trickLevel => [trickLevel.trickId, trickLevel.level]))
-
-  const tricksPerLevel = new Map<string, number>()
-  for (const level of levelOfTrick.values()) tricksPerLevel.set(level, (tricksPerLevel.get(level) ?? 0) + 1)
+  const { levelOfTrick, totals } = tricktionaryLevels(trickLevels)
 
   let total = 0
   const perLevel = new Map<string, number>()
@@ -30,14 +30,31 @@ export async function tallyCompletions (completions: AsyncIterable<Completion>, 
   let maxCompletions = 0
   for (const count of perAthlete.values()) maxCompletions = Math.max(maxCompletions, count)
 
-  const levels: GlobalLevelStats[] = [...tricksPerLevel.entries()]
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([level, tricks]) => ({ level, tricks, completions: perLevel.get(level) ?? 0 }))
-
-  return { completions: total, athletes: perAthlete.size, maxCompletions, levels } satisfies Partial<GlobalStatsDoc>
+  return {
+    completions: total,
+    athletes: perAthlete.size,
+    maxCompletions,
+    levels: totals.map(([level, tricks]) => ({ level, tricks, completions: perLevel.get(level) ?? 0 }))
+  } satisfies Partial<GlobalStatsDoc>
 }
 
-/** Per athlete with at least one completed trick, 0 before anyone completed one */
 export function averagePerAthlete (completions: number, athletes: number) {
   return athletes > 0 ? completions / athletes : 0
+}
+
+const TTL_MS = 60 * 60 * 1000
+
+let cached: { snapshots: GlobalStatsDoc[], fetchedAt: number } | undefined
+let inflight: Promise<GlobalStatsDoc[]> | undefined
+
+/** The last twelve months of snapshots, oldest first, cached for an hour */
+export async function recentGlobalStats (dataSources: Pick<DataSources, 'globalStats'>) {
+  if (cached && Date.now() - cached.fetchedAt < TTL_MS) return cached.snapshots
+  inflight ??= dataSources.globalStats.findManyCountedSince(Timestamp.fromDate(subMonths(new Date(), 12)))
+    .then(snapshots => {
+      cached = { snapshots, fetchedAt: Date.now() }
+      return snapshots
+    })
+    .finally(() => { inflight = undefined })
+  return await inflight
 }
