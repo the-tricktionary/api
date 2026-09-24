@@ -1,6 +1,7 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
 import { Discipline, GrantType, GroupRole, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
+import { DISCIPLINE_SLUGS, disciplineFromSlug } from './helpers/disciplines.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -146,6 +147,36 @@ export const trickTagFiltersSchema = z.array(z.object({
   min: z.number().nullish(),
   max: z.number().nullish()
 }))
+
+// Tricks
+
+export const createTrickSchema = z.object({
+  discipline: z.enum(Discipline),
+  slug: slugSchema,
+  localisation: trickLocalisationSchema,
+  tags: trickTagsInputSchema
+})
+
+export const updateTrickDetailsSchema = z.object({
+  discipline: z.enum(Discipline).nullish(),
+  slug: slugSchema.nullish(),
+  tags: trickTagsInputSchema.nullish()
+})
+
+export const optionalAttributionSchema = attributionInputSchema.nullish()
+
+export const youTubeVideoSchema = z.object({
+  videoId: youTubeVideoIdSchema,
+  type: z.enum(VideoType),
+  slowMoStart: slowMoStartSchema,
+  attribution: optionalAttributionSchema
+})
+
+export const videoUploadSchema = z.object({
+  type: z.enum(VideoType),
+  slowMoStart: slowMoStartSchema,
+  attribution: optionalAttributionSchema
+})
 
 // Trick submissions
 
@@ -476,4 +507,44 @@ export const groupMemberInputSchema = z.object({
   name: groupAthleteNameSchema.nullish(),
   role: z.enum(GroupRole),
   observer: z.boolean()
+})
+
+// Booklets
+
+export const PAPERS = ['a4', 'letter'] as const
+export type Paper = typeof PAPERS[number]
+
+export const LAYOUTS = ['pages', 'booklet', 'print'] as const
+export type Layout = typeof LAYOUTS[number]
+
+/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
+export function isbnDigits (isbn: string): string | null {
+  const digits = isbn.replace(/[-\s]/g, '')
+  if (!/^97[89]\d{10}$/.test(digits)) return null
+  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
+  return sum % 10 === 0 ? digits : null
+}
+
+/** The query string of `GET /booklets/tricks.pdf` */
+export const bookletOptionsSchema = z.object({
+  discipline: z.enum(DISCIPLINE_SLUGS).transform(disciplineFromSlug),
+  paper: z.enum(PAPERS).default('a4'),
+  /** The language of the booklet, English fills in for anything not translated */
+  lang: langSchema.default('en'),
+  /** Whether to include trick descriptions, names are always included */
+  detailed: z.stringbool().default(false),
+  /** A ruleset whose level each trick is labelled with, with a mark when verified */
+  rulesId: rulesIdSchema.optional().transform(rulesId => rulesId ?? null),
+  /**
+   * `pages` typesets on the full sheet, `booklet` on half sheets that are then
+   * laid out two per side for folding down the middle, `print` on half sheets
+   * with bleed, a cover and a trick map, for a print shop
+   */
+  layout: z.enum(LAYOUTS).default('booklet'),
+  /** The ISBN of the `print` layout, shown in the colophon and as a barcode on the back */
+  isbn: z.string().trim()
+    .refine(isbn => isbnDigits(isbn) != null, 'An ISBN is 13 digits starting with 978 or 979, optionally with dashes, and its check digit has to add up')
+    .optional().transform(isbn => isbn ?? null),
+  /** Who prints the `print` layout, named in its colophon */
+  printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
 })

@@ -1,29 +1,13 @@
-import z from 'zod'
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError } from '../errors.js'
-import { VideoHost, VideoType } from '../generated/graphql.js'
+import { VideoHost } from '../generated/graphql.js'
 import { attribution, toContributor } from '../helpers/tricks.js'
 import { createVideoUpload, tryDeleteAsset } from '../services/mux.js'
-import { attributionInputSchema, slowMoStartSchema, youTubeVideoIdSchema } from '../validation.js'
+import { optionalAttributionSchema, videoUploadSchema, youTubeVideoSchema } from '../validation.js'
 
 import type { ApolloContext } from '../apollo.js'
 import type { AttributionInput, Resolvers } from '../generated/graphql.js'
 import type { TrickDoc, Video, YouTubeVideo } from '../store/schema.js'
-
-const optionalAttributionSchema = attributionInputSchema.nullish()
-
-const youTubeVideoSchema = z.object({
-  videoId: youTubeVideoIdSchema,
-  type: z.enum(VideoType),
-  slowMoStart: slowMoStartSchema,
-  attribution: optionalAttributionSchema
-})
-
-const videoUploadSchema = z.object({
-  type: z.enum(VideoType),
-  slowMoStart: slowMoStartSchema,
-  attribution: optionalAttributionSchema
-})
 
 /** The credit to store, refused when it names an account that does not exist */
 async function creditedAttribution (input: AttributionInput | null | undefined, { dataSources }: Pick<ApolloContext, 'dataSources'>) {

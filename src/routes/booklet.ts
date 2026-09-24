@@ -1,6 +1,7 @@
 import { TYPST_BIN, WEB_URL } from '../config.js'
 import { sendError } from '../helpers/httpErrors.js'
-import { bookletOptionsSchema, renderBooklet } from '../services/booklet.js'
+import { renderBooklet } from '../services/booklet.js'
+import { bookletOptionsSchema } from '../validation.js'
 import { requestLogger } from '../helpers/requestLogger.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
 

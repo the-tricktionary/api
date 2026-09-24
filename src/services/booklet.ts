@@ -1,59 +1,22 @@
-import z from 'zod'
 import { NotFoundError } from '../errors.js'
 import { Discipline } from '../generated/graphql.js'
-import { DISCIPLINE_SLUGS, disciplineFromSlug, disciplineSlug } from '../helpers/disciplines.js'
+import { disciplineSlug } from '../helpers/disciplines.js'
 import { localised } from '../helpers/localised.js'
 import { tagFor, tagValues } from '../helpers/tags.js'
 import { uiMessageValues } from '../helpers/uiMessages.js'
 import { TRICK_TYPE_SLUG, TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
-import { langSchema, rulesIdSchema } from '../validation.js'
+import { isbnDigits } from '../validation.js'
 import { compileTypst } from './typst.js'
 import { renderDotToSvg } from './graphviz.js'
 import { imposeBooklet } from './imposition.js'
 import { siteEnglishMessages } from './siteMessages.js'
 
 import type Pino from 'pino'
+import type z from 'zod'
 import type { DataSources } from '../store/firestoreDataSource.js'
 import type { RulesetDoc, TagDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc, TrickPrereqDoc } from '../store/schema.js'
 import type { FlatMessages } from './siteMessages.js'
-
-export const PAPERS = ['a4', 'letter'] as const
-export type Paper = typeof PAPERS[number]
-
-export const LAYOUTS = ['pages', 'booklet', 'print'] as const
-export type Layout = typeof LAYOUTS[number]
-
-/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
-export function isbnDigits (isbn: string): string | null {
-  const digits = isbn.replace(/[-\s]/g, '')
-  if (!/^97[89]\d{10}$/.test(digits)) return null
-  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
-  return sum % 10 === 0 ? digits : null
-}
-
-/** The query string of `GET /booklets/tricks.pdf` */
-export const bookletOptionsSchema = z.object({
-  discipline: z.enum(DISCIPLINE_SLUGS).transform(disciplineFromSlug),
-  paper: z.enum(PAPERS).default('a4'),
-  /** The language of the booklet, English fills in for anything not translated */
-  lang: langSchema.default('en'),
-  /** Whether to include trick descriptions, names are always included */
-  detailed: z.stringbool().default(false),
-  /** A ruleset whose level each trick is labelled with, with a mark when verified */
-  rulesId: rulesIdSchema.optional().transform(rulesId => rulesId ?? null),
-  /**
-   * `pages` typesets on the full sheet, `booklet` on half sheets that are then
-   * laid out two per side for folding down the middle, `print` on half sheets
-   * with bleed, a cover and a trick map, for a print shop
-   */
-  layout: z.enum(LAYOUTS).default('booklet'),
-  /** The ISBN of the `print` layout, shown in the colophon and as a barcode on the back */
-  isbn: z.string().trim()
-    .refine(isbn => isbnDigits(isbn) != null, 'An ISBN is 13 digits starting with 978 or 979, optionally with dashes, and its check digit has to add up')
-    .optional().transform(isbn => isbn ?? null),
-  /** Who prints the `print` layout, named in its colophon */
-  printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
-})
+import type { bookletOptionsSchema, Paper } from '../validation.js'
 
 export type BookletOptions = z.output<typeof bookletOptionsSchema>
 
