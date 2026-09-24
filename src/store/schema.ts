@@ -554,26 +554,22 @@ export interface GlobalStatsDoc extends DocBase {
 }
 export function isGlobalStats (t: any): t is GlobalStatsDoc { return t?.collection === 'global-stats' }
 
-/**
- * A client registered by hand, see the README. The document ID is the
- * client's ID, `web`, `admin` and `anonymous` are taken by the built in ones.
- */
+/** The document ID is the client's ID, see the README */
 export interface ApiClientDoc extends DocBase {
   readonly collection: 'api-clients'
   name: string
-  /** Who to reach about the client */
   contact?: string
   scopes: Scope[]
-  /** Regular expressions the whole browser origin has to match, none for a client that only calls from servers */
+  /** Regular expressions the whole origin has to match */
   origins: string[]
   disabled?: boolean
 }
 
-/** The document ID is the SHA-256 of the key in hex, the key itself is never stored */
+/** The document ID is the key's SHA-256 in hex */
 export interface ApiKeyDoc extends DocBase {
   readonly collection: 'api-keys'
   clientId: string
-  /** The start of the key, to tell keys apart by */
+  /** The start of the key */
   hint: string
   revokedAt?: Timestamp
 }

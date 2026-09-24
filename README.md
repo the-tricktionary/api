@@ -22,24 +22,20 @@ deploy that adds to it.
 
 ## API clients and scopes
 
-Every request comes from an API client, which sends its key in the `Api-Key`
-header. `Authorization` is left to the signed in user's Firebase ID token.
-A request without a key is anonymous. `src/helpers/apiClientMiddleware.ts`
-identifies the client before any route runs, so the plain HTTP routes have one
-too.
+Every request comes from an API client, identified by its key in the `Api-Key`
+header, or anonymous without one. `Authorization` carries the signed in user's
+Firebase ID token. `src/helpers/apiClientMiddleware.ts` identifies the client
+before any route runs.
 
-- **Built in:** `anonymous`, and the Tricktionary's own apps `web` and `admin`.
-  Their scopes and browser origins are in `src/services/apiClients.ts` and
-  `src/helpers/cors.ts`, so they change together with the schema.
-- **Registered:** everyone else, one `api-clients` document each. They may only
-  hold `public`, `site` and `profiles`.
+- **Built in:** `anonymous`, `web` and `admin`, in `src/services/apiClients.ts`
+  with their origins in `src/helpers/cors.ts`.
+- **Registered:** one `api-clients` document each. They may hold `public`,
+  `site` and `profiles`; signing users in and the admin are for our own apps.
 
-Keys are stored in `api-keys` as the SHA-256 of the key; the key itself is
-never stored. The API reloads clients and keys every minute. Keys are
-publishable, like a Stripe publishable key: they identify a client, and a key
-shipped in a browser app is not a secret.
-
-`src/scripts/api-keys.ts` manages them, with the same credentials as the seed:
+Keys identify a client rather than authenticate it: the apps ship theirs to
+every browser. `api-keys` holds each key's SHA-256, never the key. Changes
+take up to a minute to reach the API. `src/scripts/api-keys.ts` manages both,
+with the same credentials as the seed:
 
 ```sh
 npx tsx src/scripts/api-keys.ts client ropescore --name RopeScore --scope public --origin 'https://([a-z0-9-]+\.)?ropescore\.com' --contact dev@example.com
@@ -48,8 +44,8 @@ npx tsx src/scripts/api-keys.ts revoke pk_AbCdE     # a key, or its hint from `l
 npx tsx src/scripts/api-keys.ts list
 ```
 
-The keys of `web` and `admin` are issued the same way. They go to the frontends
-as the `API_KEY` Actions variable, which the infra repository sets.
+The keys of `web` and `admin` reach their builds as the `API_KEY` Actions
+variable, which the infra repository sets.
 
 | Scope | What | anonymous | web | admin |
 |---|---|---|---|---|
@@ -57,51 +53,36 @@ as the `API_KEY` Actions variable, which the infra repository sets.
 | `site` | interface messages, notices, event definitions, global stats, the shop | | ✓ | ✓ |
 | `profiles` | users' public profiles, checklists and speed bests | | ✓ | |
 | `account` | signing users in and acting as them | | ✓ | ✓ |
-| `admin` | the admin interface | | | ✓ |
+| `admin` | the admin | | | ✓ |
 
-**Requiring scopes**
+**`@requiresScopes(scopes: [[...]])`** takes any one of the lists, holding
+every scope in it. On a type it applies to every field returning the type:
+`User` needs `profiles`, `account` or `admin`, so a `public` client can't reach
+users through `Trick.submitter`. Every query and mutation needs one; the API
+won't start without, and `npm run schema:check` fails CI. Descriptions state
+the requirements, as introspection doesn't show directives.
 
-- `@requiresScopes(scopes: [[...]])` says what a field needs: any one of the
-  lists, holding every scope in it.
-- On a type, it applies to every field returning that type. `User` needs
-  `profiles`, `account` or `admin`, so a `public` client can't reach users
-  through `Trick.submitter`.
-- Every query and mutation has to carry the directive. The API won't start
-  without it, and `npm run schema:check` fails in CI.
-- The requirements are appended to the descriptions, since introspection
-  doesn't show directives.
+**Denied**, with the reason on the usage line:
 
-**What gets refused**
+- an operation selecting anything its client lacks the scopes for, as a whole
+  and before anything runs: `INSUFFICIENT_SCOPE`, 403
+- a key nobody holds: 401
+- a browser origin the client may not call from: 403
+- an `Authorization` header from a client without `account`: 403
 
-- An operation selecting anything its client lacks the scopes for is refused
-  as a whole, before anything runs: `INSUFFICIENT_SCOPE`, 403.
-- A key nobody holds gets a 401.
-- A browser origin the client may not call from gets a 403.
-- An `Authorization` header from a client without `account` gets a 403.
+Scopes limit clients; `src/services/permissions.ts` still decides what a user
+may do.
 
-The scopes limit what a client may do. What a user may do is still up to the
-permissions in `src/services/permissions.ts`.
+**CORS** answers with the client's origins. A preflight carries no key, so it
+gets every client's origins. `Origin` only binds browsers.
 
-**CORS** follows the client: a request gets CORS headers only for the client's
-own origins. A preflight carries no key, so it is answered for every origin
-any client may call from. Origins only bind browsers; anything else can send
-whatever `Origin` it likes.
+**`ACCESS_CONTROL=report`** logs what access control denies instead of
+denying it. `enforce` is the default.
 
-**Report mode:** `ACCESS_CONTROL=report` lets through everything the above
-would refuse, and logs it with the reason. It's meant for rolling this out or
-changing it: switch to `enforce` (the default) once the logs are clean.
-
-**Usage:** every request logs one `API usage` line when it's answered, with
-`jsonPayload.usage` holding:
-
-- `client`
-- `kind`: `query`, `mutation` or `http`
-- `operation`: the operation's name
-- `target`: the root fields, or the route
-- `status`
-- `denied`: why it was refused, or would have been in report mode
-
-The infra repository counts these in a log-based metric, `api/usage`.
+**Usage:** each request logs an `API usage` line, `jsonPayload.usage` holding
+`client`, `kind` (`query`, `mutation` or `http`), `operation`, `target` (the
+root fields, or the route), `status` and `denied`. The infra repository counts
+them in the `api/usage` log-based metric.
 
 ## Jobs
 

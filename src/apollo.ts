@@ -80,7 +80,6 @@ export async function initApollo (httpServer: Server) {
 
 export interface TrickContext {
   dataSources: DataSources
-  /** Who the request comes from, see the README */
   client: ApiClient
   user?: UserDoc
   allowUser: ReturnType<typeof allowUser>

@@ -2,6 +2,7 @@ import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
 import { Discipline, GrantType, GroupRole, Scope, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug } from './helpers/disciplines.js'
+import { originPattern } from './helpers/cors.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -549,11 +550,18 @@ export const bookletOptionsSchema = z.object({
   printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
 })
 
-/** An `api-clients` document, which is edited by hand */
+/** An `api-clients` document. Signing users in and the admin are for the Tricktionary's own apps only. */
 export const apiClientDocSchema = z.object({
   name: z.string().trim().min(1),
   contact: z.string().optional(),
-  scopes: z.array(z.enum(Scope)),
-  origins: z.array(z.string()).default([]),
+  scopes: z.array(z.enum([Scope.Public, Scope.Site, Scope.Profiles])),
+  origins: z.array(z.string().refine(source => {
+    try {
+      originPattern(source)
+      return true
+    } catch {
+      return false
+    }
+  }, 'An origin has to be a regular expression')).default([]),
   disabled: z.boolean().optional()
 })

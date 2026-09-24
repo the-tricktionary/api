@@ -44,8 +44,7 @@ const envSchema = z.object({
   CLOUD_RUN_EXECUTION: z.string().optional(),
   // The Typst binary that typesets booklets, see the README
   TYPST_BIN: z.string().default('typst'),
-  // `report` lets through what the API client checks would refuse, and logs
-  // it, see the README
+  // `report` logs what access control denies instead of denying it
   ACCESS_CONTROL: z.enum(['enforce', 'report']).default('enforce')
 })
 

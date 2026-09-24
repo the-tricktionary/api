@@ -1,17 +1,14 @@
 import { getDirective, MapperKind, mapSchema } from '@graphql-tools/utils'
-import { getNamedType, GraphQLObjectType, isObjectType, Kind, TypeInfo, visit, visitWithTypeInfo } from 'graphql'
+import { getNamedType, GraphQLObjectType, isInterfaceType, isObjectType, Kind, TypeInfo, visit, visitWithTypeInfo } from 'graphql'
 
 import type { DirectableGraphQLObject } from '@graphql-tools/utils'
 import type { DocumentNode, FragmentDefinitionNode, GraphQLSchema, OperationDefinitionNode } from 'graphql'
 import type { Scope } from '../generated/graphql.js'
 
-/**
- * What `@requiresScopes` asks for: any one of the lists, holding every scope
- * in it. `[[a, b], [c]]` is a and b, or c.
- */
+/** Any one of the lists, holding every scope in it: `[[a, b], [c]]` is a and b, or c */
 export type ScopeRequirement = ReadonlyArray<readonly Scope[]>
 
-/** A field and every requirement it comes with, all of which have to hold */
+/** By `Type.field`, all of which have to hold */
 export type ScopeRequirements = ReadonlyMap<string, readonly ScopeRequirement[]>
 
 export interface ScopeViolation {
@@ -26,18 +23,20 @@ export function holdsScopes (scopes: ReadonlySet<Scope>, requirement: ScopeRequi
   return requirement.some(all => all.every(scope => scopes.has(scope)))
 }
 
+/** Whether every way of meeting `requirement` meets `other` */
+function implies (requirement: ScopeRequirement, other: ScopeRequirement) {
+  return requirement.every(all => holdsScopes(new Set(all), other))
+}
+
 function requirementOf (schema: GraphQLSchema, node: DirectableGraphQLObject): ScopeRequirement | undefined {
   return getDirective(schema, node, DIRECTIVE)?.[0]?.scopes as ScopeRequirement | undefined
 }
 
-/**
- * Every object field's requirements by `Type.field`: its own, its type's and
- * the type it returns. A field missing from the map requires nothing.
- */
+/** A field's own requirement, its type's and that of the type it returns */
 export function scopeRequirements (schema: GraphQLSchema): ScopeRequirements {
   const requirements = new Map<string, ScopeRequirement[]>()
   for (const type of Object.values(schema.getTypeMap())) {
-    if (!isObjectType(type) || type.name.startsWith('__')) continue
+    if (!(isObjectType(type) || isInterfaceType(type)) || type.name.startsWith('__')) continue
     const ofType = requirementOf(schema, type)
     for (const field of Object.values(type.getFields())) {
       const fieldRequirements = [
@@ -51,10 +50,7 @@ export function scopeRequirements (schema: GraphQLSchema): ScopeRequirements {
   return requirements
 }
 
-/**
- * Every query and mutation has to say which scopes it needs, so a new one
- * isn't open to every client because it was forgotten
- */
+/** So that nothing new is open to every client by omission */
 export function assertRootFieldsScoped (schema: GraphQLSchema, requirements: ScopeRequirements) {
   const unscoped = [schema.getQueryType(), schema.getMutationType(), schema.getSubscriptionType()]
     .filter(type => type != null)
@@ -73,11 +69,7 @@ function withRequirements (description: string | null | undefined, requirements:
   return [description, ...requirements.map(describeScopeRequirement)].filter(Boolean).join('\n\n')
 }
 
-/**
- * Introspection doesn't show where directives are used, so the requirements
- * are written into the descriptions: a type's on the type, and on a field its
- * own and those of the type it returns.
- */
+/** Introspection doesn't show where directives are used, so the descriptions say it */
 export function describeScopes (schema: GraphQLSchema) {
   return mapSchema(schema, {
     [MapperKind.OBJECT_TYPE] (type) {
@@ -85,11 +77,11 @@ export function describeScopes (schema: GraphQLSchema) {
       if (requirement == null) return type
       return new GraphQLObjectType({ ...type.toConfig(), description: withRequirements(type.description, [requirement]) })
     },
-    [MapperKind.OBJECT_FIELD] (fieldConfig) {
-      const requirements = [
-        requirementOf(schema, fieldConfig),
-        requirementOf(schema, getNamedType(fieldConfig.type))
-      ].filter(requirement => requirement != null)
+    [MapperKind.COMPOSITE_FIELD] (fieldConfig) {
+      const own = requirementOf(schema, fieldConfig)
+      const returned = requirementOf(schema, getNamedType(fieldConfig.type))
+      const requirements = [own, returned != null && own != null && implies(own, returned) ? undefined : returned]
+        .filter(requirement => requirement != null)
       if (requirements.length === 0) return fieldConfig
       return { ...fieldConfig, description: withRequirements(fieldConfig.description, requirements) }
     }
@@ -97,9 +89,9 @@ export function describeScopes (schema: GraphQLSchema) {
 }
 
 /**
- * The fields an operation selects, through the fragments it spreads, whose
- * requirements the scopes don't meet. Scopes depend only on the client, so
- * the document alone decides, before anything is resolved.
+ * The fields an operation selects, through its fragments, whose requirements
+ * the scopes don't meet. Scopes only depend on the client, so the document
+ * alone decides.
  */
 export function scopeViolations (schema: GraphQLSchema, requirements: ScopeRequirements, document: DocumentNode, operation: OperationDefinitionNode, scopes: ReadonlySet<Scope>): ScopeViolation[] {
   const fragments = new Map<string, FragmentDefinitionNode>()

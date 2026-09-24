@@ -1,26 +1,21 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { Scope } from '../generated/graphql.js'
-import { adminOrigins, webOrigins } from '../helpers/cors.js'
+import { adminOrigins, originPattern, webOrigins } from '../helpers/cors.js'
 import { apiClientDocSchema } from '../validation.js'
 import { firestore } from '../store/firestoreDataSource.js'
 import { logger } from './logger.js'
 
 import type { ApiKeyDoc } from '../store/schema.js'
 
-/**
- * Who a request comes from: one of the Tricktionary's own apps, a client
- * registered in the `api-clients` collection, or nobody in particular. See the
- * README.
- */
+/** Who a request comes from, see the README */
 export interface ApiClient {
   id: string
   name: string
   scopes: ReadonlySet<Scope>
-  /** The browser origins the client may call from, none for one that only calls from servers */
+  /** Browser origins, none for a client that only calls from servers */
   origins: readonly RegExp[]
 }
 
-/** A request without a key */
 export const ANONYMOUS: ApiClient = {
   id: 'anonymous',
   name: 'Anonymous',
@@ -28,11 +23,8 @@ export const ANONYMOUS: ApiClient = {
   origins: []
 }
 
-/**
- * The Tricktionary's own apps are defined here rather than in the
- * collection: their scopes change along with the schema they use
- */
-const OWN_CLIENTS: readonly ApiClient[] = [
+/** In code rather than in `api-clients`, so their scopes change with the schema */
+export const OWN_CLIENTS: readonly ApiClient[] = [
   {
     id: 'web',
     name: 'the Tricktionary',
@@ -47,39 +39,22 @@ const OWN_CLIENTS: readonly ApiClient[] = [
   }
 ]
 
-/**
- * All a client from the collection may hold. Users only sign in to the
- * Tricktionary's own apps, and the admin interface is one of them.
- */
-export const REGISTERED_CLIENT_SCOPES: ReadonlySet<Scope> = new Set([Scope.Public, Scope.Site, Scope.Profiles])
-
-/** How long a key added or revoked in Firestore takes to count */
+/** How long a change in `api-clients` or `api-keys` takes to count */
 const REGISTRY_TTL = 60_000
 
 export interface ApiClientRegistry {
   /** By the hash of the key */
   byKey: ReadonlyMap<string, ApiClient>
-  /** Every origin any client may call from, what a CORS preflight is answered with */
+  /** Every client's origins, which a CORS preflight is answered for */
   origins: readonly RegExp[]
 }
 
-/** Keys are stored by this, never as they are */
 export function hashApiKey (key: string) {
   return createHash('sha256').update(key).digest('hex')
 }
 
-/** `pk_` and 32 URL-safe characters */
 export function generateApiKey () {
   return `pk_${randomBytes(24).toString('base64url')}`
-}
-
-/** A regular expression the whole origin has to match, null for one that doesn't compile */
-function originPattern (source: string) {
-  try {
-    return new RegExp(`^(?:${source})$`)
-  } catch {
-    return null
-  }
 }
 
 function registeredClient (id: string, data: unknown): ApiClient | null {
@@ -88,24 +63,9 @@ function registeredClient (id: string, data: unknown): ApiClient | null {
     logger.error({ clientId: id, issues: parsed.error.issues }, 'Ignoring an API client that does not parse')
     return null
   }
-  const doc = parsed.data
-  if (doc.disabled === true) return null
-
-  const refused = doc.scopes.filter(scope => !REGISTERED_CLIENT_SCOPES.has(scope))
-  if (refused.length > 0) logger.error({ clientId: id, refused }, 'Leaving out scopes only the Tricktionary\'s own apps may hold')
-
-  const origins = doc.origins.flatMap(source => {
-    const pattern = originPattern(source)
-    if (pattern == null) logger.error({ clientId: id, origin: source }, 'Leaving out an origin that is not a regular expression')
-    return pattern == null ? [] : [pattern]
-  })
-
-  return {
-    id,
-    name: doc.name,
-    scopes: new Set(doc.scopes.filter(scope => REGISTERED_CLIENT_SCOPES.has(scope))),
-    origins
-  }
+  const { name, scopes, origins, disabled } = parsed.data
+  if (disabled === true) return null
+  return { id, name, scopes: new Set(scopes), origins: origins.map(originPattern) }
 }
 
 async function loadRegistry (): Promise<ApiClientRegistry> {
@@ -117,7 +77,7 @@ async function loadRegistry (): Promise<ApiClientRegistry> {
   const clients = new Map<string, ApiClient>(OWN_CLIENTS.map(client => [client.id, client]))
   for (const dSnap of clientsSnap.docs) {
     if (clients.has(dSnap.id) || dSnap.id === ANONYMOUS.id) {
-      logger.error({ clientId: dSnap.id }, 'Ignoring an API client document that has the ID of a built in client')
+      logger.error({ clientId: dSnap.id }, 'Ignoring an API client document with the ID of a built in client')
       continue
     }
     const client = registeredClient(dSnap.id, dSnap.data())
@@ -127,11 +87,8 @@ async function loadRegistry (): Promise<ApiClientRegistry> {
   const byKey = new Map<string, ApiClient>()
   for (const dSnap of keysSnap.docs) {
     const key = dSnap.data() as ApiKeyDoc
-    if (key.revokedAt != null) continue
     const client = clients.get(key.clientId)
-    // a key of a disabled client lands here too
-    if (client == null) continue
-    byKey.set(dSnap.id, client)
+    if (key.revokedAt == null && client != null) byKey.set(dSnap.id, client)
   }
 
   return {
@@ -143,10 +100,7 @@ async function loadRegistry (): Promise<ApiClientRegistry> {
 let registry: { value: ApiClientRegistry, loadedAt: number } | undefined
 let loading: Promise<ApiClientRegistry> | undefined
 
-/**
- * The clients and their keys, reloaded when a minute old. A failed reload
- * keeps what was loaded before, and tries again a minute later.
- */
+/** A failed reload keeps the clients loaded before */
 export async function apiClientRegistry (): Promise<ApiClientRegistry> {
   if (registry != null && Date.now() - registry.loadedAt < REGISTRY_TTL) return registry.value
 
@@ -166,7 +120,7 @@ export async function apiClientRegistry (): Promise<ApiClientRegistry> {
   return await loading
 }
 
-/** The client a key belongs to, anonymous without one, null for a key nobody holds */
+/** Anonymous without a key, null for a key nobody holds */
 export async function apiClientByKey (key: string | undefined): Promise<ApiClient | null> {
   if (key == null || key === '') return ANONYMOUS
   return (await apiClientRegistry()).byKey.get(hashApiKey(key)) ?? null

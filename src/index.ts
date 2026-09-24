@@ -6,6 +6,7 @@ import { PORT } from './config.js'
 import { initApollo } from './apollo.js'
 import { logger } from './services/logger.js'
 import { apiClientMiddleware, requireScopes } from './helpers/apiClientMiddleware.js'
+import { logUsage } from './helpers/usage.js'
 import { Scope } from './generated/graphql.js'
 import { muxWebhookHandler } from './routes/muxWebhook.js'
 import { sitemapHandler } from './routes/sitemap.js'
@@ -18,8 +19,7 @@ const httpServer = http.createServer(app)
 
 app.disable('x-powered-by')
 
-// the API client of every request, CORS and usage, see the README
-app.use(apiClientMiddleware)
+app.use(logUsage, apiClientMiddleware)
 
 // Mux signs the raw request body, so this has to be mounted before any body
 // parser turns it into an object

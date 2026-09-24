@@ -1,6 +1,5 @@
 /**
- * Fails when a query or mutation lacks `@requiresScopes`, which the API also
- * refuses to start with, so that CI catches it before a deploy does
+ * Fails on a query or mutation without `@requiresScopes`, as the API does on startup
  *
  * Usage:
  *   npm run schema:check
