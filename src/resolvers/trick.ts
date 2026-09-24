@@ -1,42 +1,41 @@
-import z from 'zod'
-import { isTrick, trickLocalisationId } from '../store/schema.js'
-import { Discipline, TrickType } from '../generated/graphql.js'
+import { isTag, isTrick, trickLocalisationId } from '../store/schema.js'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { createTrickWithLocalisation, mergeContributors, submitterProfile, toContributor } from '../helpers/tricks.js'
+import { assertTrickTagsFit, byTagOrder, matchesTags, missingRequiredTags, parseTagQuery, tagValues, trickTagsFromInput } from '../helpers/tags.js'
 import { tryIndexTrick, searchTricks } from '../services/algolia.js'
 import { verificationLevelRank } from '../services/permissions.js'
-import { langSchema, rulesIdSchema, slugSchema, trickLocalisationSchema } from '../validation.js'
+import { createTrickSchema, langSchema, rulesIdSchema, trickLocalisationSchema, trickTagFiltersSchema, updateTrickDetailsSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
-
-const createTrickSchema = z.object({
-  discipline: z.enum(Discipline),
-  trickType: z.enum(TrickType),
-  slug: slugSchema,
-  localisation: trickLocalisationSchema
-})
-
-const updateTrickDetailsSchema = z.object({
-  discipline: z.enum(Discipline).nullish(),
-  trickType: z.enum(TrickType).nullish(),
-  slug: slugSchema.nullish()
-})
 
 export const trickResolvers: Resolvers = {
   Query: {
     async tricks (_, { discipline, searchQuery, filter }, { dataSources, allowUser, user }) {
       allowUser.getTricks.assert()
       let tricks: TrickDoc[]
-      if (searchQuery) {
-        const hits = await searchTricks(searchQuery, { discipline: discipline ?? undefined, lang: user?.lang, userId: user?.id })
-        tricks = await (dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)) as Promise<TrickDoc[]>)
+      const { text, tokens } = parseTagQuery(searchQuery ?? '')
+      if (text !== '') {
+        const hits = await searchTricks(text, { discipline: discipline ?? undefined, lang: user?.lang, userId: user?.id })
+        tricks = (await dataSources.tricks.findManyByIds(hits.map(hit => hit.objectID)))
+          .filter((trick): trick is TrickDoc => trick != null)
       } else {
         tricks = await dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
       }
 
+      const tagFilters = filter?.tags != null ? trickTagFiltersSchema.parse(filter.tags) : []
+      if (tokens.length > 0 || tagFilters.length > 0) {
+        const tags = await dataSources.tags.findAll({ ttl: 3600 })
+        tricks = tricks.filter(trick => matchesTags(trick, tokens, tagFilters, tags))
+      }
+
       if (filter?.withoutVideos === true) {
         tricks = tricks.filter(trick => (trick.videos?.length ?? 0) === 0)
+      }
+
+      if (filter?.missingRequiredTags === true) {
+        const tags = await dataSources.tags.findAll({ ttl: 3600 })
+        tricks = tricks.filter(trick => missingRequiredTags(trick.tags, trick.discipline, tags).length > 0)
       }
 
       if (filter?.level) {
@@ -83,11 +82,11 @@ export const trickResolvers: Resolvers = {
     async createTrick (_, { data }, { dataSources, allowUser, user, logger }) {
       allowUser.createTrick.assert()
       if (!user) throw new AuthorizationError()
-      const { discipline, trickType, slug, localisation } = createTrickSchema.parse(data)
+      const { discipline, slug, localisation, tags } = createTrickSchema.parse(data)
 
       return await createTrickWithLocalisation({
         discipline,
-        trickType,
+        tags: await trickTagsFromInput(tags, discipline, { dataSources }),
         slug,
         localisation: { ...localisation, submittedBy: user.id },
         submittedBy: user.id,
@@ -103,12 +102,13 @@ export const trickResolvers: Resolvers = {
       if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
 
       const discipline = parsed.discipline ?? undefined
-      const trickType = parsed.trickType ?? undefined
       const slug = parsed.slug ?? undefined
+      const nextDiscipline = discipline ?? trick.discipline
+      const nextSlug = slug ?? trick.slug
 
       // prerequisites only ever link tricks of the same discipline, moving a
       // trick would break that, so its edges have to go first
-      if (discipline != null && discipline !== trick.discipline) {
+      if (nextDiscipline !== trick.discipline) {
         const [prerequisites, prerequisiteFor] = await Promise.all([
           dataSources.trickPrerequisites.findManyPrerequisitesByTrick(trickId),
           dataSources.trickPrerequisites.findManyRequisitesByTrick(trickId)
@@ -118,15 +118,17 @@ export const trickResolvers: Resolvers = {
         }
       }
 
+      const tags = parsed.tags != null ? await trickTagsFromInput(parsed.tags, nextDiscipline, { dataSources }) : undefined
+      if (tags == null && nextDiscipline !== trick.discipline) await assertTrickTagsFit(trick.tags, nextDiscipline, { dataSources })
+
+      // an update replaces the whole map, so removed tags go
       const changes = {
         updatedBy: user.id,
         ...(discipline != null ? { discipline } : {}),
-        ...(trickType != null ? { trickType } : {}),
-        ...(slug != null ? { slug } : {})
+        ...(slug != null ? { slug } : {}),
+        ...(tags != null ? { tags } : {})
       }
-
-      const nextDiscipline = discipline ?? trick.discipline
-      const nextSlug = slug ?? trick.slug
+      const trickRef = dataSources.tricks.collection.doc(trickId).withConverter(null)
 
       if (nextDiscipline !== trick.discipline || nextSlug !== trick.slug) {
         const collection = dataSources.tricks.collection
@@ -136,10 +138,10 @@ export const trickResolvers: Resolvers = {
           if (conflict) {
             throw new CollisionError(`A ${nextDiscipline} trick with the slug ${nextSlug} already exists`, { extensions: { entity: 'trick', id: conflict.id } })
           }
-          t.set(collection.doc(trickId).withConverter(null), changes, { merge: true })
+          t.update(trickRef, changes)
         })
       } else {
-        await dataSources.tricks.updateOnePartial(trickId, changes)
+        await trickRef.update(changes)
       }
       // priming never replaces the trick already loaded above, and tryIndexTrick reads it through the loader
       await dataSources.tricks.deleteFromCacheById(trickId)
@@ -215,6 +217,10 @@ export const trickResolvers: Resolvers = {
     }
   },
   Trick: {
+    async tags (trick, _, { dataSources }) {
+      const tags = (await dataSources.tags.findManyByIds(Object.keys(trick.tags), { ttl: 3600 })).filter(isTag)
+      return tags.sort(byTagOrder).map(tag => ({ tag, value: trick.tags[tag.id] }))
+    },
     async videos (trick) {
       return trick.videos ?? []
     },
@@ -247,6 +253,15 @@ export const trickResolvers: Resolvers = {
     },
     async levels (trick, { rulesId }, { dataSources }) {
       return await dataSources.trickLevels.findManyByTrick({ trickId: trick.id, rulesId })
+    }
+  },
+  TrickTag: {
+    number ({ value }) {
+      return typeof value === 'number' ? value : null
+    },
+    values ({ tag, value }) {
+      if (!Array.isArray(value)) return []
+      return tagValues(tag).filter(tagValue => value.includes(tagValue.id))
     }
   },
   TrickLocalisation: {

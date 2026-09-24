@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
 import { VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
@@ -50,7 +50,7 @@ export interface TrickDoc extends DocBase {
   readonly collection: 'tricks'
   slug: string
   discipline: Discipline
-  trickType: TrickType
+  tags: Record<TagDoc['id'], TrickTagValue>
 
   submittedBy: UserDoc['id']
   updatedBy?: UserDoc['id']
@@ -93,6 +93,48 @@ export function isTrickVideoUpload (t: any): t is TrickVideoUploadDoc { return t
 
 export const FINAL_UPLOAD_STATUSES = [VideoUploadStatus.Ready, VideoUploadStatus.Errored, VideoUploadStatus.Cancelled]
 
+/** `true` for a flag, a number, or enum value IDs, an array even when the tag allows only one */
+export type TrickTagValue = true | number | string[]
+
+export interface TagEnumValue {
+  /** lang -> display name, `en` is required */
+  names: Record<string, string>
+  order: number
+}
+
+export interface TagDoc extends DocBase {
+  readonly collection: 'tags'
+
+  /** What searches call the tag, no two tags sharing a discipline share it */
+  slug: string
+  valueType: TagValueType
+  /** lang -> display name, `en` is required */
+  names: Record<string, string>
+  /** Empty for every discipline */
+  disciplines: Discipline[]
+
+  /** Number tags only */
+  min?: number
+  max?: number
+  /** Number tags only, values are whole steps from `min`, or from 0 */
+  step?: number
+
+  /** Enum tags only, whether a trick may hold several values */
+  multiple?: boolean
+  /** Enum tags only, by value ID */
+  values?: Record<string, TagEnumValue>
+
+  /** Every trick of its disciplines has to carry it */
+  required?: true
+  /** A built in trick type tag, only its values and names can change */
+  system?: true
+  updatedBy?: UserDoc['id']
+}
+export function isTag (t: any): t is TagDoc { return t?.collection === 'tags' }
+
+/** The slug of the built in tags holding the trick type, one per discipline */
+export const TRICK_TYPE_SLUG = 'trick-type'
+
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'
 
@@ -132,7 +174,6 @@ export interface TrickSubmissionDoc extends DocBase {
   submittedAt: Timestamp
 
   discipline: Discipline
-  trickType?: TrickType
   /** Language of `name`, `alternativeNames` and `description` */
   lang: string
   name: string
@@ -266,6 +307,10 @@ export function isTrickPrereq (t: any): t is TrickDoc { return t?.collection ===
  *   `verificationLevel` is the highest level the user may verify a level at,
  *   ranked absent (0) < `JUDGE` (1) < `OFFICIAL` (2), meaning a grant without
  *   a verification level allows editing levels but not verifying them.
+ * - `SpeedEditor` may manage speed event definitions.
+ * - `TagWrangler` may create, edit and delete tags and set their English
+ *   names. Applying tags to tricks is up to trick editors, and translating
+ *   their names up to translators.
  */
 export type Grant =
   | { type: GrantType.SuperAdmin }
@@ -273,6 +318,7 @@ export type Grant =
   | { type: GrantType.Translator, lang: string }
   | { type: GrantType.LevelEditor, rulesId: string, verificationLevel?: VerificationLevel }
   | { type: GrantType.SpeedEditor }
+  | { type: GrantType.TagWrangler }
 
 export interface UserDoc extends DocBase {
   readonly collection: 'users'

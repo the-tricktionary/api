@@ -21,13 +21,12 @@ const typeDefs = gql`
     Wheel
   }
 
-  enum TrickType {
-    basic
-    manipulation
-    multiple
-    power
-    release
-    impossible
+  enum TagValueType {
+    """Present or not, holds no value"""
+    Flag
+    Number
+    """One of the tag's values, or several when the tag allows it"""
+    Enum
   }
 
   enum Currency {
@@ -87,11 +86,23 @@ const typeDefs = gql`
 
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick
+    """
+    A \`searchQuery\` may hold tag filters by slug, which every trick returned
+    matches: \`#slug\` for a trick carrying the tag, \`#slug:value\` for one
+    holding an enum value, and \`#slug:3\`, \`#slug:>3\`, \`#slug:>=3\`,
+    \`#slug:<3\` or \`#slug:<=3\` for a number. A slug means the tag of the
+    trick's discipline. An unknown tag or value matches nothing. The rest of
+    the query is searched for as text.
+    """
     tricks (
       discipline: Discipline,
       searchQuery: String,
       filter: TrickFilter
     ): [Trick!]!
+
+    """Every tag, or those a trick of the discipline may carry. The trick type first, then by English name."""
+    tags (discipline: Discipline): [Tag!]! @cacheControl(maxAge: 3600)
+    tag (id: ID!): Tag @cacheControl(maxAge: 3600)
 
     products: [Product!]!
     shippingRates: [Price!]!
@@ -132,6 +143,24 @@ const typeDefs = gql`
     setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation!
     addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
     removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
+
+    # Tags (tag wranglers)
+    """Refused when a tag with the slug shares a discipline with it"""
+    createTag (slug: String!, data: TagInput!): Tag!
+    """
+    Refused when a trick carrying the tag would no longer hold a value the tag
+    allows, or when a tag with its slug shares a discipline with it. Tricks
+    lacking a tag it makes required are not in the way, see
+    \`TrickFilter.missingRequiredTags\`.
+    """
+    updateTag (tagId: ID!, data: TagInput!): Tag!
+    """Removes the tag from every trick carrying it. Trick type tags cannot be deleted."""
+    deleteTag (tagId: ID!): Tag!
+    """
+    Names of a tag and its values in a language other than English, which
+    updateTag sets. Names left out stay, an empty one removes the translation.
+    """
+    setTagLocalisation (tagId: ID!, lang: String!, data: TagLocalisationInput!): Tag!
 
     # Checklist
     createTrickCompletion (trickId: ID!): TrickCompletion!
@@ -199,6 +228,7 @@ const typeDefs = gql`
 
     # Languages
     createLanguage (lang: String!): Language!
+    """English cannot be disabled"""
     setLanguageEnabled (lang: String!, enabled: Boolean!): Language!
 
     # Interface messages
@@ -268,7 +298,8 @@ const typeDefs = gql`
     id: ID!
     slug: String!
     discipline: Discipline!
-    trickType: TrickType!
+    """The trick type first, then by English name"""
+    tags: [TrickTag!]!
 
     # defaults to english
     localisation (lang: String): TrickLocalisation
@@ -313,22 +344,119 @@ const typeDefs = gql`
 
   input CreateTrickInput {
     discipline: Discipline!
-    trickType: TrickType!
     slug: String!
     """The english localisation of the new trick"""
     localisation: TrickLocalisationInput!
+    """Every tag the discipline requires, the trick type among them"""
+    tags: [TrickTagInput!]!
   }
 
   input UpdateTrickDetailsInput {
     discipline: Discipline
-    trickType: TrickType
     slug: String
+    """
+    Replaces the trick's tags. With them, or with a new discipline, the tags
+    have to fit the discipline and hold every tag it requires.
+    """
+    tags: [TrickTagInput!]
   }
 
   input TrickLocalisationInput {
     name: String!
     alternativeNames: [String!]!
     description: String!
+  }
+
+  type Tag @cacheControl(maxAge: 3600) {
+    id: ID!
+    """What search queries call the tag, no two tags sharing a discipline share it"""
+    slug: String!
+    """The name in \`lang\`, falling back to its primary subtag and then to English"""
+    name (lang: String): String!
+    names: [LocalisedString!]!
+    valueType: TagValueType!
+    """Empty for every discipline"""
+    disciplines: [Discipline!]!
+    """Number tags only"""
+    min: Float
+    """Number tags only"""
+    max: Float
+    """Number tags only, values are whole steps from \`min\`, or from 0"""
+    step: Float
+    """Enum tags only, whether a trick may hold several values"""
+    multiple: Boolean!
+    """Enum tags only, in order"""
+    values: [TagValue!]!
+    """Every trick of its disciplines has to carry it. Never a flag tag."""
+    required: Boolean!
+    """A trick type tag, one per discipline: cannot be deleted, and only its values and names can change"""
+    system: Boolean!
+    """How many tricks carry the tag"""
+    trickCount: Int! @cacheControl(maxAge: 60)
+    createdAt: Timestamp!
+    updatedAt: Timestamp!
+  }
+
+  type TagValue @cacheControl(inheritMaxAge: true) {
+    """A slug, as search queries spell it. Unique within its tag only, so caches must not normalise values by it."""
+    id: ID!
+    """The name in \`lang\`, falling back to its primary subtag and then to English"""
+    name (lang: String): String!
+    names: [LocalisedString!]!
+  }
+
+  """A tag on a trick and what the trick holds of it"""
+  type TrickTag @cacheControl(inheritMaxAge: true) {
+    tag: Tag!
+    """Number tags only"""
+    number: Float
+    """Enum tags only, in the tag's order"""
+    values: [TagValue!]!
+  }
+
+  input TrickTagInput {
+    tagId: ID!
+    """Number tags only"""
+    number: Float
+    """Enum tags only, the IDs of the values"""
+    values: [ID!]
+  }
+
+  input TagInput {
+    """English, setTagLocalisation sets the other languages"""
+    name: String!
+    valueType: TagValueType!
+    """Empty for every discipline"""
+    disciplines: [Discipline!]!
+    """Number tags only"""
+    min: Float
+    """Number tags only"""
+    max: Float
+    """Number tags only"""
+    step: Float
+    """Enum tags only"""
+    multiple: Boolean
+    """Enum tags only, in order, with their English names"""
+    values: [TagValueInput!]
+    """Number and enum tags only"""
+    required: Boolean
+  }
+
+  input TagValueInput {
+    id: ID!
+    name: String!
+  }
+
+  input TagLocalisationInput {
+    """The tag's name, left alone when null, removed when empty"""
+    name: String
+    values: [TagValueLocalisationInput!]
+  }
+
+  input TagValueLocalisationInput {
+    id: ID!
+    """Removed when empty"""
+    name: String
   }
 
   input TrickLevelFilter {
@@ -343,11 +471,26 @@ const typeDefs = gql`
     """Tricks whose level in a ruleset is missing, or verified below a level"""
     level: TrickLevelFilter
     withoutVideos: Boolean
+    """Tricks lacking a tag their discipline requires"""
+    missingRequiredTags: Boolean
+    """Tricks matching every one"""
+    tags: [TrickTagFilter!]
+  }
+
+  """Like the \`#slug\` of a search query, by the tag of each trick's discipline"""
+  input TrickTagFilter {
+    slug: String!
+    """Enum tags only, holding one of these values"""
+    values: [ID!]
+    """Number tags only, at least"""
+    min: Float
+    """Number tags only, at most"""
+    max: Float
   }
 
   type Ruleset @cacheControl(maxAge: 3600) {
     id: ID!
-    """Display name in \`lang\`, falling back to english"""
+    """The name in \`lang\`, falling back to its primary subtag and then to English"""
     name (lang: String): String!
     names: [LocalisedString!]!
     isPrimary: Boolean!
@@ -541,7 +684,6 @@ const typeDefs = gql`
     submitter: User!
     attributionName: String!
     discipline: Discipline!
-    trickType: TrickType
     lang: String!
     name: String!
     alternativeNames: [String!]
@@ -561,7 +703,6 @@ const typeDefs = gql`
 
   input TrickSubmissionInput {
     discipline: Discipline!
-    trickType: TrickType
     """Language of the text fields, defaults to the user's language, then English"""
     lang: String
     name: String!
@@ -575,10 +716,11 @@ const typeDefs = gql`
 
   input AcceptTrickSubmissionInput {
     discipline: Discipline!
-    trickType: TrickType!
     slug: String!
     """The english localisation of the new trick"""
     localisation: TrickLocalisationInput!
+    """Every tag the discipline requires, the trick type among them"""
+    tags: [TrickTagInput!]!
     videoType: VideoType!
     slowMoStart: Float
   }
@@ -655,6 +797,8 @@ const typeDefs = gql`
     LevelEditor
     """May manage speed event definitions and their timing tracks"""
     SpeedEditor
+    """May create, edit and delete tags, and set their English names"""
+    TagWrangler
   }
 
   type Grant {

@@ -11,6 +11,15 @@ be `.env` rather than an exported variable if you start the API through an npm
 script: the names contain hyphens, and npm drops variables whose names are not
 valid shell identifiers from the environment it passes on.
 
+## Seed
+
+`npx tsx src/migrations/seed.ts [--dry-run]` creates the documents the API
+cannot work without: the English language, the Tricktionary ruleset (primary
+when no ruleset is) and the `trick-type` tag. Where they exist it puts back
+what the code relies on and leaves the rest, and it fails on what an admin has
+to decide, like several primary rulesets. Run it on a new database and after a
+deploy that adds to it.
+
 ## Jobs
 
 `src/jobs/` holds Cloud Run jobs that run from the API's image on Cloud Scheduler
@@ -68,10 +77,38 @@ layout, the QA workflow runs it in the API's image so a template or Typst
 change fails there first. Set `BOOKLET_CHECK_OUT` to a directory to look at
 the PDFs.
 
+## Tags
+
+Tricks carry tags from the `tags` collection, by tag ID. A tag is a flag, a
+number (optionally bounded and stepped) or an enum with named values, and may be
+limited to disciplines. Its slug is what searches call it, and tags may share a
+slug as long as they share no discipline: `#slug` means the tag of the trick's
+discipline. A slug can only be reused for disciplines no tag with it covers yet.
+Tag wranglers define tags and their English names, translators translate them
+and trick editors apply them. A change that would leave a tagged trick with a
+value the tag no longer allows is refused.
+
+A number or enum tag can be required: a trick of its disciplines is only
+created, or has its tags or discipline changed, with it. Making a tag required
+leaves the tricks without it as they are, the `missingRequiredTags` trick filter
+finds them.
+
+The seed creates a built in trick type tag per discipline, all with the slug
+`trick-type`: required enum tags holding the trick type. Their values are data
+like any enum tag's, the booklet orders and colours the types by them.
+`npx tsx src/migrations/trick-type-tag.ts` moved the trick type there from the
+tricks' former `trickType` field.
+
+Search queries filter by tag with `#slug`, `#slug:value` or `#slug:>3`, and the
+`tags` trick filter does the same without a query string, see the `tricks`
+query. The API applies these filters itself, only the rest of the query goes to
+Algolia.
+
 ## Search (Algolia)
 
 Tricks are indexed once per language in `tricktionary_<lang>`, the index
-settings live in `src/services/algolia.ts`.
+settings live in `src/services/algolia.ts`. Records carry the names of the
+trick's tags, a change to a tag's names reindexes the tricks carrying it.
 The `tricktionary-api-algolia-api-key` secret needs write access to the indices.
 
 `npx tsx src/migrations/algolia-reindex.ts` rebuilds every index from Firestore

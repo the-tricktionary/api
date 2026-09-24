@@ -11,7 +11,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { PDFDocument } from '@cantoo/pdf-lib'
-import { LAYOUTS, PAPERS, bookletData, bookletFilename, imposeBookletPdf, typesetBooklet } from '../services/booklet.js'
+import { bookletData, bookletFilename, imposeBookletPdf, typesetBooklet } from '../services/booklet.js'
+import { LAYOUTS, PAPERS } from '../validation.js'
 import { Discipline } from '../generated/graphql.js'
 import fixture from './booklet-fixture.json' with { type: 'json' }
 

@@ -7,7 +7,7 @@ import { FINAL_UPLOAD_STATUSES, groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { ChecklistAthlete, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { ChecklistAthlete, TagDoc, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { SpeedAthlete } from '../helpers/speedResults.js'
@@ -20,6 +20,8 @@ export const firestore = new Firestore()
 
 /** Firestore takes 500 writes to a batch */
 const WRITE_CHUNK = 400
+/** Firestore takes at most 30 values in an `in` filter */
+const IN_CHUNK = 30
 
 export async function writeInChunks<T> (items: readonly T[], apply: (batch: WriteBatch, item: T) => void) {
   for (let idx = 0; idx < items.length; idx += WRITE_CHUNK) {
@@ -57,6 +59,15 @@ export class TrickDataSource extends FirestoreDataSource<TrickDoc> {
     return result[0]
   }
 
+  /** Ordering on a field leaves out the documents without it */
+  async findManyByTag (tagId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.orderBy(new FieldPath('tags', tagId)), options)
+  }
+
+  async countByTag (tagId: string) {
+    return await countDocuments(this.collection.orderBy(new FieldPath('tags', tagId)))
+  }
+
   /** `[from, until)` */
   async findManyAddedBetween (from: Timestamp, until: Timestamp, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('addedAt', '>=', from).where('addedAt', '<', until), options)
@@ -71,6 +82,12 @@ export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(col
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {
   async findManyByTrick (trickId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('trickId', '==', trickId), options)
+  }
+
+  async findManyByTricks (trickIds: readonly string[], options?: QueryFindArgs) {
+    const chunks: string[][] = []
+    for (let idx = 0; idx < trickIds.length; idx += IN_CHUNK) chunks.push(trickIds.slice(idx, idx + IN_CHUNK))
+    return (await Promise.all(chunks.map(async chunk => await this.findManyByQuery(c => c.where('trickId', 'in', chunk), options)))).flat()
   }
 }
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(collection<TrickLocalisationDoc>('trick-localisations'), { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
@@ -157,6 +174,13 @@ export class RulesetDataSource extends FirestoreDataSource<RulesetDoc> {
   }
 }
 export const rulesetDataSource = (cache: KeyValueCache) => new RulesetDataSource(collection<RulesetDoc>('rulesets'), { logger: logger.child({ name: 'ruleset-data-source' }), cache })
+
+export class TagDataSource extends FirestoreDataSource<TagDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+}
+export const tagDataSource = (cache: KeyValueCache) => new TagDataSource(collection<TagDoc>('tags'), { logger: logger.child({ name: 'tag-data-source' }), cache })
 
 export class TrickLevelDataSource extends FirestoreDataSource<TrickLevelDoc> {
   async findManyByTrick ({ trickId, rulesId }: { trickId: string, rulesId?: string | null }, options?: QueryFindArgs) {
@@ -528,6 +552,7 @@ export function createDataSources () {
     notices: noticeDataSource(dataSourceCache),
     rulesets: rulesetDataSource(dataSourceCache),
     speedResults: speedResultDataSource(dataSourceCache),
+    tags: tagDataSource(dataSourceCache),
     tricks: trickDataSource(dataSourceCache),
     trickLocalisations: trickLocalisationDataSource(dataSourceCache),
     trickPrerequisites: trickPrerequisiteDataSource(dataSourceCache),

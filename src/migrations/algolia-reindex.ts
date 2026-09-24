@@ -12,7 +12,7 @@
  *   2. applies the current index settings to `tricktionary_<lang>` for every
  *      language that has at least one localisation, creating the indices that
  *      don't exist yet
- *   3. writes one record per trick and language into those indices
+ *   3. indexes every trick like the API does, see `indexTricks`
  *
  * Nothing is ever deleted from Algolia, records for tricks that have since
  * been removed from Firestore have to be cleaned up by hand.
@@ -30,11 +30,10 @@ import '../config.js'
 import { parseArgs } from 'node:util'
 import { Firestore } from '@google-cloud/firestore'
 import { logger } from '../services/logger.js'
-import { saveTrickRecords, setTrickIndexSettings, trickIndexName, trickRecord } from '../services/algolia.js'
+import { indexTricks, setTrickIndexSettings, trickIndexName } from '../services/algolia.js'
+import { createDataSources } from '../store/firestoreDataSource.js'
 
-import { TRICKTIONARY_RULES_ID } from '../store/schema.js'
-
-import type { TrickDoc, TrickLevelDoc, TrickLocalisationDoc } from '../store/schema.js'
+import type { TrickLocalisationDoc } from '../store/schema.js'
 
 const { values: args } = parseArgs({
   options: {
@@ -69,25 +68,13 @@ async function main () {
 
   const tQSnap = await firestore.collection('tricks').get()
   const lQSnap = await localisationsRef.get()
-  const vQSnap = await firestore.collection('trick-levels').where('rulesId', '==', TRICKTIONARY_RULES_ID).get()
-
-  const tricks = new Map<string, TrickDoc>()
-  for (const dSnap of tQSnap.docs) {
-    const trick = dSnap.data() as TrickDoc
-    tricks.set(dSnap.id, { ...trick, id: dSnap.id })
-  }
-  const levels = new Map<string, string>()
-  for (const dSnap of vQSnap.docs) {
-    const level = dSnap.data() as TrickLevelDoc
-    levels.set(level.trickId, level.level)
-  }
 
   /** trickId -> lang -> localisation */
   const localisations = new Map<string, Map<string, TrickLocalisationDoc>>()
   /** the localisation documents that still need a `trickId` */
   const backfill: Array<{ id: string, trickId: string }> = []
   const orphans: string[] = []
-  const trickIds = new Set(tricks.keys())
+  const trickIds = new Set(tQSnap.docs.map(dSnap => dSnap.id))
 
   for (const dSnap of lQSnap.docs) {
     const localisation = dSnap.data() as TrickLocalisationDoc
@@ -110,7 +97,7 @@ async function main () {
   const langs = [...new Set([...localisations.values()].flatMap(byLang => [...byLang.keys()]))].sort((a, b) => a.localeCompare(b))
 
   logger.info({
-    tricks: tricks.size,
+    tricks: trickIds.size,
     localisations: lQSnap.size,
     backfill: backfill.length,
     orphans: orphans.length,
@@ -146,28 +133,10 @@ async function main () {
     logger.info({ lang, indexName: trickIndexName(lang) }, `Applied the index settings to ${trickIndexName(lang)}`)
   }
 
-  /** lang -> records */
-  const records = new Map<string, Array<ReturnType<typeof trickRecord>>>()
-  for (const [trickId, byLang] of localisations) {
-    const trick = tricks.get(trickId)
-    if (!trick) continue
-    const enLocalisation = byLang.get('en')
-    const level = levels.get(trickId)
-
-    for (const [lang, localisation] of byLang) {
-      const langRecords = records.get(lang) ?? []
-      langRecords.push(trickRecord({ trick, lang, localisation, enLocalisation, level }))
-      records.set(lang, langRecords)
-    }
-  }
-
-  for (const [lang, langRecords] of records) {
-    if (dryRun) {
-      logger.info({ lang, records: langRecords.length }, `[dry-run] would save ${langRecords.length} records to ${trickIndexName(lang)}`)
-      continue
-    }
-    await saveTrickRecords(lang, langRecords, { logger })
-    logger.info({ lang, records: langRecords.length }, `Saved ${langRecords.length} records to ${trickIndexName(lang)}`)
+  if (dryRun) {
+    logger.info({ tricks: localisations.size }, `[dry-run] would index ${localisations.size} tricks`)
+  } else {
+    await indexTricks([...localisations.keys()], { dataSources: createDataSources(), logger })
   }
 
   logger.info({ tricks: localisations.size, langs, dryRun }, 'Reindex finished')

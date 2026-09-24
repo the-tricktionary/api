@@ -1,6 +1,7 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { Discipline, GrantType, GroupRole, TimingCueType, TrickType, VerificationLevel, VideoType } from './generated/graphql.js'
+import { Discipline, GrantType, GroupRole, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
+import { DISCIPLINE_SLUGS, disciplineFromSlug } from './helpers/disciplines.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -84,11 +85,103 @@ export const attributionInputSchema = z.object({
   usernameOrId: z.string().trim().min(1).nullish()
 })
 
+// Tags
+
+const MAX_TAG_VALUES = 50
+
+/** Also the ID of an enum tag's value */
+export const tagSlugSchema = slugSchema.max(40, 'A slug can be at most 40 characters')
+
+export const tagIdSchema = z.string().regex(/^[\w-]{1,64}$/, 'That is not a tag ID')
+
+const tagNameSchema = z.string().trim().max(60, 'A name can be at most 60 characters')
+const requiredTagNameSchema = tagNameSchema.min(1, 'A name is required')
+
+const tagNumberSchema = z.number().min(-1_000_000).max(1_000_000)
+
+export const tagInputSchema = z.object({
+  name: requiredTagNameSchema,
+  valueType: z.enum(TagValueType),
+  disciplines: z.array(z.enum(Discipline))
+    .refine(disciplines => new Set(disciplines).size === disciplines.length, 'Each discipline may only be listed once'),
+  min: tagNumberSchema.nullish(),
+  max: tagNumberSchema.nullish(),
+  step: tagNumberSchema.positive('A step has to be more than 0').nullish(),
+  multiple: z.boolean().nullish(),
+  values: z.array(z.object({ id: tagSlugSchema, name: requiredTagNameSchema }))
+    .max(MAX_TAG_VALUES, `A tag can have at most ${MAX_TAG_VALUES} values`)
+    .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
+    .nullish(),
+  required: z.boolean().nullish()
+})
+  .refine(
+    tag => tag.valueType === TagValueType.Number || (tag.min == null && tag.max == null && tag.step == null),
+    'Only a number tag has a minimum, maximum or step'
+  )
+  .refine(tag => tag.min == null || tag.max == null || tag.min <= tag.max, 'The minimum cannot be above the maximum')
+  .refine(
+    tag => tag.valueType === TagValueType.Enum || (tag.multiple == null && tag.values == null),
+    'Only an enum tag has values'
+  )
+  .refine(tag => tag.valueType !== TagValueType.Enum || (tag.values?.length ?? 0) > 0, 'An enum tag needs at least one value')
+  .refine(tag => tag.valueType !== TagValueType.Flag || tag.required !== true, 'A flag tag cannot be required, every trick would carry it')
+
+/** An empty name removes the translation */
+export const tagLocalisationSchema = z.object({
+  name: tagNameSchema.nullish(),
+  values: z.array(z.object({ id: tagSlugSchema, name: tagNameSchema.nullish() }))
+    .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
+    .nullish()
+})
+
+export const trickTagsInputSchema = z.array(z.object({
+  tagId: tagIdSchema,
+  number: z.number().nullish(),
+  values: z.array(tagSlugSchema).nullish()
+}))
+  .refine(tags => new Set(tags.map(tag => tag.tagId)).size === tags.length, 'Each tag may only be listed once')
+
+export const trickTagFiltersSchema = z.array(z.object({
+  slug: tagSlugSchema,
+  values: z.array(tagSlugSchema).min(1, 'Leave values out rather than empty').nullish(),
+  min: z.number().nullish(),
+  max: z.number().nullish()
+}))
+
+// Tricks
+
+export const createTrickSchema = z.object({
+  discipline: z.enum(Discipline),
+  slug: slugSchema,
+  localisation: trickLocalisationSchema,
+  tags: trickTagsInputSchema
+})
+
+export const updateTrickDetailsSchema = z.object({
+  discipline: z.enum(Discipline).nullish(),
+  slug: slugSchema.nullish(),
+  tags: trickTagsInputSchema.nullish()
+})
+
+export const optionalAttributionSchema = attributionInputSchema.nullish()
+
+export const youTubeVideoSchema = z.object({
+  videoId: youTubeVideoIdSchema,
+  type: z.enum(VideoType),
+  slowMoStart: slowMoStartSchema,
+  attribution: optionalAttributionSchema
+})
+
+export const videoUploadSchema = z.object({
+  type: z.enum(VideoType),
+  slowMoStart: slowMoStartSchema,
+  attribution: optionalAttributionSchema
+})
+
 // Trick submissions
 
 export const trickSubmissionSchema = z.object({
   discipline: z.enum(Discipline),
-  trickType: z.enum(TrickType).nullish(),
   lang: langSchema.nullish(),
   name: trickLocalisationSchema.shape.name,
   alternativeNames: trickLocalisationSchema.shape.alternativeNames.nullish(),
@@ -99,9 +192,9 @@ export const trickSubmissionSchema = z.object({
 
 export const acceptTrickSubmissionSchema = z.object({
   discipline: z.enum(Discipline),
-  trickType: z.enum(TrickType),
   slug: slugSchema,
   localisation: trickLocalisationSchema,
+  tags: trickTagsInputSchema,
   videoType: z.enum(VideoType),
   slowMoStart: slowMoStartSchema
 })
@@ -121,13 +214,15 @@ const levelEditorGrantSchema = z.strictObject({
   verificationLevel: z.enum(VerificationLevel).nullish()
 })
 const speedEditorGrantSchema = z.strictObject({ type: z.literal(GrantType.SpeedEditor) })
+const tagWranglerGrantSchema = z.strictObject({ type: z.literal(GrantType.TagWrangler) })
 
 const grantInputSchema = z.discriminatedUnion('type', [
   superAdminGrantSchema,
   trickEditorGrantSchema,
   translatorGrantSchema,
   levelEditorGrantSchema,
-  speedEditorGrantSchema
+  speedEditorGrantSchema,
+  tagWranglerGrantSchema
 ])
 
 export const grantsSchema = z.array(grantInputSchema)
@@ -412,4 +507,44 @@ export const groupMemberInputSchema = z.object({
   name: groupAthleteNameSchema.nullish(),
   role: z.enum(GroupRole),
   observer: z.boolean()
+})
+
+// Booklets
+
+export const PAPERS = ['a4', 'letter'] as const
+export type Paper = typeof PAPERS[number]
+
+export const LAYOUTS = ['pages', 'booklet', 'print'] as const
+export type Layout = typeof LAYOUTS[number]
+
+/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
+export function isbnDigits (isbn: string): string | null {
+  const digits = isbn.replace(/[-\s]/g, '')
+  if (!/^97[89]\d{10}$/.test(digits)) return null
+  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
+  return sum % 10 === 0 ? digits : null
+}
+
+/** The query string of `GET /booklets/tricks.pdf` */
+export const bookletOptionsSchema = z.object({
+  discipline: z.enum(DISCIPLINE_SLUGS).transform(disciplineFromSlug),
+  paper: z.enum(PAPERS).default('a4'),
+  /** The language of the booklet, English fills in for anything not translated */
+  lang: langSchema.default('en'),
+  /** Whether to include trick descriptions, names are always included */
+  detailed: z.stringbool().default(false),
+  /** A ruleset whose level each trick is labelled with, with a mark when verified */
+  rulesId: rulesIdSchema.optional().transform(rulesId => rulesId ?? null),
+  /**
+   * `pages` typesets on the full sheet, `booklet` on half sheets that are then
+   * laid out two per side for folding down the middle, `print` on half sheets
+   * with bleed, a cover and a trick map, for a print shop
+   */
+  layout: z.enum(LAYOUTS).default('booklet'),
+  /** The ISBN of the `print` layout, shown in the colophon and as a barcode on the back */
+  isbn: z.string().trim()
+    .refine(isbn => isbnDigits(isbn) != null, 'An ISBN is 13 digits starting with 978 or 979, optionally with dashes, and its check digit has to add up')
+    .optional().transform(isbn => isbn ?? null),
+  /** Who prints the `print` layout, named in its colophon */
+  printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
 })

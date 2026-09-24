@@ -3939,6 +3939,16 @@
       "sv": "IJRU 5.0.0"
     }
   },
+  "trickTypeTag": {
+    "values": {
+      "basic": { "names": { "en": "Basic", "sv": "Grundtrick" }, "order": 0 },
+      "manipulation": { "names": { "en": "Manipulation" }, "order": 1 },
+      "multiple": { "names": { "en": "Multiple" }, "order": 2 },
+      "power": { "names": { "en": "Power" }, "order": 3 },
+      "release": { "names": { "en": "Release" }, "order": 4 },
+      "impossible": { "names": { "en": "Impossible" }, "order": 5 }
+    }
+  },
   "messages": {
     "booklet.copyright": "© the Tricktionary 2016–{year}",
     "booklet.count": "Count",
@@ -3955,12 +3965,6 @@
     "enums.discipline.DoubleDutch": "Double Dutch",
     "enums.discipline.SingleRope": "Single Rope",
     "enums.discipline.Wheel": "Wheel",
-    "enums.trickType.Basic": "Basic",
-    "enums.trickType.Impossible": "Impossible",
-    "enums.trickType.Manipulation": "Manipulation",
-    "enums.trickType.Multiple": "Multiple",
-    "enums.trickType.Power": "Power",
-    "enums.trickType.Release": "Release",
     "home.level": "Level {level}",
     "trick.alternativeNames": "Alternative names: {names}",
     "trick.level": "{ruleset} Level {level}"

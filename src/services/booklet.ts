@@ -1,57 +1,22 @@
-import z from 'zod'
 import { NotFoundError } from '../errors.js'
-import { Discipline, TrickType } from '../generated/graphql.js'
-import { DISCIPLINE_SLUGS, disciplineFromSlug, disciplineSlug } from '../helpers/disciplines.js'
+import { Discipline } from '../generated/graphql.js'
+import { disciplineSlug } from '../helpers/disciplines.js'
+import { localised } from '../helpers/localised.js'
+import { tagFor, tagValues } from '../helpers/tags.js'
 import { uiMessageValues } from '../helpers/uiMessages.js'
-import { TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
-import { langSchema, rulesIdSchema } from '../validation.js'
+import { TRICK_TYPE_SLUG, TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
+import { isbnDigits } from '../validation.js'
 import { compileTypst } from './typst.js'
 import { renderDotToSvg } from './graphviz.js'
 import { imposeBooklet } from './imposition.js'
 import { siteEnglishMessages } from './siteMessages.js'
 
 import type Pino from 'pino'
+import type z from 'zod'
 import type { DataSources } from '../store/firestoreDataSource.js'
-import type { RulesetDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc, TrickPrereqDoc } from '../store/schema.js'
+import type { RulesetDoc, TagDoc, TrickDoc, TrickLevelDoc, TrickLocalisationDoc, TrickPrereqDoc } from '../store/schema.js'
 import type { FlatMessages } from './siteMessages.js'
-
-export const PAPERS = ['a4', 'letter'] as const
-export type Paper = typeof PAPERS[number]
-
-export const LAYOUTS = ['pages', 'booklet', 'print'] as const
-export type Layout = typeof LAYOUTS[number]
-
-/** The digits of an ISBN-13, or null when it isn't one: 13 digits, a 978 or 979 prefix and a correct check digit */
-export function isbnDigits (isbn: string): string | null {
-  const digits = isbn.replace(/[-\s]/g, '')
-  if (!/^97[89]\d{10}$/.test(digits)) return null
-  const sum = Array.from(digits, Number).reduce((acc, digit, idx) => acc + digit * (idx % 2 === 0 ? 1 : 3), 0)
-  return sum % 10 === 0 ? digits : null
-}
-
-/** The query string of `GET /booklets/tricks.pdf` */
-export const bookletOptionsSchema = z.object({
-  discipline: z.enum(DISCIPLINE_SLUGS).transform(disciplineFromSlug),
-  paper: z.enum(PAPERS).default('a4'),
-  /** The language of the booklet, English fills in for anything not translated */
-  lang: langSchema.default('en'),
-  /** Whether to include trick descriptions, names are always included */
-  detailed: z.stringbool().default(false),
-  /** A ruleset whose level each trick is labelled with, with a mark when verified */
-  rulesId: rulesIdSchema.optional().transform(rulesId => rulesId ?? null),
-  /**
-   * `pages` typesets on the full sheet, `booklet` on half sheets that are then
-   * laid out two per side for folding down the middle, `print` on half sheets
-   * with bleed, a cover and a trick map, for a print shop
-   */
-  layout: z.enum(LAYOUTS).default('booklet'),
-  /** The ISBN of the `print` layout, shown in the colophon and as a barcode on the back */
-  isbn: z.string().trim()
-    .refine(isbn => isbnDigits(isbn) != null, 'An ISBN is 13 digits starting with 978 or 979, optionally with dashes, and its check digit has to add up')
-    .optional().transform(isbn => isbn ?? null),
-  /** Who prints the `print` layout, named in its colophon */
-  printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
-})
+import type { bookletOptionsSchema, Paper } from '../validation.js'
 
 export type BookletOptions = z.output<typeof bookletOptionsSchema>
 
@@ -70,19 +35,13 @@ const SPEED_ROW_MM = 6.5
 /** What the speed-log heading and the table's header row take above the rows, in mm */
 const SPEED_HEADING_MM = 26
 
-/** The colours the trick map draws each type in, the brand red for the basics */
-const TRICK_TYPE_COLOURS: Record<TrickType, string> = {
-  [TrickType.Basic]: '#fe3500',
-  [TrickType.Manipulation]: '#1f77b4',
-  [TrickType.Multiple]: '#2ca02c',
-  [TrickType.Power]: '#9467bd',
-  [TrickType.Release]: '#ff7f0e',
-  [TrickType.Impossible]: '#7f7f7f'
-}
+/** The colours the trick map draws the trick types in, in the tag's order, the brand red first */
+const TRICK_TYPE_PALETTE = ['#fe3500', '#1f77b4', '#2ca02c', '#9467bd', '#ff7f0e', '#7f7f7f', '#8c564b', '#e377c2', '#bcbd22', '#17becf']
 
 /** Everything a booklet is typeset from, as loaded from Firestore and the site */
 export interface BookletSources {
-  tricks: Array<Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'trickType'>>
+  /** `trickType` is the value of the discipline's trick type tag */
+  tricks: Array<Pick<TrickDoc, 'id' | 'slug' | 'discipline'> & { trickType: string }>
   /** The English localisations and, for another language, its localisations */
   localisations: Array<Pick<TrickLocalisationDoc, 'id' | 'trickId' | 'name' | 'alternativeNames' | 'description'>>
   /** The Tricktionary levels and, when a ruleset was asked for, its levels */
@@ -90,6 +49,8 @@ export interface BookletSources {
   ruleset: Pick<RulesetDoc, 'id' | 'names'> | null
   /** The prerequisite edges between the tricks, `parentId` builds on `childId`. Only loaded for the trick map. */
   prerequisites: Array<Pick<TrickPrereqDoc, 'parentId' | 'childId'>>
+  /** Its values order, colour and label the trick types */
+  trickTypeTag: Pick<TagDoc, 'values'>
   /**
    * The site's English messages with the language's translations laid over
    * them, keyed like the site's `en.json`; a key that neither has is shown as
@@ -194,16 +155,19 @@ interface LoadContext {
 export async function loadBookletSources (options: BookletOptions, { dataSources, logger, webUrl }: LoadContext): Promise<BookletSources> {
   const { lang, rulesId, discipline, layout } = options
 
-  const [language, ruleset, tricks, siteMessages, translations, prerequisites] = await Promise.all([
+  const [language, ruleset, tricks, siteMessages, translations, prerequisites, tags] = await Promise.all([
     dataSources.languages.findOneById(lang, { ttl: 3600 }),
     rulesId == null ? null : dataSources.rulesets.findOneById(rulesId, { ttl: 3600 }),
     dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 }),
     siteEnglishMessages({ webUrl, logger }),
     lang === 'en' ? null : dataSources.uiMessages.findOneById(lang, { ttl: 3600 }),
-    layout === 'print' ? dataSources.trickPrerequisites.findAll({ ttl: 3600 }) : []
+    layout === 'print' ? dataSources.trickPrerequisites.findAll({ ttl: 3600 }) : [],
+    dataSources.tags.findAll({ ttl: 3600 })
   ])
   if (!language?.enabled) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
   if (rulesId != null && !ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
+  const trickTypeTag = tagFor(tags, TRICK_TYPE_SLUG, discipline)
+  if (trickTypeTag == null) throw new Error(`There is no ${TRICK_TYPE_SLUG} tag for ${discipline}, run src/migrations/seed.ts`)
 
   const trickIds = tricks.map(trick => trick.id)
   const localisationIds = trickIds.map(id => trickLocalisationId(id, 'en'))
@@ -218,7 +182,11 @@ export async function loadBookletSources (options: BookletOptions, { dataSources
   const inDiscipline = new Set(trickIds)
 
   return {
-    tricks,
+    tricks: tricks.map(trick => {
+      const trickType = trick.tags[trickTypeTag.id]
+      return { id: trick.id, slug: trick.slug, discipline: trick.discipline, trickType: Array.isArray(trickType) ? trickType[0] : '' }
+    }),
+    trickTypeTag,
     localisations: localisations.filter(localisation => localisation != null),
     levels: [...tricktionaryLevels, ...rulesetLevels].filter(level => inDiscipline.has(level.trickId)),
     ruleset: ruleset ?? null,
@@ -235,11 +203,10 @@ function interpolate (message: string, values: Record<string, string>) {
   return message.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match)
 }
 
-/** The message key of an enum member's label, e.g. `enums.trickType.Basic` for `basic` */
-function enumKey (name: 'discipline' | 'trickType', value: string) {
-  const members: Record<string, string> = name === 'discipline' ? Discipline : TrickType
-  const member = Object.entries(members).find(([, enumValue]) => enumValue === value)?.[0]
-  return `enums.${name}.${member ?? value}`
+/** The message key of a discipline's label, e.g. `enums.discipline.SingleRope` */
+function disciplineKey (discipline: Discipline) {
+  const member = Object.entries(Discipline).find(([, value]) => value === discipline)?.[0]
+  return `enums.discipline.${member ?? discipline}`
 }
 
 function splitLang (tag: string): { lang: string, region: string | null } {
@@ -255,7 +222,7 @@ function dotString (value: string) {
 interface MapNode {
   id: string
   name: string
-  trickType: TrickType
+  colour: string
 }
 
 /**
@@ -277,7 +244,7 @@ export function trickMapDot (nodes: MapNode[], edges: Array<Pick<TrickPrereqDoc,
   ]
   for (const node of nodes) {
     const width = (0.12 + 0.06 * Math.sqrt(dependents.get(node.id) ?? 0)).toFixed(2)
-    lines.push(`  ${dotString(node.id)} [width=${width}, fillcolor=${dotString(TRICK_TYPE_COLOURS[node.trickType])}, xlabel=${dotString(node.name)}];`)
+    lines.push(`  ${dotString(node.id)} [width=${width}, fillcolor=${dotString(node.colour)}, xlabel=${dotString(node.name)}];`)
   }
   // the arrow points from the prerequisite to the trick that builds on it
   for (const edge of edges) lines.push(`  ${dotString(edge.childId)} -> ${dotString(edge.parentId)};`)
@@ -293,6 +260,10 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
 
   const collator = new Intl.Collator(lang)
   const listFormat = new Intl.ListFormat(lang, { style: 'long', type: 'disjunction' })
+  const typeLabel = (type: string) => localised(sources.trickTypeTag.values?.[type]?.names ?? {}, lang) || type
+  // a type the tag lacks goes last rather than lose its tricks
+  const typeOrder = [...new Set([...tagValues(sources.trickTypeTag).map(value => value.id), ...sources.tricks.map(trick => trick.trickType)])]
+  const typeColour = (type: string) => TRICK_TYPE_PALETTE[typeOrder.indexOf(type) % TRICK_TYPE_PALETTE.length]
 
   const localisations = new Map(sources.localisations.map(localisation => [localisation.id, localisation]))
   const tricktionaryLevels = new Map<string, string>()
@@ -301,10 +272,10 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     if (level.rulesId === TRICKTIONARY_RULES_ID) tricktionaryLevels.set(level.trickId, level.level)
     else if (level.rulesId === rulesId) rulesetLevels.set(level.trickId, level)
   }
-  const rulesetName = sources.ruleset ? (sources.ruleset.names[lang] ?? sources.ruleset.names.en ?? sources.ruleset.id) : null
+  const rulesetName = sources.ruleset != null ? (localised(sources.ruleset.names, lang) || sources.ruleset.id) : null
 
   // levels in numerical order, tricks without one last
-  const groups = new Map<string | null, Map<TrickType, BookletTrick[]>>()
+  const groups = new Map<string | null, Map<string, BookletTrick[]>>()
   const mapNodes: MapNode[] = []
   for (const trick of sources.tricks) {
     const level = tricktionaryLevels.get(trick.id) ?? null
@@ -343,10 +314,9 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         ? { label: t('home.level', { level: rulesetLevel.level }), verified: rulesetLevel.verificationLevel != null }
         : null
     })
-    mapNodes.push({ id: trick.id, name, trickType: trick.trickType })
+    mapNodes.push({ id: trick.id, name, colour: typeColour(trick.trickType) })
   }
 
-  const typeOrder = Object.values(TrickType).sort((a, b) => collator.compare(t(enumKey('trickType', a)), t(enumKey('trickType', b))))
   const levelOrder = [...groups.keys()].sort((a, b) => {
     if (a === null) return 1
     if (b === null) return -1
@@ -382,8 +352,8 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         dot: trickMapDot(mapNodes, sources.prerequisites),
         size: null,
         legend: typeOrder
-          .filter(type => mapNodes.some(node => node.trickType === type))
-          .map(type => ({ label: t(enumKey('trickType', type)), colour: TRICK_TYPE_COLOURS[type] }))
+          .filter(type => sources.tricks.some(trick => trick.trickType === type))
+          .map(type => ({ label: typeLabel(type), colour: typeColour(type) }))
       }
     : null
 
@@ -391,7 +361,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     lang: baseLang,
     region,
     title: 'the Tricktionary',
-    discipline: t(enumKey('discipline', options.discipline)),
+    discipline: t(disciplineKey(options.discipline)),
     page,
     padToMultipleOf: layout === 'pages' ? 1 : 4,
     // the map is the inside of the back cover, the back cover the very last page
@@ -416,7 +386,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
         const tricks = groups.get(level)?.get(type) ?? []
         if (tricks.length === 0) return []
         return [{
-          title: t(enumKey('trickType', type)),
+          title: typeLabel(type),
           tricks: tricks.sort((a, b) => collator.compare(a.name, b.name))
         }]
       })
