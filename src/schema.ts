@@ -235,6 +235,7 @@ const typeDefs = gql`
 
     # Languages
     createLanguage (lang: String!): Language!
+    """English cannot be disabled"""
     setLanguageEnabled (lang: String!, enabled: Boolean!): Language!
 
     # Interface messages

@@ -1,4 +1,4 @@
-import { CollisionError, NotFoundError } from '../errors.js'
+import { CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { langSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
@@ -27,6 +27,8 @@ export const languageResolvers: Resolvers = {
     async setLanguageEnabled (_, { lang, enabled }, { dataSources, allowUser }) {
       allowUser.setLanguageEnabled.assert()
       const id = langSchema.parse(lang)
+      // the source language, which everything falls back to
+      if (id === 'en' && !enabled) throw new ValidationError('English cannot be disabled')
 
       const existing = await dataSources.languages.findOneById(id)
       if (!existing) throw new NotFoundError(`Language ${id} not found`, { extensions: { entity: 'language', id } })

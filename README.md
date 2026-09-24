@@ -11,6 +11,15 @@ be `.env` rather than an exported variable if you start the API through an npm
 script: the names contain hyphens, and npm drops variables whose names are not
 valid shell identifiers from the environment it passes on.
 
+## Seed
+
+`npx tsx src/migrations/seed.ts [--dry-run]` creates the documents the API
+cannot work without: the English language, the Tricktionary ruleset (primary
+when no ruleset is) and the `trick-type` tag. Where they exist it puts back
+what the code relies on and leaves the rest, and it fails on what an admin has
+to decide, like several primary rulesets. Run it on a new database and after a
+deploy that adds to it.
+
 ## Jobs
 
 `src/jobs/` holds Cloud Run jobs that run from the API's image on Cloud Scheduler
@@ -76,9 +85,10 @@ limited to disciplines. Tag wranglers define tags and their English names,
 translators translate them and trick editors apply them. A change that would
 leave a tagged trick with a value the tag no longer allows is refused.
 
-The built in `trick-type` tag holds the trick type. Tricks still carry the
-legacy `trickType` field too. `npx tsx src/migrations/trick-type-tag.ts` creates
-the tag and tags every trick, run the Algolia reindex after it.
+The built in `trick-type` tag, from the seed, holds the trick type. Tricks
+still carry the legacy `trickType` field too. After the seed,
+`npx tsx src/migrations/trick-type-tag.ts` takes the tag's translations from the
+site's messages and tags every trick, run the Algolia reindex after it.
 
 Search queries filter by tag with `#tag`, `#tag:value` or `#tag:>3`, see the
 `tricks` query. The API applies these filters itself, only the rest of the

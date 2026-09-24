@@ -1,13 +1,14 @@
 /**
- * Migration: the trick type becomes the `trick-type` tag.
+ * Migration: the trick type becomes the `trick-type` tag, which
+ * src/migrations/seed.ts creates.
  *
- *   1. creates the `trick-type` tag unless it exists, with the site's English
- *      names and the translations of `submit.trickType` and
- *      `enums.trickType.*` from `ui-messages`
+ *   1. names the tag and its values in every language `ui-messages` has a
+ *      translation of `submit.trickType` and `enums.trickType.*` in, where
+ *      the tag has no name in that language yet
  *   2. tags every trick without it from its `trickType` field
  *
  * Run the Algolia reindex (src/migrations/algolia-reindex.ts) after it.
- * Idempotent, an existing tag is left as it is.
+ * Idempotent.
  *
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
@@ -18,60 +19,50 @@
  */
 import '../config.js'
 import { FieldPath, Firestore } from '@google-cloud/firestore'
-import { TagValueType, TrickType } from '../generated/graphql.js'
+import { TrickType } from '../generated/graphql.js'
 import { logger } from '../services/logger.js'
 import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
 
-import type { TagDoc, TagEnumValue, TrickDoc, UiMessagesDoc } from '../store/schema.js'
+import type { TagDoc, TrickDoc, UiMessagesDoc } from '../store/schema.js'
 
 const firestore = new Firestore()
 const BATCH_SIZE = 400
 const dryRun = process.argv.includes('--dry-run')
 
-/** The site's messages the names come from, with their English */
-const TAG_NAME = { key: 'submit.trickType', en: 'Type of trick' }
-const VALUES = [
-  { id: TrickType.Basic, key: 'enums.trickType.Basic', en: 'Basic' },
-  { id: TrickType.Manipulation, key: 'enums.trickType.Manipulation', en: 'Manipulation' },
-  { id: TrickType.Multiple, key: 'enums.trickType.Multiple', en: 'Multiple' },
-  { id: TrickType.Power, key: 'enums.trickType.Power', en: 'Power' },
-  { id: TrickType.Release, key: 'enums.trickType.Release', en: 'Release' },
-  { id: TrickType.Impossible, key: 'enums.trickType.Impossible', en: 'Impossible' }
-]
-
-async function tagDocument (): Promise<Omit<TagDoc, 'id' | 'collection' | 'createdAt' | 'updatedAt'>> {
+async function translateTag () {
+  const tagRef = firestore.collection('tags').doc(TRICK_TYPE_TAG_ID)
   const translations = (await firestore.collection('ui-messages').get()).docs
     .map(dSnap => ({ lang: dSnap.id, messages: (dSnap.data() as UiMessagesDoc).messages ?? {} }))
 
-  function names ({ key, en }: { key: string, en: string }) {
-    const localised: Record<string, string> = { en }
-    for (const { lang, messages } of translations) {
-      const value = messages[key]?.value.trim()
-      if (value) localised[lang] = value
-    }
-    return localised
-  }
+  await firestore.runTransaction(async t => {
+    const tag = (await t.get(tagRef)).data() as TagDoc | undefined
+    if (!tag) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts first`)
 
-  return {
-    valueType: TagValueType.Enum,
-    names: names(TAG_NAME),
-    disciplines: [],
-    multiple: false,
-    values: Object.fromEntries(VALUES.map((value, order): [string, TagEnumValue] => [value.id, { names: names(value), order }])),
-    system: true
-  }
+    // the site messages that named the tag and its values
+    const named = [
+      { key: 'submit.trickType', path: ['names'], names: tag.names },
+      ...Object.entries(TrickType).map(([member, id]) => ({ key: `enums.trickType.${member}`, path: ['values', id, 'names'], names: tag.values?.[id]?.names }))
+    ]
+
+    const updates: Array<[FieldPath, string]> = []
+    for (const { key, path, names } of named) {
+      if (!names) continue
+      for (const { lang, messages } of translations) {
+        const value = messages[key]?.value.trim()
+        if (value && names[lang] == null) updates.push([new FieldPath(...path, lang), value])
+      }
+    }
+
+    logger.info({ tagId: TRICK_TYPE_TAG_ID, names: updates.length, dryRun }, 'Translating the trick type tag')
+    if (updates.length > 0 && !dryRun) {
+      const [[field, value], ...more] = updates
+      t.update(tagRef, field, value, ...more.flat())
+    }
+  })
 }
 
 async function migrate () {
-  const tagRef = firestore.collection('tags').doc(TRICK_TYPE_TAG_ID)
-  const tagSnap = await tagRef.get()
-  if (tagSnap.exists) {
-    logger.info({ tagId: TRICK_TYPE_TAG_ID }, 'The trick type tag exists, leaving it as it is')
-  } else {
-    const tag = await tagDocument()
-    logger.info({ tagId: TRICK_TYPE_TAG_ID, tag, dryRun }, 'Creating the trick type tag')
-    if (!dryRun) await tagRef.create(tag)
-  }
+  await translateTag()
 
   const qSnap = await firestore.collection('tricks').get()
   const trickTypes: unknown[] = Object.values(TrickType)
