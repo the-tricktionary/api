@@ -93,6 +93,26 @@ export class AuthorizationError<Extensions extends Record<string, any> | undefin
   }
 }
 
+interface InsufficientScopeErrorExtensions {
+  client: string
+  /** The fields the client lacks the scopes for, and what each requires */
+  fields: Array<{ field: string, requires: ReadonlyArray<readonly string[]> }>
+}
+/**
+ * The API client lacks the scopes for something the request asks for, named
+ * like OAuth's `insufficient_scope` (RFC 6750)
+ */
+export class InsufficientScopeError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions & InsufficientScopeErrorExtensions, Private> {
+  constructor (errorOrMsg: string | Error, options: ExtendedErrorOptions<Extensions & InsufficientScopeErrorExtensions, Private>) {
+    super(errorOrMsg, {
+      name: 'InsufficientScopeError',
+      code: 'INSUFFICIENT_SCOPE',
+      httpStatusCode: 403,
+      ...options
+    })
+  }
+}
+
 interface NotFoundErrorExtensions { id: any, entity: string }
 
 /** The requested entity could not be found */

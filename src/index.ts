@@ -5,12 +5,12 @@
 import { PORT } from './config.js'
 import { initApollo } from './apollo.js'
 import { logger } from './services/logger.js'
-import { allowedOrigins } from './helpers/cors.js'
+import { apiClientMiddleware, requireScopes } from './helpers/apiClientMiddleware.js'
+import { Scope } from './generated/graphql.js'
 import { muxWebhookHandler } from './routes/muxWebhook.js'
 import { sitemapHandler } from './routes/sitemap.js'
 import { bookletHandler } from './routes/booklet.js'
 import express from 'express'
-import cors from 'cors'
 import http from 'node:http'
 
 const app = express()
@@ -18,20 +18,16 @@ const httpServer = http.createServer(app)
 
 app.disable('x-powered-by')
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-  allowedHeaders: ['content-type', 'authorization', 'sentry-trace', 'baggage'],
-  maxAge: 7200
-}))
+// the API client of every request, CORS and usage, see the README
+app.use(apiClientMiddleware)
 
 // Mux signs the raw request body, so this has to be mounted before any body
 // parser turns it into an object
 app.post('/webhooks/mux', express.raw({ type: 'application/json' }), muxWebhookHandler)
 
 // Reached through the public site's Firebase Hosting rewrites, not directly
-app.get('/sitemap.xml', sitemapHandler)
-app.get('/booklets/tricks.pdf', bookletHandler)
+app.get('/sitemap.xml', requireScopes([[Scope.Public]]), sitemapHandler)
+app.get('/booklets/tricks.pdf', requireScopes([[Scope.Public]]), bookletHandler)
 
 initApollo(httpServer)
   .then(async middleware => {

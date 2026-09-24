@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { Discipline, GrantType, GroupRole, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
+import { Discipline, GrantType, GroupRole, Scope, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug } from './helpers/disciplines.js'
 
 import type { Grant } from './store/schema.js'
@@ -547,4 +547,13 @@ export const bookletOptionsSchema = z.object({
     .optional().transform(isbn => isbn ?? null),
   /** Who prints the `print` layout, named in its colophon */
   printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
+})
+
+/** An `api-clients` document, which is edited by hand */
+export const apiClientDocSchema = z.object({
+  name: z.string().trim().min(1),
+  contact: z.string().optional(),
+  scopes: z.array(z.enum(Scope)),
+  origins: z.array(z.string()).default([]),
+  disabled: z.boolean().optional()
 })

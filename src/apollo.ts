@@ -12,19 +12,29 @@ import typeDefs from './schema.js'
 import { rootResolver as resolvers } from './resolvers/rootResolver.js'
 import sentryPlugin from './plugins/sentry.js'
 import loggingPlugin from './plugins/logging.js'
+import { scopesPlugin } from './plugins/scopes.js'
 import { userFromAuthorizationHeader } from './services/authentication.js'
 import { allowUser } from './services/permissions.js'
 import { toCustomError } from './helpers/httpErrors.js'
 import { logger } from './services/logger.js'
 import { requestLogger } from './helpers/requestLogger.js'
+import { apiClientOf } from './helpers/apiClientMiddleware.js'
+import { assertRootFieldsScoped, describeScopes, scopeRequirements } from './helpers/scopes.js'
 import { createDataSources, dataSourceCache } from './store/firestoreDataSource.js'
 
 import type { DataSources } from './store/firestoreDataSource.js'
 import type { UserDoc } from './store/schema.js'
+import type { ApiClient } from './services/apiClients.js'
 
 export async function initApollo (httpServer: Server) {
+  const executableSchema = makeExecutableSchema({ typeDefs, resolvers })
+  const requirements = scopeRequirements(executableSchema)
+  assertRootFieldsScoped(executableSchema, requirements)
+  const schema = describeScopes(executableSchema)
+
   const plugins = [
     loggingPlugin,
+    scopesPlugin(requirements),
     ApolloServerPluginDrainHttpServer({ httpServer }),
     ApolloServerPluginCacheControl({ })
   ]
@@ -32,8 +42,6 @@ export async function initApollo (httpServer: Server) {
   if (SENTRY_DSN != null) {
     plugins.push(sentryPlugin)
   }
-
-  const schema = makeExecutableSchema({ typeDefs, resolvers })
 
   const server = new ApolloServer({
     schema,
@@ -61,6 +69,7 @@ export async function initApollo (httpServer: Server) {
       return {
         ...context,
         dataSources,
+        client: apiClientOf(context.req),
         user,
         allowUser: allowUser(user, { logger: childLogger }),
         logger: childLogger
@@ -71,6 +80,8 @@ export async function initApollo (httpServer: Server) {
 
 export interface TrickContext {
   dataSources: DataSources
+  /** Who the request comes from, see the README */
+  client: ApiClient
   user?: UserDoc
   allowUser: ReturnType<typeof allowUser>
   logger: Pino.Logger

@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Scope, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
 import { VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
@@ -553,3 +553,27 @@ export interface GlobalStatsDoc extends DocBase {
   speedSteps: number
 }
 export function isGlobalStats (t: any): t is GlobalStatsDoc { return t?.collection === 'global-stats' }
+
+/**
+ * A client registered by hand, see the README. The document ID is the
+ * client's ID, `web`, `admin` and `anonymous` are taken by the built in ones.
+ */
+export interface ApiClientDoc extends DocBase {
+  readonly collection: 'api-clients'
+  name: string
+  /** Who to reach about the client */
+  contact?: string
+  scopes: Scope[]
+  /** Regular expressions the whole browser origin has to match, none for a client that only calls from servers */
+  origins: string[]
+  disabled?: boolean
+}
+
+/** The document ID is the SHA-256 of the key in hex, the key itself is never stored */
+export interface ApiKeyDoc extends DocBase {
+  readonly collection: 'api-keys'
+  clientId: string
+  /** The start of the key, to tell keys apart by */
+  hint: string
+  revokedAt?: Timestamp
+}
