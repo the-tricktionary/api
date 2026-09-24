@@ -41,7 +41,6 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   }
 
   const isAuthenticated = enrich(function isAuthenticated () { return !!user })
-  const everyone = enrich(function everyone () { return true })
 
   const grants: Grant[] = user?.grants ?? []
   const isSuperAdmin = enrich(function isSuperAdmin () { return grants.some(grant => grant.type === GrantType.SuperAdmin) })
@@ -51,7 +50,6 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
   const translates = (lang: string) => grants.some(grant => grant.type === GrantType.Translator && grant.lang === lang)
 
   return {
-    getTricks: everyone,
     editTrickCompletions: isAuthenticated,
     createSpeedResult: isAuthenticated,
     createGroup: isAuthenticated,
@@ -61,7 +59,6 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editProfile: isAuthenticated,
     createTrickSubmission: isAuthenticated,
     editEventDefinitions,
-    makePurchase: everyone,
 
     createTrick: editTricks,
     editTrick: editTricks,

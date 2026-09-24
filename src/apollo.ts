@@ -15,7 +15,7 @@ import loggingPlugin from './plugins/logging.js'
 import { scopesPlugin } from './plugins/scopes.js'
 import { userFromAuthorizationHeader } from './services/authentication.js'
 import { allowUser } from './services/permissions.js'
-import { toCustomError } from './helpers/httpErrors.js'
+import { isServerError, toCustomError } from './helpers/httpErrors.js'
 import { logger } from './services/logger.js'
 import { requestLogger } from './helpers/requestLogger.js'
 import { apiClientOf } from './helpers/apiClientMiddleware.js'
@@ -51,7 +51,8 @@ export async function initApollo (httpServer: Server) {
     introspection: true,
     formatError (formattedError, wrappedOriginal) {
       const err = toCustomError(unwrapResolverError(wrappedOriginal))
-      logger.error(err)
+      if (isServerError(err)) logger.error(err)
+      else logger.info(err)
       return err
     }
   })

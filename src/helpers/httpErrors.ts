@@ -25,6 +25,11 @@ function httpStatus (err: GraphQLError) {
   return typeof http?.status === 'number' ? http.status : 500
 }
 
+/** Ours rather than a client's mistake: logged as an error and reported, where a mistake is only logged */
+export function isServerError (err: GraphQLError) {
+  return httpStatus(err) >= 500
+}
+
 function escapeHtml (text: string) {
   return text.replace(/[&<>"']/g, char => `&#${char.charCodeAt(0)};`)
 }
@@ -59,14 +64,13 @@ function errorPage (err: GraphQLError, status: number) {
 /**
  * Answers a plain HTTP route with an error, converted to one of ours: as JSON
  * shaped like a GraphQL response, or as a small page for a browser that
- * asked for HTML. Server-side failures are logged and reported, client
- * mistakes only logged.
+ * asked for HTML.
  */
 export function sendError (req: Request, res: Response, error: unknown, { logger }: { logger: Pino.Logger }) {
   const err = toCustomError(error)
   const status = httpStatus(err)
 
-  if (status >= 500) {
+  if (isServerError(err)) {
     logger.error(err)
     Sentry.captureException(err)
   } else {

@@ -1,5 +1,7 @@
 import type { ApolloServerPlugin } from '@apollo/server'
+import { unwrapResolverError } from '@apollo/server/errors'
 import * as Sentry from '@sentry/node'
+import { isServerError, toCustomError } from '../helpers/httpErrors.js'
 
 // from: https://blog.sentry.io/2020/07/22/handling-graphql-errors-using-sentry
 
@@ -19,6 +21,7 @@ const sentryPlugin: ApolloServerPlugin = {
         }
 
         for (const err of ctx.errors) {
+          if (!isServerError(toCustomError(unwrapResolverError(err)))) continue
           // Add scoped report details and send to Sentry
           Sentry.withScope(scope => {
             // Annotate whether failing operation was query/mutation/subscription
