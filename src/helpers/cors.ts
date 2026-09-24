@@ -14,6 +14,12 @@ export const adminOrigins = [
   localhost
 ]
 
+/** The API's own landing page, whose Apollo Sandbox calls from the page, and local development */
+export const apiOrigins = [
+  /^https:\/\/api\.the-tricktionary\.com$/,
+  localhost
+]
+
 /** A Mux direct upload URL only accepts a browser upload from the origin it was created for */
 export const allowedOrigins = [...webOrigins, ...adminOrigins]
 

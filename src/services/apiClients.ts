@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { Scope } from '../generated/graphql.js'
-import { adminOrigins, originPattern, webOrigins } from '../helpers/cors.js'
+import { adminOrigins, apiOrigins, originPattern, webOrigins } from '../helpers/cors.js'
 import { apiClientDocSchema } from '../validation.js'
 import { apiClientDataSource, apiKeyDataSource, dataSourceCache } from '../store/firestoreDataSource.js'
 import { logger } from './logger.js'
@@ -21,7 +21,7 @@ export const ANONYMOUS: ApiClient = {
   id: 'anonymous',
   name: 'Anonymous',
   scopes: new Set([Scope.Public]),
-  origins: []
+  origins: apiOrigins
 }
 
 /** In code rather than in `api-clients`, so their scopes change with the schema */
@@ -120,7 +120,7 @@ async function loadRegistry (): Promise<ApiClientRegistry> {
 
   return {
     byKey,
-    origins: [...clients.values()].flatMap(client => client.origins)
+    origins: [ANONYMOUS, ...clients.values()].flatMap(client => client.origins)
   }
 }
 
