@@ -74,10 +74,10 @@ async function translateTag () {
 
     const updates: Array<[FieldPath, string]> = []
     for (const { key, path, names } of named) {
-      if (!names) continue
+      if (names == null) continue
       for (const { lang, messages } of translations) {
         const value = messages[key]?.value.trim()
-        if (value && names[lang] == null) updates.push([new FieldPath(...path, lang), value])
+        if ((value ?? '') !== '' && names[lang] == null) updates.push([new FieldPath(...path, lang), value])
       }
     }
 
@@ -101,7 +101,7 @@ async function migrateSubmissions () {
 
 async function migrate () {
   const tag = (await tagRef.get()).data() as TagDoc | undefined
-  if (!tag) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts first`)
+  if (tag == null) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts first`)
   const tricks = await legacyTricks(tag)
 
   await translateTag()

@@ -60,7 +60,7 @@ async function ensure<T extends DocumentData> (ref: DocumentReference, create: T
   await firestore.runTransaction(async t => {
     const dSnap = await t.get(ref)
     const current = dSnap.data() as Partial<T> | undefined
-    if (!current) {
+    if (current == null) {
       logger.info({ path: ref.path, dryRun }, `Creating ${ref.path}`)
       if (!dryRun) t.create(ref, create)
       return

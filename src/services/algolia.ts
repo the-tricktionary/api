@@ -118,15 +118,6 @@ async function saveTrickRecords (lang: string, records: Array<ReturnType<typeof 
   logger.debug({ indexName, records: records.length }, 'Saved trick records to Algolia')
 }
 
-/** Firestore takes at most 30 values in an `in` filter */
-const IN_CHUNK = 30
-
-async function findLocalisations (trickIds: readonly string[], dataSources: DataSources) {
-  const chunks: string[][] = []
-  for (let idx = 0; idx < trickIds.length; idx += IN_CHUNK) chunks.push(trickIds.slice(idx, idx + IN_CHUNK))
-  return (await Promise.all(chunks.map(async chunk => await dataSources.trickLocalisations.findManyByQuery(c => c.where('trickId', 'in', chunk))))).flat()
-}
-
 /** In every language the tricks have a localisation in, one write per language */
 export async function indexTricks (trickIds: readonly string[], { dataSources, logger = baseLogger }: { dataSources: DataSources, logger?: Pino.Logger }) {
   const ids = [...new Set(trickIds)]
@@ -134,7 +125,7 @@ export async function indexTricks (trickIds: readonly string[], { dataSources, l
 
   const [tricks, localisations, levels, tags] = await Promise.all([
     dataSources.tricks.findManyByIds(ids),
-    findLocalisations(ids, dataSources),
+    dataSources.trickLocalisations.findManyByTricks(ids),
     ids.length === 1
       ? dataSources.trickLevels.findManyByTrick({ trickId: ids[0], rulesId: TRICKTIONARY_RULES_ID })
       : dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID),
@@ -151,7 +142,7 @@ export async function indexTricks (trickIds: readonly string[], { dataSources, l
       continue
     }
     let langs = localisationsByTrick.get(localisation.trickId)
-    if (!langs) {
+    if (langs == null) {
       langs = new Map()
       localisationsByTrick.set(localisation.trickId, langs)
     }
@@ -160,7 +151,7 @@ export async function indexTricks (trickIds: readonly string[], { dataSources, l
 
   const recordsByLang = new Map<string, Array<ReturnType<typeof trickRecord>>>()
   for (const [idx, trick] of tricks.entries()) {
-    if (!trick) {
+    if (trick == null) {
       logger.warn({ trickId: ids[idx] }, 'Not indexing a trick that does not exist')
       continue
     }
@@ -169,7 +160,7 @@ export async function indexTricks (trickIds: readonly string[], { dataSources, l
     const level = levelByTrick.get(trick.id)?.level
     for (const [lang, localisation] of langs) {
       let records = recordsByLang.get(lang)
-      if (!records) {
+      if (records == null) {
         records = []
         recordsByLang.set(lang, records)
       }

@@ -21,7 +21,7 @@ const LISTED_TRICKS = 10
 
 async function existingTag (tagId: string, { dataSources }: Pick<ApolloContext, 'dataSources'>) {
   const tag = await dataSources.tags.findOneById(tagId)
-  if (!tag) throw new NotFoundError(`Tag ${tagId} not found`, { extensions: { entity: 'tag', id: tagId } })
+  if (tag == null) throw new NotFoundError(`Tag ${tagId} not found`, { extensions: { entity: 'tag', id: tagId } })
   return tag
 }
 
@@ -89,7 +89,7 @@ export const tagResolvers: Resolvers = {
   Mutation: {
     async createTag (_, { tagId, data }, { dataSources, allowUser, user }) {
       allowUser.createTag.assert()
-      if (!user) throw new AuthorizationError()
+      if (user == null) throw new AuthorizationError()
       const id = tagIdSchema.parse(tagId)
       const parsed = tagInputSchema.parse(data)
 
@@ -107,16 +107,16 @@ export const tagResolvers: Resolvers = {
     },
     async updateTag (_, { tagId, data }, { dataSources, allowUser, user, logger }) {
       allowUser.editTag.assert()
-      if (!user) throw new AuthorizationError()
+      if (user == null) throw new AuthorizationError()
       const parsed = tagInputSchema.parse(data)
       const existing = await existingTag(tagId, { dataSources })
-      if (existing.system) assertSystemTagShape(existing, parsed)
+      if (existing.system === true) assertSystemTagShape(existing, parsed)
 
       const carrying = await dataSources.tricks.findManyByTag(existing.id)
       const next: TagDoc = { id: existing.id, collection: existing.collection, createdAt: existing.createdAt, updatedAt: existing.updatedAt, ...tagFields(parsed, existing, user.id) }
       const problems = carrying.flatMap(trick => {
         const problem = trickTagProblem(next, trick.tags[existing.id], trick.discipline)
-        return problem ? [{ trick, problem }] : []
+        return problem != null ? [{ trick, problem }] : []
       })
       if (problems.length > 0) refuse(`The tag ${existing.id} cannot change like that, tricks carrying it would no longer fit it`, problems)
 
@@ -124,7 +124,7 @@ export const tagResolvers: Resolvers = {
       const collection = dataSources.tags.collection
       const updated = await collection.firestore.runTransaction(async t => {
         const current = (await t.get(collection.doc(existing.id))).data()
-        if (!current) throw new NotFoundError(`Tag ${existing.id} not found`, { extensions: { entity: 'tag', id: existing.id } })
+        if (current == null) throw new NotFoundError(`Tag ${existing.id} not found`, { extensions: { entity: 'tag', id: existing.id } })
         const fields = tagFields(parsed, current, user.id)
         t.set(collection.doc(existing.id).withConverter(null), fields)
         return { current, fields }
@@ -139,9 +139,9 @@ export const tagResolvers: Resolvers = {
     },
     async deleteTag (_, { tagId }, { dataSources, allowUser, user, logger }) {
       allowUser.deleteTag.assert()
-      if (!user) throw new AuthorizationError()
+      if (user == null) throw new AuthorizationError()
       const tag = await existingTag(tagId, { dataSources })
-      if (tag.system) throw new ValidationError(`The ${tag.id} tag is built in and cannot be deleted`)
+      if (tag.system === true) throw new ValidationError(`The ${tag.id} tag is built in and cannot be deleted`)
 
       // tricks first, so a failed delete can be retried
       const tricks = await dataSources.tricks.findManyByTag(tag.id)
@@ -159,24 +159,24 @@ export const tagResolvers: Resolvers = {
       const parsedLang = langSchema.parse(lang)
       if (parsedLang === 'en') throw new ValidationError('The english names are part of the tag, set them with updateTag')
       allowUser.tagLocalisation(parsedLang).edit.assert()
-      if (!user) throw new AuthorizationError()
+      if (user == null) throw new AuthorizationError()
       const parsed = tagLocalisationSchema.parse(data)
 
       const [tag, language] = await Promise.all([
         existingTag(tagId, { dataSources }),
         dataSources.languages.findOneById(parsedLang)
       ])
-      if (!language) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
+      if (language == null) throw new NotFoundError(`Language ${parsedLang} not found`, { extensions: { entity: 'language', id: parsedLang } })
 
       const collection = dataSources.tags.collection
       await collection.firestore.runTransaction(async t => {
         const current = (await t.get(collection.doc(tag.id))).data()
-        if (!current) throw new NotFoundError(`Tag ${tag.id} not found`, { extensions: { entity: 'tag', id: tag.id } })
+        if (current == null) throw new NotFoundError(`Tag ${tag.id} not found`, { extensions: { entity: 'tag', id: tag.id } })
 
         const values = { ...current.values }
         for (const value of parsed.values ?? []) {
           const existingValue = values[value.id]
-          if (!existingValue) throw new ValidationError(`The tag ${tag.id} has no value ${value.id}`)
+          if (existingValue == null) throw new ValidationError(`The tag ${tag.id} has no value ${value.id}`)
           values[value.id] = { ...existingValue, names: withName(existingValue.names, parsedLang, value.name) }
         }
 
@@ -200,15 +200,6 @@ export const tagResolvers: Resolvers = {
     },
     names (tag) {
       return localisedStrings(tag.names)
-    },
-    min (tag) {
-      return tag.min ?? null
-    },
-    max (tag) {
-      return tag.max ?? null
-    },
-    step (tag) {
-      return tag.step ?? null
     },
     multiple (tag) {
       return tag.multiple ?? false

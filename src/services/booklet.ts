@@ -203,7 +203,7 @@ export async function loadBookletSources (options: BookletOptions, { dataSources
   ])
   if (!language?.enabled) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
   if (rulesId != null && !ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
-  if (!trickTypeTag) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts`)
+  if (trickTypeTag == null) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts`)
 
   const trickIds = tricks.map(trick => trick.id)
   const localisationIds = trickIds.map(id => trickLocalisationId(id, 'en'))
@@ -305,7 +305,7 @@ export function bookletData (options: BookletOptions, sources: BookletSources, {
     if (level.rulesId === TRICKTIONARY_RULES_ID) tricktionaryLevels.set(level.trickId, level.level)
     else if (level.rulesId === rulesId) rulesetLevels.set(level.trickId, level)
   }
-  const rulesetName = sources.ruleset ? (localised(sources.ruleset.names, lang) || sources.ruleset.id) : null
+  const rulesetName = sources.ruleset != null ? (localised(sources.ruleset.names, lang) || sources.ruleset.id) : null
 
   // levels in numerical order, tricks without one last
   const groups = new Map<string | null, Map<string, BookletTrick[]>>()

@@ -134,14 +134,14 @@ export const trickResolvers: Resolvers = {
       }
 
       const tags = parsed.tags != null ? await trickTagsFromInput(parsed.tags, nextDiscipline, { dataSources }) : undefined
-      if (!tags && nextDiscipline !== trick.discipline) await assertTrickTagsFit(trick.tags, nextDiscipline, { dataSources })
+      if (tags == null && nextDiscipline !== trick.discipline) await assertTrickTagsFit(trick.tags, nextDiscipline, { dataSources })
 
       // an update replaces the whole map, so removed tags go
       const changes = {
         updatedBy: user.id,
         ...(discipline != null ? { discipline } : {}),
         ...(slug != null ? { slug } : {}),
-        ...(tags ? { tags } : {})
+        ...(tags != null ? { tags } : {})
       }
       const trickRef = dataSources.tricks.collection.doc(trickId).withConverter(null)
 

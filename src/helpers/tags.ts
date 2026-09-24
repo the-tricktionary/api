@@ -75,7 +75,7 @@ export function trickTagProblem (tag: TagDoc, value: TrickTagValue, discipline: 
       return numberAllowed(tag, value) ? null : `the tag ${tag.id} holds numbers ${describeNumberRange(tag)}`
     case TagValueType.Enum: {
       if (!Array.isArray(value) || value.length === 0) return `the tag ${tag.id} holds one of its values`
-      if (!tag.multiple && value.length > 1) return `the tag ${tag.id} holds only one of its values`
+      if (tag.multiple !== true && value.length > 1) return `the tag ${tag.id} holds only one of its values`
       if (new Set(value).size !== value.length) return `a value of the tag ${tag.id} is given more than once`
       const unknown = value.find(valueId => tag.values?.[valueId] == null)
       return unknown == null ? null : `the tag ${tag.id} has no value ${unknown}`
@@ -87,7 +87,7 @@ export function trickTagProblem (tag: TagDoc, value: TrickTagValue, discipline: 
 
 /** The tags the discipline requires that the trick lacks */
 export function missingRequiredTags (values: TrickDoc['tags'], discipline: Discipline, tags: readonly TagDoc[]) {
-  return tags.filter(tag => tag.required && tagAppliesTo(tag, discipline) && values[tag.id] == null)
+  return tags.filter(tag => tag.required === true && tagAppliesTo(tag, discipline) && values[tag.id] == null)
 }
 
 /** Refused unless every tag fits the discipline and the discipline's required tags are there */
@@ -96,8 +96,8 @@ function assertTrickTags (values: TrickDoc['tags'], discipline: Discipline, tags
   const problems = [
     ...Object.entries(values).flatMap(([tagId, value]) => {
       const tag = byId.get(tagId)
-      const problem = tag ? trickTagProblem(tag, value, discipline) : `there is no tag ${tagId}`
-      return problem ? [problem] : []
+      const problem = tag != null ? trickTagProblem(tag, value, discipline) : `there is no tag ${tagId}`
+      return problem != null ? [problem] : []
     }),
     ...missingRequiredTags(values, discipline, tags).map(tag => `the tag ${tag.id} is required on ${discipline} tricks`)
   ]
@@ -113,7 +113,7 @@ export async function trickTagsFromInput (inputs: z.output<typeof trickTagsInput
   const mismatched: string[] = []
   for (const input of inputs) {
     const tag = byId.get(input.tagId)
-    if (!tag) throw new NotFoundError(`Tag ${input.tagId} not found`, { extensions: { entity: 'tag', id: input.tagId } })
+    if (tag == null) throw new NotFoundError(`Tag ${input.tagId} not found`, { extensions: { entity: 'tag', id: input.tagId } })
     const value = trickTagValueFromInput(tag, input)
     if (value === undefined) mismatched.push(`the tag ${tag.id} is a ${tag.valueType} tag`)
     else values[tag.id] = value
@@ -160,7 +160,7 @@ export function parseTagQuery (query: string): { text: string, tokens: TagQueryT
   const words: string[] = []
   for (const word of query.trim().split(/\s+/)) {
     const match = TAG_TOKEN.exec(word.toLowerCase())
-    if (match) tokens.push({ tagId: match[1], ...(match[2] != null ? { value: match[2] } : {}) })
+    if (match != null) tokens.push({ tagId: match[1], ...(match[2] != null ? { value: match[2] } : {}) })
     else if (word !== '') words.push(word)
   }
   return { text: words.join(' '), tokens }
@@ -168,7 +168,7 @@ export function parseTagQuery (query: string): { text: string, tokens: TagQueryT
 
 /** An unknown tag, or a value the tag can't hold, matches nothing */
 function tokenMatches (token: TagQueryToken, tag: TagDoc | undefined, value: TrickTagValue | undefined) {
-  if (!tag || value == null) return false
+  if (tag == null || value == null) return false
   if (token.value == null) return true
 
   switch (tag.valueType) {
@@ -201,12 +201,12 @@ export function tagSearchNames (values: Record<string, TrickTagValue>, tags: Rea
   const names = new Set<string>()
   for (const [tagId, value] of Object.entries(values)) {
     const tag = tags.get(tagId)
-    if (!tag) continue
+    if (tag == null) continue
     names.add(localised(tag.names, lang))
     if (!Array.isArray(value)) continue
     for (const valueId of value) {
       const enumValue = tag.values?.[valueId]
-      if (enumValue) names.add(localised(enumValue.names, lang))
+      if (enumValue != null) names.add(localised(enumValue.names, lang))
     }
   }
   names.delete('')

@@ -20,6 +20,8 @@ export const firestore = new Firestore()
 
 /** Firestore takes 500 writes to a batch */
 const WRITE_CHUNK = 400
+/** Firestore takes at most 30 values in an `in` filter */
+const IN_CHUNK = 30
 
 export async function writeInChunks<T> (items: readonly T[], apply: (batch: WriteBatch, item: T) => void) {
   for (let idx = 0; idx < items.length; idx += WRITE_CHUNK) {
@@ -80,6 +82,12 @@ export const trickDataSource = (cache: KeyValueCache) => new TrickDataSource(col
 export class TrickLocalisationDataSource extends FirestoreDataSource<TrickLocalisationDoc> {
   async findManyByTrick (trickId: string, options?: QueryFindArgs) {
     return await this.findManyByQuery(c => c.where('trickId', '==', trickId), options)
+  }
+
+  async findManyByTricks (trickIds: readonly string[], options?: QueryFindArgs) {
+    const chunks: string[][] = []
+    for (let idx = 0; idx < trickIds.length; idx += IN_CHUNK) chunks.push(trickIds.slice(idx, idx + IN_CHUNK))
+    return (await Promise.all(chunks.map(async chunk => await this.findManyByQuery(c => c.where('trickId', 'in', chunk), options)))).flat()
   }
 }
 export const trickLocalisationDataSource = (cache: KeyValueCache) => new TrickLocalisationDataSource(collection<TrickLocalisationDoc>('trick-localisations'), { logger: logger.child({ name: 'trick-localisation-data-source' }), cache })
