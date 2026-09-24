@@ -1,47 +1,75 @@
 /**
- * Migration: the trick type becomes the `trick-type` tag, which
- * src/migrations/seed.ts creates.
+ * Migration: the trick type moves from the `trickType` field to the
+ * `trick-type` tag, which src/migrations/seed.ts creates.
  *
  *   1. names the tag and its values in every language `ui-messages` has a
  *      translation of `submit.trickType` and `enums.trickType.*` in, where
  *      the tag has no name in that language yet
- *   2. tags every trick without it from its `trickType` field
+ *   2. tags every trick without it from its `trickType` field, and deletes the
+ *      field
+ *   3. deletes the `trickType` field of trick submissions
  *
- * Run the Algolia reindex (src/migrations/algolia-reindex.ts) after it.
- * Idempotent.
+ * Nothing is written while a trick has neither the tag nor a `trickType` that
+ * is a value of it, those tricks are listed instead. Run the Algolia reindex
+ * (src/migrations/algolia-reindex.ts) after it. Idempotent.
  *
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
- *     access to the `tags` and `tricks` collections
+ *     access to the `tags`, `tricks` and `trick-submissions` collections
  *
  * Usage:
  *   npx tsx src/migrations/trick-type-tag.ts [--dry-run]
  */
 import '../config.js'
-import { FieldPath, Firestore } from '@google-cloud/firestore'
-import { TrickType } from '../generated/graphql.js'
+import { FieldPath, FieldValue } from 'firebase-admin/firestore'
 import { logger } from '../services/logger.js'
+import { firestore, writeInChunks } from '../store/firestoreDataSource.js'
 import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
 
 import type { TagDoc, TrickDoc, UiMessagesDoc } from '../store/schema.js'
 
-const firestore = new Firestore()
-const BATCH_SIZE = 400
 const dryRun = process.argv.includes('--dry-run')
 
+/** The site message that named each legacy trick type */
+const TRICK_TYPE_MESSAGES: Record<string, string> = {
+  basic: 'enums.trickType.Basic',
+  manipulation: 'enums.trickType.Manipulation',
+  multiple: 'enums.trickType.Multiple',
+  power: 'enums.trickType.Power',
+  release: 'enums.trickType.Release',
+  impossible: 'enums.trickType.Impossible'
+}
+
+type LegacyTrick = Omit<TrickDoc, 'tags'> & { tags?: TrickDoc['tags'], trickType?: unknown }
+
+const tagRef = firestore.collection('tags').doc(TRICK_TYPE_TAG_ID)
+
+/** The tricks to migrate, refused while one has no trick type the tag knows */
+async function legacyTricks (tag: TagDoc) {
+  const tricks = (await firestore.collection('tricks').get()).docs
+    .map(dSnap => ({ ref: dSnap.ref, trick: dSnap.data() as LegacyTrick }))
+
+  const untyped = tricks.filter(({ trick }) => trick.tags?.[TRICK_TYPE_TAG_ID] == null && (typeof trick.trickType !== 'string' || tag.values?.[trick.trickType] == null))
+  if (untyped.length > 0) {
+    for (const { ref, trick } of untyped) logger.error({ trickId: ref.id, slug: trick.slug, trickType: trick.trickType }, `The trick ${trick.slug} has no trick type the tag knows`)
+    throw new Error(`${untyped.length} tricks have no trick type, give them one of the ${TRICK_TYPE_TAG_ID} tag's values first`)
+  }
+
+  const legacy = tricks.filter(({ trick }) => trick.trickType !== undefined || trick.tags?.[TRICK_TYPE_TAG_ID] == null)
+  logger.info({ total: tricks.length, migrating: legacy.length, dryRun }, 'Moving the trick type of tricks to the tag')
+  return legacy
+}
+
 async function translateTag () {
-  const tagRef = firestore.collection('tags').doc(TRICK_TYPE_TAG_ID)
   const translations = (await firestore.collection('ui-messages').get()).docs
     .map(dSnap => ({ lang: dSnap.id, messages: (dSnap.data() as UiMessagesDoc).messages ?? {} }))
 
   await firestore.runTransaction(async t => {
-    const tag = (await t.get(tagRef)).data() as TagDoc | undefined
-    if (!tag) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts first`)
+    const tag = (await t.get(tagRef)).data() as TagDoc
 
-    // the site messages that named the tag and its values
     const named = [
       { key: 'submit.trickType', path: ['names'], names: tag.names },
-      ...Object.entries(TrickType).map(([member, id]) => ({ key: `enums.trickType.${member}`, path: ['values', id, 'names'], names: tag.values?.[id]?.names }))
+      ...Object.entries(TRICK_TYPE_MESSAGES).map(([id, key]) => ({ key, path: ['values', id, 'names'], names: tag.values?.[id]?.names }))
     ]
 
     const updates: Array<[FieldPath, string]> = []
@@ -61,44 +89,32 @@ async function translateTag () {
   })
 }
 
+async function migrateSubmissions () {
+  const submissions = (await firestore.collection('trick-submissions').orderBy('trickType').get()).docs
+  logger.info({ migrating: submissions.length, dryRun }, 'Deleting the trick type of trick submissions')
+  if (dryRun) return
+
+  await writeInChunks(submissions, (batch, dSnap) => {
+    batch.update(dSnap.ref, 'trickType', FieldValue.delete())
+  })
+}
+
 async function migrate () {
+  const tag = (await tagRef.get()).data() as TagDoc | undefined
+  if (!tag) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts first`)
+  const tricks = await legacyTricks(tag)
+
   await translateTag()
-
-  const qSnap = await firestore.collection('tricks').get()
-  const trickTypes: unknown[] = Object.values(TrickType)
-  let backfilled = 0
-  let skipped = 0
-  const invalid: string[] = []
-  let batch = firestore.batch()
-  let inBatch = 0
-
-  for (const dSnap of qSnap.docs) {
-    const trick = dSnap.data() as TrickDoc
-    if (Array.isArray(trick.tags?.[TRICK_TYPE_TAG_ID])) {
-      skipped++
-      continue
-    }
-    if (!trickTypes.includes(trick.trickType)) {
-      invalid.push(dSnap.id)
-      continue
-    }
-
-    if (!dryRun) {
-      batch.update(dSnap.ref, new FieldPath('tags', TRICK_TYPE_TAG_ID), [trick.trickType])
-      inBatch++
-    }
-    backfilled++
-
-    if (inBatch >= BATCH_SIZE) {
-      await batch.commit()
-      batch = firestore.batch()
-      inBatch = 0
-    }
+  if (!dryRun) {
+    await writeInChunks(tricks, (batch, { ref, trick }) => {
+      batch.update(
+        ref,
+        new FieldPath('tags', TRICK_TYPE_TAG_ID), trick.tags?.[TRICK_TYPE_TAG_ID] ?? [trick.trickType],
+        'trickType', FieldValue.delete()
+      )
+    })
   }
-  if (inBatch > 0) await batch.commit()
-
-  if (invalid.length > 0) logger.warn({ trickIds: invalid }, 'Some tricks have no valid trick type and were left without the tag')
-  logger.info({ total: qSnap.size, backfilled, skipped, invalid: invalid.length, dryRun }, 'Tricks tagged with their trick type')
+  await migrateSubmissions()
 }
 
 migrate()

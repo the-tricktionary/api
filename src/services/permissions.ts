@@ -68,7 +68,6 @@ export function allowUser (user: UserDoc | undefined, { logger }: AllowUserConte
     editTrickVideos: editTricks,
     getTrickVideoUploads: editTricks,
     reviewTrickSubmissions: editTricks,
-    editTrickTags: editTricks,
 
     createTag: manageTags,
     editTag: manageTags,

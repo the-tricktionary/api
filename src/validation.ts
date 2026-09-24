@@ -1,6 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { Discipline, GrantType, GroupRole, TagValueType, TimingCueType, TrickType, VerificationLevel, VideoType } from './generated/graphql.js'
+import { Discipline, GrantType, GroupRole, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -84,11 +84,64 @@ export const attributionInputSchema = z.object({
   usernameOrId: z.string().trim().min(1).nullish()
 })
 
+// Tags
+
+const MAX_TAG_VALUES = 50
+
+/** Also the ID of an enum tag's value */
+export const tagIdSchema = slugSchema.max(40, 'An ID can be at most 40 characters')
+
+const tagNameSchema = z.string().trim().max(60, 'A name can be at most 60 characters')
+const requiredTagNameSchema = tagNameSchema.min(1, 'A name is required')
+
+const tagNumberSchema = z.number().min(-1_000_000).max(1_000_000)
+
+export const tagInputSchema = z.object({
+  name: requiredTagNameSchema,
+  valueType: z.enum(TagValueType),
+  disciplines: z.array(z.enum(Discipline))
+    .refine(disciplines => new Set(disciplines).size === disciplines.length, 'Each discipline may only be listed once'),
+  min: tagNumberSchema.nullish(),
+  max: tagNumberSchema.nullish(),
+  step: tagNumberSchema.positive('A step has to be more than 0').nullish(),
+  multiple: z.boolean().nullish(),
+  values: z.array(z.object({ id: tagIdSchema, name: requiredTagNameSchema }))
+    .max(MAX_TAG_VALUES, `A tag can have at most ${MAX_TAG_VALUES} values`)
+    .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
+    .nullish(),
+  required: z.boolean().nullish()
+})
+  .refine(
+    tag => tag.valueType === TagValueType.Number || (tag.min == null && tag.max == null && tag.step == null),
+    'Only a number tag has a minimum, maximum or step'
+  )
+  .refine(tag => tag.min == null || tag.max == null || tag.min <= tag.max, 'The minimum cannot be above the maximum')
+  .refine(
+    tag => tag.valueType === TagValueType.Enum || (tag.multiple == null && tag.values == null),
+    'Only an enum tag has values'
+  )
+  .refine(tag => tag.valueType !== TagValueType.Enum || (tag.values?.length ?? 0) > 0, 'An enum tag needs at least one value')
+  .refine(tag => tag.valueType !== TagValueType.Flag || tag.required !== true, 'A flag tag cannot be required, every trick would carry it')
+
+/** An empty name removes the translation */
+export const tagLocalisationSchema = z.object({
+  name: tagNameSchema.nullish(),
+  values: z.array(z.object({ id: tagIdSchema, name: tagNameSchema.nullish() }))
+    .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
+    .nullish()
+})
+
+export const trickTagsInputSchema = z.array(z.object({
+  tagId: tagIdSchema,
+  number: z.number().nullish(),
+  values: z.array(tagIdSchema).nullish()
+}))
+  .refine(tags => new Set(tags.map(tag => tag.tagId)).size === tags.length, 'Each tag may only be listed once')
+
 // Trick submissions
 
 export const trickSubmissionSchema = z.object({
   discipline: z.enum(Discipline),
-  trickType: z.enum(TrickType).nullish(),
   lang: langSchema.nullish(),
   name: trickLocalisationSchema.shape.name,
   alternativeNames: trickLocalisationSchema.shape.alternativeNames.nullish(),
@@ -99,9 +152,9 @@ export const trickSubmissionSchema = z.object({
 
 export const acceptTrickSubmissionSchema = z.object({
   discipline: z.enum(Discipline),
-  trickType: z.enum(TrickType),
   slug: slugSchema,
   localisation: trickLocalisationSchema,
+  tags: trickTagsInputSchema,
   videoType: z.enum(VideoType),
   slowMoStart: slowMoStartSchema
 })
@@ -149,58 +202,6 @@ export const grantsSchema = z.array(grantInputSchema)
       }
     : grant
   ))
-
-// Tags
-
-const MAX_TAG_VALUES = 50
-
-/** Also the ID of an enum tag's value */
-export const tagIdSchema = slugSchema.max(40, 'An ID can be at most 40 characters')
-
-const tagNameSchema = z.string().trim().max(60, 'A name can be at most 60 characters')
-const requiredTagNameSchema = tagNameSchema.min(1, 'A name is required')
-
-const tagNumberSchema = z.number().min(-1_000_000).max(1_000_000)
-
-export const tagInputSchema = z.object({
-  name: requiredTagNameSchema,
-  valueType: z.enum(TagValueType),
-  disciplines: z.array(z.enum(Discipline))
-    .refine(disciplines => new Set(disciplines).size === disciplines.length, 'Each discipline may only be listed once'),
-  min: tagNumberSchema.nullish(),
-  max: tagNumberSchema.nullish(),
-  step: tagNumberSchema.positive('A step has to be more than 0').nullish(),
-  multiple: z.boolean().nullish(),
-  values: z.array(z.object({ id: tagIdSchema, name: requiredTagNameSchema }))
-    .max(MAX_TAG_VALUES, `A tag can have at most ${MAX_TAG_VALUES} values`)
-    .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
-    .nullish()
-})
-  .refine(
-    tag => tag.valueType === TagValueType.Number || (tag.min == null && tag.max == null && tag.step == null),
-    'Only a number tag has a minimum, maximum or step'
-  )
-  .refine(tag => tag.min == null || tag.max == null || tag.min <= tag.max, 'The minimum cannot be above the maximum')
-  .refine(
-    tag => tag.valueType === TagValueType.Enum || (tag.multiple == null && tag.values == null),
-    'Only an enum tag has values'
-  )
-  .refine(tag => tag.valueType !== TagValueType.Enum || (tag.values?.length ?? 0) > 0, 'An enum tag needs at least one value')
-
-/** An empty name removes the translation */
-export const tagLocalisationSchema = z.object({
-  name: tagNameSchema.nullish(),
-  values: z.array(z.object({ id: tagIdSchema, name: tagNameSchema.nullish() }))
-    .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
-    .nullish()
-})
-
-export const trickTagsInputSchema = z.array(z.object({
-  tagId: tagIdSchema,
-  number: z.number().nullish(),
-  values: z.array(tagIdSchema).nullish()
-}))
-  .refine(tags => new Set(tags.map(tag => tag.tagId)).size === tags.length, 'Each tag may only be listed once')
 
 // Speed results
 

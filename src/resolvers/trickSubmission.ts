@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { GrpcStatus } from 'firebase-admin/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { TrickSubmissionStatus, VideoType } from '../generated/graphql.js'
+import { trickTagsFromInput } from '../helpers/tags.js'
 import { createTrickWithLocalisation, submissionAttribution, submitterProfile } from '../helpers/tricks.js'
 import { createVideoUpload, tryDeleteAsset } from '../services/mux.js'
 import { assertWithinSubmissionLimits, isTrustedSubmitter } from '../services/submissionLimits.js'
@@ -123,7 +124,6 @@ export const trickSubmissionResolvers: Resolvers = {
         licenceAcceptedAt: now,
         submittedAt: now,
         discipline: parsed.discipline,
-        ...(parsed.trickType != null ? { trickType: parsed.trickType } : {}),
         lang,
         name: parsed.name,
         ...(parsed.alternativeNames?.length ? { alternativeNames: parsed.alternativeNames } : {}),
@@ -143,6 +143,7 @@ export const trickSubmissionResolvers: Resolvers = {
       const submission = await pendingSubmission(submissionId, { dataSources })
       const video = submission.video
       if (!video) throw new ValidationError('The video of that submission has not finished processing yet')
+      const tags = await trickTagsFromInput(parsed.tags, parsed.discipline, { dataSources })
 
       const attribution = submissionAttribution(submission)
       const submittedInEnglish = submission.lang === 'en'
@@ -165,7 +166,7 @@ export const trickSubmissionResolvers: Resolvers = {
       // neither can happen without the other
       await commitReview(async () => await createTrickWithLocalisation({
         discipline: parsed.discipline,
-        trickType: parsed.trickType,
+        tags,
         slug: parsed.slug,
         localisation: submittedInEnglish
           ? { ...parsed.localisation, submittedBy: submission.userId, attribution }

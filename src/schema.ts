@@ -21,15 +21,6 @@ const typeDefs = gql`
     Wheel
   }
 
-  enum TrickType {
-    basic
-    manipulation
-    multiple
-    power
-    release
-    impossible
-  }
-
   enum TagValueType {
     """Present or not, holds no value"""
     Flag
@@ -151,14 +142,13 @@ const typeDefs = gql`
     setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation!
     addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
     removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
-    """Replaces the tags on a trick, but its trick type, which updateTrickDetails sets"""
-    setTrickTags (trickId: ID!, tags: [TrickTagInput!]!): Trick!
 
     # Tags (tag wranglers)
     createTag (tagId: ID!, data: TagInput!): Tag!
     """
     Refused when a trick carrying the tag would no longer hold a value the tag
-    allows. Only the names of the trick type tag can change.
+    allows. Tricks lacking a tag it makes required are not, see
+    \`TrickFilter.missingRequiredTags\`.
     """
     updateTag (tagId: ID!, data: TagInput!): Tag!
     """Removes the tag from every trick carrying it. The trick type tag cannot be deleted."""
@@ -305,7 +295,6 @@ const typeDefs = gql`
     id: ID!
     slug: String!
     discipline: Discipline!
-    trickType: TrickType! @deprecated(reason: "The \`trick-type\` tag in \`tags\` holds the trick type")
     """The trick type first, then by English name"""
     tags: [TrickTag!]!
 
@@ -352,16 +341,21 @@ const typeDefs = gql`
 
   input CreateTrickInput {
     discipline: Discipline!
-    trickType: TrickType!
     slug: String!
     """The english localisation of the new trick"""
     localisation: TrickLocalisationInput!
+    """Every tag the discipline requires, the trick type among them"""
+    tags: [TrickTagInput!]!
   }
 
   input UpdateTrickDetailsInput {
     discipline: Discipline
-    trickType: TrickType
     slug: String
+    """
+    Replaces the trick's tags. With them, or with a new discipline, the tags
+    have to fit the discipline and hold every tag it requires.
+    """
+    tags: [TrickTagInput!]
   }
 
   input TrickLocalisationInput {
@@ -389,7 +383,9 @@ const typeDefs = gql`
     multiple: Boolean!
     """Enum tags only, in order"""
     values: [TagValue!]!
-    """Built in: cannot be deleted, and its type and values are fixed"""
+    """Every trick of its disciplines has to carry it. Never a flag tag."""
+    required: Boolean!
+    """The trick type: cannot be deleted, and only its values and names can change"""
     system: Boolean!
     """How many tricks carry the tag"""
     trickCount: Int! @cacheControl(maxAge: 60)
@@ -438,6 +434,8 @@ const typeDefs = gql`
     multiple: Boolean
     """Enum tags only, in order, with their English names"""
     values: [TagValueInput!]
+    """Number and enum tags only"""
+    required: Boolean
   }
 
   input TagValueInput {
@@ -469,6 +467,8 @@ const typeDefs = gql`
     """Tricks whose level in a ruleset is missing, or verified below a level"""
     level: TrickLevelFilter
     withoutVideos: Boolean
+    """Tricks lacking a tag their discipline requires"""
+    missingRequiredTags: Boolean
   }
 
   type Ruleset @cacheControl(maxAge: 3600) {
@@ -667,7 +667,6 @@ const typeDefs = gql`
     submitter: User!
     attributionName: String!
     discipline: Discipline!
-    trickType: TrickType
     lang: String!
     name: String!
     alternativeNames: [String!]
@@ -687,7 +686,6 @@ const typeDefs = gql`
 
   input TrickSubmissionInput {
     discipline: Discipline!
-    trickType: TrickType
     """Language of the text fields, defaults to the user's language, then English"""
     lang: String
     name: String!
@@ -701,10 +699,11 @@ const typeDefs = gql`
 
   input AcceptTrickSubmissionInput {
     discipline: Discipline!
-    trickType: TrickType!
     slug: String!
     """The english localisation of the new trick"""
     localisation: TrickLocalisationInput!
+    """Every tag the discipline requires, the trick type among them"""
+    tags: [TrickTagInput!]!
     videoType: VideoType!
     slowMoStart: Float
   }

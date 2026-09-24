@@ -85,10 +85,16 @@ limited to disciplines. Tag wranglers define tags and their English names,
 translators translate them and trick editors apply them. A change that would
 leave a tagged trick with a value the tag no longer allows is refused.
 
-The built in `trick-type` tag, from the seed, holds the trick type. Tricks
-still carry the legacy `trickType` field too. After the seed,
-`npx tsx src/migrations/trick-type-tag.ts` takes the tag's translations from the
-site's messages and tags every trick, run the Algolia reindex after it.
+A number or enum tag can be required: a trick of its disciplines is only
+created, or has its tags or discipline changed, with it. Making a tag required
+leaves the tricks without it as they are, the `missingRequiredTags` trick filter
+finds them.
+
+The built in `trick-type` tag, from the seed, is a required enum tag on tricks
+of every discipline, holding the trick type. Its values are data like any enum
+tag's, the booklet orders and colours the types by them.
+`npx tsx src/migrations/trick-type-tag.ts` moved the trick type there from the
+tricks' former `trickType` field.
 
 Search queries filter by tag with `#tag`, `#tag:value` or `#tag:>3`, see the
 `tricks` query. The API applies these filters itself, only the rest of the

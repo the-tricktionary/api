@@ -4,12 +4,12 @@
  *   - `languages/en`, enabled
  *   - `rulesets/tricktionary`, and a primary ruleset, the Tricktionary's when
  *     there is none
- *   - `tags/trick-type`, built in, with a value per `TrickType`
+ *   - `tags/trick-type`, built in, created with the default trick types
  *
  * Creates what is missing. In what exists it fixes only what the code relies
- * on, a name is only filled in where the English one is missing. More than one
- * primary ruleset is reported rather than fixed, which one stays primary is a
- * choice for an admin.
+ * on, a name is only filled in where the English one is missing, and the trick
+ * types are left to the tag wranglers. More than one primary ruleset is
+ * reported rather than fixed, which one stays primary is a choice for an admin.
  *
  * Idempotent.
  *
@@ -22,7 +22,7 @@
  */
 import '../config.js'
 import { FieldPath, Firestore } from '@google-cloud/firestore'
-import { TagValueType, TrickType } from '../generated/graphql.js'
+import { TagValueType } from '../generated/graphql.js'
 import { logger } from '../services/logger.js'
 import { TRICK_TYPE_TAG_ID, TRICKTIONARY_RULES_ID } from '../store/schema.js'
 
@@ -38,14 +38,14 @@ const dryRun = process.argv.includes('--dry-run')
 
 const TRICKTIONARY_NAME = 'Tricktionary'
 const TRICK_TYPE_TAG_NAME = 'Type of trick'
-/** In the order they are offered */
-const TRICK_TYPE_NAMES: Record<TrickType, string> = {
-  [TrickType.Basic]: 'Basic',
-  [TrickType.Manipulation]: 'Manipulation',
-  [TrickType.Multiple]: 'Multiple',
-  [TrickType.Power]: 'Power',
-  [TrickType.Release]: 'Release',
-  [TrickType.Impossible]: 'Impossible'
+/** By value ID, in order */
+const DEFAULT_TRICK_TYPES = {
+  basic: 'Basic',
+  manipulation: 'Manipulation',
+  multiple: 'Multiple',
+  power: 'Power',
+  release: 'Release',
+  impossible: 'Impossible'
 }
 
 /** What an admin has to sort out, the seed does not guess */
@@ -77,8 +77,8 @@ async function ensure<T extends DocumentData> (ref: DocumentReference, create: T
   })
 }
 
-function missingEnglish (names: Record<string, string> | undefined, path: string[], en: string): Fix[] {
-  return (names?.en ?? '').trim() === '' ? [fixing(`${path.join('.')} has no English`, [new FieldPath(...path, 'en'), en])] : []
+function missingEnglish (names: Record<string, string> | undefined, en: string): Fix[] {
+  return (names?.en ?? '').trim() === '' ? [fixing('it has no English name', [new FieldPath('names', 'en'), en])] : []
 }
 
 async function seedEnglish () {
@@ -94,7 +94,7 @@ async function seedRulesets () {
 
   const ruleset: Fields<RulesetDoc> = { names: { en: TRICKTIONARY_NAME }, isPrimary: primaries.length === 0 }
   await ensure(rulesets.doc(TRICKTIONARY_RULES_ID), ruleset, current => [
-    ...missingEnglish(current.names, ['names'], TRICKTIONARY_NAME),
+    ...missingEnglish(current.names, TRICKTIONARY_NAME),
     ...(primaries.length === 0 && current.isPrimary !== true ? [fixing('no ruleset is primary', [new FieldPath('isPrimary'), true])] : [])
   ])
 
@@ -102,31 +102,25 @@ async function seedRulesets () {
 }
 
 async function seedTrickTypeTag () {
-  const valueIds = Object.keys(TRICK_TYPE_NAMES) as TrickType[]
   const tag: Fields<TagDoc> = {
     valueType: TagValueType.Enum,
     names: { en: TRICK_TYPE_TAG_NAME },
     disciplines: [],
     multiple: false,
-    values: Object.fromEntries(valueIds.map((id, order): [string, TagEnumValue] => [id, { names: { en: TRICK_TYPE_NAMES[id] }, order }])),
+    values: Object.fromEntries(Object.entries(DEFAULT_TRICK_TYPES).map(([id, en], order): [string, TagEnumValue] => [id, { names: { en }, order }])),
+    required: true,
     system: true
   }
 
   await ensure(firestore.collection('tags').doc(TRICK_TYPE_TAG_ID), tag, current => {
-    const values = current.values ?? {}
-    const extra = Object.keys(values).filter(id => !valueIds.includes(id as TrickType))
-    if (extra.length > 0) problems.push(`The ${TRICK_TYPE_TAG_ID} tag has values that are no trick type: ${extra.join(', ')}`)
-
-    let order = Math.max(-1, ...Object.values(values).map(value => value.order))
+    if (Object.keys(current.values ?? {}).length === 0) problems.push(`The ${TRICK_TYPE_TAG_ID} tag has no values, add trick types in the admin`)
     return [
       ...(current.system === true ? [] : [fixing('it is not marked built in', [new FieldPath('system'), true])]),
+      ...(current.required === true ? [] : [fixing('it is not required', [new FieldPath('required'), true])]),
       ...(current.valueType === TagValueType.Enum ? [] : [fixing('it is not an enum tag', [new FieldPath('valueType'), TagValueType.Enum])]),
       ...(current.multiple === false ? [] : [fixing('it allows several values', [new FieldPath('multiple'), false])]),
       ...((current.disciplines ?? []).length === 0 ? [] : [fixing('it is limited to disciplines', [new FieldPath('disciplines'), []])]),
-      ...missingEnglish(current.names, ['names'], TRICK_TYPE_TAG_NAME),
-      ...valueIds.flatMap(id => values[id] == null
-        ? [fixing(`the value ${id} is missing`, [new FieldPath('values', id), { names: { en: TRICK_TYPE_NAMES[id] }, order: ++order }])]
-        : missingEnglish(values[id].names, ['values', id, 'names'], TRICK_TYPE_NAMES[id]))
+      ...missingEnglish(current.names, TRICK_TYPE_TAG_NAME)
     ]
   })
 }

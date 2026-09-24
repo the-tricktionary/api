@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, TrickType, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
 import { VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
@@ -50,9 +50,7 @@ export interface TrickDoc extends DocBase {
   readonly collection: 'tricks'
   slug: string
   discipline: Discipline
-  /** Legacy, mirrors the `trick-type` tag */
-  trickType: TrickType
-  tags?: Record<TagDoc['id'], TrickTagValue>
+  tags: Record<TagDoc['id'], TrickTagValue>
 
   submittedBy: UserDoc['id']
   updatedBy?: UserDoc['id']
@@ -125,13 +123,14 @@ export interface TagDoc extends DocBase {
   /** Enum tags only, by value ID */
   values?: Record<string, TagEnumValue>
 
-  /** The built in `trick-type` tag, only its names can change */
+  /** Every trick of its disciplines has to carry it */
+  required?: true
+  /** The built in `trick-type` tag, only its values and names can change */
   system?: true
   updatedBy?: UserDoc['id']
 }
 export function isTag (t: any): t is TagDoc { return t?.collection === 'tags' }
 
-/** Its values are the `TrickType` enum */
 export const TRICK_TYPE_TAG_ID = 'trick-type'
 
 export interface TrickLocalisationDoc extends DocBase {
@@ -173,7 +172,6 @@ export interface TrickSubmissionDoc extends DocBase {
   submittedAt: Timestamp
 
   discipline: Discipline
-  trickType?: TrickType
   /** Language of `name`, `alternativeNames` and `description` */
   lang: string
   name: string

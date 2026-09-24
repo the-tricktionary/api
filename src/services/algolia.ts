@@ -4,7 +4,7 @@ import { ALGOLIA_APP_ID } from '../config.js'
 import { getSecret } from './secrets.js'
 import { logger as baseLogger } from './logger.js'
 import { TRICKTIONARY_RULES_ID, trickLocalisationLang } from '../store/schema.js'
-import { tagSearchNames, trickTagValues } from '../helpers/tags.js'
+import { tagSearchNames } from '../helpers/tags.js'
 
 import type Pino from 'pino'
 import type { IndexSettings, SupportedLanguage } from 'algoliasearch'
@@ -77,7 +77,7 @@ export async function setTrickIndexSettings (lang: string) {
 }
 
 interface TrickRecordInput {
-  trick: Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'trickType' | 'tags'>
+  trick: Pick<TrickDoc, 'id' | 'slug' | 'discipline' | 'tags'>
   lang: string
   localisation: Pick<TrickLocalisationDoc, 'name' | 'alternativeNames' | 'description'>
   /** the english localisation, its names are searchable in every language */
@@ -97,7 +97,7 @@ function trickRecord ({ trick, lang, localisation, enLocalisation, level, tags }
     name: localisation.name,
     alternativeNames: localisation.alternativeNames ?? [],
     description: localisation.description ?? '',
-    tagNames: tagSearchNames(trickTagValues(trick), tags, lang),
+    tagNames: tagSearchNames(trick.tags, tags, lang),
     // the english index has the english names in `name` already
     ...(lang === 'en' || !enLocalisation
       ? {}

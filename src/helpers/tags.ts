@@ -1,9 +1,13 @@
-import { TagValueType, TrickType } from '../generated/graphql.js'
+import { NotFoundError, ValidationError } from '../errors.js'
+import { TagValueType } from '../generated/graphql.js'
 import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
 import { localised } from './localised.js'
 
+import type z from 'zod'
 import type { Discipline } from '../generated/graphql.js'
+import type { DataSources } from '../store/firestoreDataSource.js'
 import type { TagDoc, TagEnumValue, TrickDoc, TrickTagValue } from '../store/schema.js'
+import type { trickTagsInputSchema } from '../validation.js'
 
 export interface TagValueModel {
   id: string
@@ -18,25 +22,10 @@ export interface TrickTagModel {
 /** Allowance for floating point error when checking steps */
 const STEP_EPSILON = 1e-9
 
-function isTrickType (value: unknown): value is TrickType {
-  return (Object.values(TrickType) as unknown[]).includes(value)
-}
-
-/** The legacy `trickType` field stands in for a missing `trick-type` tag */
-export function trickTagValues (trick: Pick<TrickDoc, 'tags' | 'trickType'>): Record<string, TrickTagValue> {
-  const tags = { ...trick.tags }
-  if (tags[TRICK_TYPE_TAG_ID] == null && isTrickType(trick.trickType)) tags[TRICK_TYPE_TAG_ID] = [trick.trickType]
-  return tags
-}
-
-export function trickTypeOf (trick: Pick<TrickDoc, 'tags' | 'trickType'>): TrickType {
-  const value = trickTagValues(trick)[TRICK_TYPE_TAG_ID]
-  const [trickType] = Array.isArray(value) ? value : []
-  return isTrickType(trickType) ? trickType : trick.trickType
-}
-
-export function trickTypeTag (trickType: TrickType): Record<string, TrickTagValue> {
-  return { [TRICK_TYPE_TAG_ID]: [trickType] }
+/** The ID of the `trick-type` value the trick holds */
+export function trickTypeOf (trick: Pick<TrickDoc, 'tags'>): string | undefined {
+  const value = trick.tags[TRICK_TYPE_TAG_ID]
+  return Array.isArray(value) ? value[0] : undefined
 }
 
 export function tagValues (tag: Pick<TagDoc, 'values'>): TagValueModel[] {
@@ -96,8 +85,52 @@ export function trickTagProblem (tag: TagDoc, value: TrickTagValue, discipline: 
   }
 }
 
+/** The tags the discipline requires that the trick lacks */
+export function missingRequiredTags (values: TrickDoc['tags'], discipline: Discipline, tags: readonly TagDoc[]) {
+  return tags.filter(tag => tag.required && tagAppliesTo(tag, discipline) && values[tag.id] == null)
+}
+
+/** Refused unless every tag fits the discipline and the discipline's required tags are there */
+function assertTrickTags (values: TrickDoc['tags'], discipline: Discipline, tags: readonly TagDoc[], refusal: string) {
+  const byId = new Map(tags.map(tag => [tag.id, tag]))
+  const problems = [
+    ...Object.entries(values).flatMap(([tagId, value]) => {
+      const tag = byId.get(tagId)
+      const problem = tag ? trickTagProblem(tag, value, discipline) : `there is no tag ${tagId}`
+      return problem ? [problem] : []
+    }),
+    ...missingRequiredTags(values, discipline, tags).map(tag => `the tag ${tag.id} is required on ${discipline} tricks`)
+  ]
+  if (problems.length > 0) throw new ValidationError(`${refusal}: ${problems.join('; ')}`)
+}
+
+/** A trick's tags from the input, see `assertTrickTags` */
+export async function trickTagsFromInput (inputs: z.output<typeof trickTagsInputSchema>, discipline: Discipline, { dataSources }: { dataSources: DataSources }) {
+  const tags = await dataSources.tags.findAll()
+  const byId = new Map(tags.map(tag => [tag.id, tag]))
+
+  const values: TrickDoc['tags'] = {}
+  const mismatched: string[] = []
+  for (const input of inputs) {
+    const tag = byId.get(input.tagId)
+    if (!tag) throw new NotFoundError(`Tag ${input.tagId} not found`, { extensions: { entity: 'tag', id: input.tagId } })
+    const value = trickTagValueFromInput(tag, input)
+    if (value === undefined) mismatched.push(`the tag ${tag.id} is a ${tag.valueType} tag`)
+    else values[tag.id] = value
+  }
+  if (mismatched.length > 0) throw new ValidationError(`The tags cannot be set: ${mismatched.join('; ')}`)
+
+  assertTrickTags(values, discipline, tags, 'The tags cannot be set')
+  return values
+}
+
+/** For a trick moving to the discipline with its tags, see `assertTrickTags` */
+export async function assertTrickTagsFit (values: TrickDoc['tags'], discipline: Discipline, { dataSources }: { dataSources: DataSources }) {
+  assertTrickTags(values, discipline, await dataSources.tags.findAll(), `The trick cannot move to ${discipline} with its tags`)
+}
+
 /** Undefined when the input doesn't match the tag's type */
-export function trickTagValueFromInput (tag: Pick<TagDoc, 'valueType'>, input: { number?: number | null, values?: string[] | null }): TrickTagValue | undefined {
+function trickTagValueFromInput (tag: Pick<TagDoc, 'valueType'>, input: { number?: number | null, values?: string[] | null }): TrickTagValue | undefined {
   switch (tag.valueType) {
     case TagValueType.Flag:
       return input.number == null && input.values == null ? true : undefined
@@ -159,9 +192,8 @@ function tokenMatches (token: TagQueryToken, tag: TagDoc | undefined, value: Tri
 }
 
 /** `tags` has to hold at least the tags the tokens name */
-export function matchesTagQuery (trick: Pick<TrickDoc, 'tags' | 'trickType'>, tokens: readonly TagQueryToken[], tags: ReadonlyMap<string, TagDoc>) {
-  const values = trickTagValues(trick)
-  return tokens.every(token => tokenMatches(token, tags.get(token.tagId), values[token.tagId]))
+export function matchesTagQuery (trick: Pick<TrickDoc, 'tags'>, tokens: readonly TagQueryToken[], tags: ReadonlyMap<string, TagDoc>) {
+  return tokens.every(token => tokenMatches(token, tags.get(token.tagId), trick.tags[token.tagId]))
 }
 
 /** The names of a trick's tags and of the enum values it holds */

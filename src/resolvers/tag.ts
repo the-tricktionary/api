@@ -25,13 +25,6 @@ async function existingTag (tagId: string, { dataSources }: Pick<ApolloContext, 
   return tag
 }
 
-/** Every trick carries the trick type, some only in the legacy field */
-async function tricksCarrying (tag: TagDoc, { dataSources }: Pick<ApolloContext, 'dataSources'>) {
-  return tag.system
-    ? await dataSources.tricks.findManyByDiscipline()
-    : await dataSources.tricks.findManyByTag(tag.id)
-}
-
 /** Keeps the existing translations of the tag and of the values it keeps */
 function tagFields (parsed: ParsedTag, existing: TagDoc | undefined, updatedBy: string): TagFields {
   return {
@@ -50,6 +43,7 @@ function tagFields (parsed: ParsedTag, existing: TagDoc | undefined, updatedBy: 
           }]))
         }
       : {}),
+    ...(parsed.required === true ? { required: true as const } : {}),
     ...(existing?.system ? { system: true as const } : {}),
     updatedBy
   }
@@ -73,17 +67,10 @@ function refuse (message: string, problems: Array<{ trick: TrickDoc, problem: st
   throw new ValidationError(`${message}: ${listed.join('; ')}${more}`)
 }
 
-/** The trick type tag's values are the `TrickType` enum */
+/** Every trick holds one of the trick type tag's values */
 function assertSystemTagShape (existing: TagDoc, parsed: ParsedTag) {
-  const existingIds = tagValues(existing).map(value => value.id).sort()
-  const ids = (parsed.values ?? []).map(value => value.id).sort()
-  if (
-    parsed.valueType !== existing.valueType ||
-    parsed.disciplines.length !== existing.disciplines.length ||
-    (parsed.multiple ?? false) !== (existing.multiple ?? false) ||
-    ids.join(',') !== existingIds.join(',')
-  ) {
-    throw new ValidationError(`Only the names of the ${existing.id} tag can change`)
+  if (parsed.valueType !== TagValueType.Enum || parsed.disciplines.length > 0 || parsed.multiple === true || parsed.required !== true) {
+    throw new ValidationError(`Only the values and names of the ${existing.id} tag can change, it is a required enum tag holding one value on tricks of every discipline`)
   }
 }
 
@@ -123,21 +110,15 @@ export const tagResolvers: Resolvers = {
       if (!user) throw new AuthorizationError()
       const parsed = tagInputSchema.parse(data)
       const existing = await existingTag(tagId, { dataSources })
-      const carrying = await tricksCarrying(existing, { dataSources })
+      if (existing.system) assertSystemTagShape(existing, parsed)
 
-      if (existing.system) {
-        assertSystemTagShape(existing, parsed)
-      } else {
-        const { id, collection, createdAt, updatedAt } = existing
-        const next: TagDoc = { id, collection, createdAt, updatedAt, ...tagFields(parsed, existing, user.id) }
-        const problems = carrying.flatMap(trick => {
-          const value = trick.tags?.[existing.id]
-          if (value == null) return []
-          const problem = trickTagProblem(next, value, trick.discipline)
-          return problem ? [{ trick, problem }] : []
-        })
-        if (problems.length > 0) refuse(`The tag ${existing.id} cannot change like that, tricks carrying it would no longer fit it`, problems)
-      }
+      const carrying = await dataSources.tricks.findManyByTag(existing.id)
+      const next: TagDoc = { id: existing.id, collection: existing.collection, createdAt: existing.createdAt, updatedAt: existing.updatedAt, ...tagFields(parsed, existing, user.id) }
+      const problems = carrying.flatMap(trick => {
+        const problem = trickTagProblem(next, trick.tags[existing.id], trick.discipline)
+        return problem ? [{ trick, problem }] : []
+      })
+      if (problems.length > 0) refuse(`The tag ${existing.id} cannot change like that, tricks carrying it would no longer fit it`, problems)
 
       // a transaction keeps a concurrent translation
       const collection = dataSources.tags.collection
@@ -207,7 +188,7 @@ export const tagResolvers: Resolvers = {
       })
       await dataSources.tags.deleteFromCacheById(tag.id)
 
-      const tricks = await tricksCarrying(tag, { dataSources })
+      const tricks = await dataSources.tricks.findManyByTag(tag.id)
       await tryIndexTricks(tricks.map(trick => trick.id), { dataSources, logger })
 
       return await existingTag(tag.id, { dataSources })
@@ -235,13 +216,14 @@ export const tagResolvers: Resolvers = {
     values (tag) {
       return tagValues(tag)
     },
+    required (tag) {
+      return tag.required === true
+    },
     system (tag) {
       return tag.system === true
     },
     async trickCount (tag, _, { dataSources }) {
-      return tag.system
-        ? await dataSources.tricks.countAll()
-        : await dataSources.tricks.countByTag(tag.id)
+      return await dataSources.tricks.countByTag(tag.id)
     }
   },
   TagValue: {

@@ -2,11 +2,10 @@ import { Timestamp } from '@google-cloud/firestore'
 import { CollisionError } from '../errors.js'
 import { tryIndexTrick } from '../services/algolia.js'
 import { trickLocalisationId } from '../store/schema.js'
-import { trickTypeTag } from './tags.js'
 
 import type { Transaction } from 'firebase-admin/firestore'
 import type { ApolloContext } from '../apollo.js'
-import type { Discipline, TrickType } from '../generated/graphql.js'
+import type { Discipline } from '../generated/graphql.js'
 import type { Attribution, TrickDoc, TrickLocalisationDoc, TrickSubmissionDoc, UserDoc, Video } from '../store/schema.js'
 
 type Context = Pick<ApolloContext, 'dataSources' | 'logger'>
@@ -16,7 +15,8 @@ export type NewTrickLocalisation = Pick<TrickLocalisationDoc, 'name' | 'alternat
 
 export interface NewTrick {
   discipline: Discipline
-  trickType: TrickType
+  /** Checked by `trickTagsFromInput` */
+  tags: TrickDoc['tags']
   slug: string
   /** Every trick has an english localisation */
   localisation: NewTrickLocalisation
@@ -53,8 +53,7 @@ export async function createTrickWithLocalisation (trick: NewTrick, { dataSource
     t.create(dRef.withConverter(null), {
       slug: trick.slug,
       discipline: trick.discipline,
-      trickType: trick.trickType,
-      tags: trickTypeTag(trick.trickType),
+      tags: trick.tags,
       submittedBy: trick.submittedBy,
       updatedBy: trick.updatedBy,
       addedAt: Timestamp.now(),
