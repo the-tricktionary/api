@@ -554,7 +554,7 @@ export interface GlobalStatsDoc extends DocBase {
 }
 export function isGlobalStats (t: any): t is GlobalStatsDoc { return t?.collection === 'global-stats' }
 
-/** The document ID is the client's ID, see the README */
+/** A registered client, the document ID is its ID */
 export interface ApiClientDoc extends DocBase {
   readonly collection: 'api-clients'
   name: string
@@ -562,7 +562,7 @@ export interface ApiClientDoc extends DocBase {
   scopes: Scope[]
   /** Regular expressions the whole origin has to match */
   origins: string[]
-  disabled?: boolean
+  enabled: boolean
 }
 
 /** The document ID is the key's SHA-256 in hex */

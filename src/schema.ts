@@ -100,6 +100,9 @@ const typeDefs = gql`
     """Every user that holds at least one grant. Super admins only."""
     usersWithGrants: [User!]! @requiresScopes(scopes: [[admin]])
 
+    """Every API client, the built in ones first. Super admins only."""
+    apiClients: [ApiClient!]! @cacheControl(maxAge: 0, scope: PRIVATE) @requiresScopes(scopes: [[admin]])
+
     """Null when there is no such group, and when you are not in it"""
     group (groupId: ID!): Group @requiresScopes(scopes: [[account]])
     """Null when there is no such member, and when you are not in their group"""
@@ -315,6 +318,17 @@ const typeDefs = gql`
     """What the signed in user is emailed about"""
     setNotificationOptions (data: NotificationOptionsInput!): User! @requiresScopes(scopes: [[account]])
     setUserGrants (userId: ID!, grants: [GrantInput!]!): User! @requiresScopes(scopes: [[admin]])
+
+    # API clients (super admins)
+    """Refused for an ID that is taken, the built in clients' included"""
+    createApiClient (clientId: ID!, data: ApiClientInput!): ApiClient! @requiresScopes(scopes: [[admin]])
+    """Built in clients can't be changed, only their keys"""
+    updateApiClient (clientId: ID!, data: ApiClientInput!): ApiClient! @requiresScopes(scopes: [[admin]])
+    """A disabled client's keys don't work until it's enabled again"""
+    setApiClientEnabled (clientId: ID!, enabled: Boolean!): ApiClient! @requiresScopes(scopes: [[admin]])
+    """The key is only in the response, the API stores its hash"""
+    issueApiKey (clientId: ID!): IssuedApiKey! @requiresScopes(scopes: [[admin]])
+    revokeApiKey (keyId: ID!): ApiKey! @requiresScopes(scopes: [[admin]])
   }
 
   type Trick @cacheControl(maxAge: 3600) {
@@ -1363,6 +1377,47 @@ const typeDefs = gql`
   input ProductInput {
     productId: String!
     quantity: Int!
+  }
+
+  """Who calls the API, identified by a key in the \`Api-Key\` header"""
+  type ApiClient {
+    id: ID!
+    name: String!
+    contact: String
+    scopes: [Scope!]!
+    """Regular expressions the whole browser origin has to match"""
+    origins: [String!]!
+    """Defined in the API: \`anonymous\`, \`web\` and \`admin\`"""
+    builtIn: Boolean!
+    enabled: Boolean!
+    """Newest first"""
+    keys: [ApiKey!]!
+    createdAt: Timestamp
+    updatedAt: Timestamp
+  }
+
+  type ApiKey {
+    """The key's SHA-256"""
+    id: ID!
+    """The start of the key"""
+    hint: String!
+    createdAt: Timestamp!
+    revokedAt: Timestamp
+  }
+
+  type IssuedApiKey {
+    """Shown this once"""
+    key: String!
+    apiKey: ApiKey!
+  }
+
+  input ApiClientInput {
+    name: String!
+    contact: String
+    """\`public\`, \`site\` and \`profiles\`, the others are for the Tricktionary's own apps"""
+    scopes: [Scope!]!
+    """Regular expressions the whole browser origin has to match, none for a client that only calls from servers"""
+    origins: [String!]!
   }
 `
 

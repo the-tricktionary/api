@@ -550,18 +550,25 @@ export const bookletOptionsSchema = z.object({
   printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
 })
 
-/** An `api-clients` document. Signing users in and the admin are for the Tricktionary's own apps only. */
-export const apiClientDocSchema = z.object({
-  name: z.string().trim().min(1),
-  contact: z.string().optional(),
-  scopes: z.array(z.enum([Scope.Public, Scope.Site, Scope.Profiles])),
-  origins: z.array(z.string().refine(source => {
+/** A registered API client's ID */
+export const apiClientIdSchema = slugSchema.max(40, 'An API client ID can be at most 40 characters')
+
+/** Signing users in and the admin are for the Tricktionary's own apps */
+export const apiClientInputSchema = z.object({
+  name: z.string().trim().min(1, 'A name is required'),
+  contact: z.string().trim().nullish().transform(contact => contact == null || contact === '' ? undefined : contact),
+  scopes: z.array(z.enum([Scope.Public, Scope.Site, Scope.Profiles])).transform(scopes => [...new Set(scopes)]),
+  origins: z.array(z.string().trim().refine(source => {
     try {
       originPattern(source)
       return true
     } catch {
       return false
     }
-  }, 'An origin has to be a regular expression')).default([]),
-  disabled: z.boolean().optional()
+  }, 'An origin has to be a regular expression'))
+})
+
+/** An `api-clients` document */
+export const apiClientDocSchema = apiClientInputSchema.extend({
+  enabled: z.boolean().default(true)
 })

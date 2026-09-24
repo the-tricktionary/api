@@ -33,19 +33,12 @@ before any route runs.
   `site` and `profiles`; signing users in and the admin are for our own apps.
 
 Keys identify a client rather than authenticate it: the apps ship theirs to
-every browser. `api-keys` holds each key's SHA-256, never the key. Changes
-take up to a minute to reach the API. `src/scripts/api-keys.ts` manages both,
-with the same credentials as the seed:
-
-```sh
-npx tsx src/scripts/api-keys.ts client ropescore --name RopeScore --scope public --origin 'https://([a-z0-9-]+\.)?ropescore\.com' --contact dev@example.com
-npx tsx src/scripts/api-keys.ts issue ropescore     # prints the key, once
-npx tsx src/scripts/api-keys.ts revoke pk_AbCdE     # a key, or its hint from `list`
-npx tsx src/scripts/api-keys.ts list
-```
-
-The keys of `web` and `admin` reach their builds as the `API_KEY` Actions
-variable, which the infra repository sets.
+every browser. `api-keys` holds each key's SHA-256, never the key. Super
+admins manage clients and issue and revoke keys on the admin's API clients
+page, and changes take up to a minute to reach the API. The keys of `web` and
+`admin` reach their builds as the `API_KEY` Actions variable, which the infra
+repository sets. A new environment runs with `ACCESS_CONTROL=report` until
+they have keys, as the admin needs its own to issue any.
 
 | Scope | What | anonymous | web | admin |
 |---|---|---|---|---|
