@@ -25,7 +25,7 @@ export const ANONYMOUS: ApiClient = {
 }
 
 /** In code rather than in `api-clients`, so their scopes change with the schema */
-const OWN_CLIENTS: readonly ApiClient[] = [
+export const OWN_CLIENTS: readonly ApiClient[] = [
   {
     id: 'web',
     name: 'the Tricktionary',

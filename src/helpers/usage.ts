@@ -18,7 +18,6 @@ export interface UsageRecord {
    */
   target: string | null
   status: number
-  /** Also set when `ACCESS_CONTROL=report` let the request through */
   denied: DeniedReason | null
 }
 

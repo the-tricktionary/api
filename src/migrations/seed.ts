@@ -6,6 +6,8 @@
  *     there is none
  *   - a built in trick type tag per discipline, `tags/trick-type-<discipline>`
  *     with the slug `trick-type`, created with the default trick types
+ *   - an API key for `web` and `admin` when they have none, printed once for
+ *     `api_keys` in the infra repository; without one the admin can't issue any
  *
  * Creates what is missing. In what exists it fixes only what the code relies
  * on, a name is only filled in where the English one is missing, and the trick
@@ -17,7 +19,7 @@
  *
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
- *     access to the `languages`, `rulesets` and `tags` collections
+ *     access to the `languages`, `rulesets`, `tags` and `api-keys` collections
  *
  * Usage:
  *   npx tsx src/migrations/seed.ts [--dry-run]
@@ -27,10 +29,11 @@ import { FieldPath, Firestore } from '@google-cloud/firestore'
 import { Discipline, TagValueType } from '../generated/graphql.js'
 import { disciplineSlug } from '../helpers/disciplines.js'
 import { logger } from '../services/logger.js'
+import { generateApiKey, OWN_CLIENTS } from '../services/apiClients.js'
 import { TRICK_TYPE_SLUG, TRICKTIONARY_RULES_ID } from '../store/schema.js'
 
 import type { DocumentData, DocumentReference } from '@google-cloud/firestore'
-import type { LanguageDoc, RulesetDoc, TagDoc, TagEnumValue } from '../store/schema.js'
+import type { ApiKeyDoc, LanguageDoc, RulesetDoc, TagDoc, TagEnumValue } from '../store/schema.js'
 
 type Fields<T> = Omit<T, 'id' | 'collection' | 'createdAt' | 'updatedAt'>
 type Update = Array<[FieldPath, unknown]>
@@ -141,10 +144,28 @@ async function seedTrickTypeTags () {
   if (others.length > 0) problems.push(`Tags other than the built in ones have the slug ${TRICK_TYPE_SLUG}: ${others.join(', ')}`)
 }
 
+async function seedOwnApiKeys () {
+  const keys = firestore.collection('api-keys')
+  for (const { id: clientId } of OWN_CLIENTS) {
+    const active = (await keys.where('clientId', '==', clientId).get()).docs.filter(dSnap => dSnap.get('revokedAt') == null)
+    if (active.length > 0) {
+      logger.info({ clientId }, `${clientId} has an API key`)
+      continue
+    }
+    logger.info({ clientId, dryRun }, `Issuing an API key for ${clientId}`)
+    if (dryRun) continue
+    const { key, id, hint } = generateApiKey()
+    const doc: Fields<ApiKeyDoc> = { clientId, hint }
+    await keys.doc(id).create(doc)
+    process.stdout.write(`${clientId}: ${key}\n`)
+  }
+}
+
 async function seed () {
   await seedEnglish()
   await seedRulesets()
   await seedTrickTypeTags()
+  await seedOwnApiKeys()
 
   if (problems.length > 0) {
     for (const problem of problems) logger.error(problem)

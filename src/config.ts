@@ -43,9 +43,7 @@ const envSchema = z.object({
   // Set by Cloud Run in jobs
   CLOUD_RUN_EXECUTION: z.string().optional(),
   // The Typst binary that typesets booklets, see the README
-  TYPST_BIN: z.string().default('typst'),
-  // `report` logs what access control denies instead of denying it
-  ACCESS_CONTROL: z.enum(['enforce', 'report']).default('enforce')
+  TYPST_BIN: z.string().default('typst')
 })
 
 export const {
@@ -61,6 +59,5 @@ export const {
   ADMIN_URL,
   JOB_SCHEDULE,
   CLOUD_RUN_EXECUTION,
-  TYPST_BIN,
-  ACCESS_CONTROL
+  TYPST_BIN
 } = envSchema.parse(process.env)

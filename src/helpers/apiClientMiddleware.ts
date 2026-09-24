@@ -1,5 +1,4 @@
 import cors from 'cors'
-import { ACCESS_CONTROL } from '../config.js'
 import { AuthenticationError, AuthorizationError, InsufficientScopeError } from '../errors.js'
 import { Scope } from '../generated/graphql.js'
 import { allowsOrigin, ANONYMOUS, apiClientByKey, apiClientRegistry } from '../services/apiClients.js'
@@ -31,23 +30,14 @@ export function apiClientOf (req: Request): ApiClient {
   return req.apiClient
 }
 
-/**
- * Whether access control denies the request. `ACCESS_CONTROL=report` logs
- * the denial and lets the request through instead. The usage record keeps
- * the first reason either way.
- */
-export function denies (req: Request, res: Response, reason: DeniedReason, error: GraphQLError, { logger }: { logger: Pino.Logger }) {
-  res.locals.usage = { ...res.locals.usage, denied: res.locals.usage?.denied ?? reason }
-  if (ACCESS_CONTROL === 'enforce') return true
-  logger.warn({ client: req.apiClient?.id, reason }, `Letting through what access control denies: ${error.message}`)
-  return false
+/** For the usage record */
+export function recordDenial (res: Response, reason: DeniedReason) {
+  res.locals.usage = { ...res.locals.usage, denied: reason }
 }
 
-/** `denies`, answering the request with the error. True when it was denied. */
 function deny (req: Request, res: Response, reason: DeniedReason, error: GraphQLError, { logger }: { logger: Pino.Logger }) {
-  if (!denies(req, res, reason, error, { logger })) return false
+  recordDenial(res, reason)
   sendError(req, res, error, { logger })
-  return true
 }
 
 const identifyApiClient: RequestHandler = async (req, res, next) => {
@@ -76,7 +66,7 @@ function corsOptions (req: Request, callback: (err: Error | null, options?: Cors
     maxAge: 7200
   })
 
-  if (req.method !== 'OPTIONS' && req.apiClient != null && ACCESS_CONTROL === 'enforce') {
+  if (req.method !== 'OPTIONS' && req.apiClient != null) {
     callback(null, optionsFor(req.apiClient.origins))
     return
   }
@@ -88,11 +78,11 @@ function corsOptions (req: Request, callback: (err: Error | null, options?: Cors
 const checkApiClient: RequestHandler = (req, res, next) => {
   const logger = requestLogger(req)
 
-  if (req.apiClient == null) {
-    if (deny(req, res, 'UNKNOWN_API_KEY', new AuthenticationError('Nobody holds that API key, or it has been revoked'), { logger })) return
-    req.apiClient = ANONYMOUS
-  }
   const client = req.apiClient
+  if (client == null) {
+    deny(req, res, 'UNKNOWN_API_KEY', new AuthenticationError('Nobody holds that API key, or it has been revoked'), { logger })
+    return
+  }
 
   // only browsers send it, and they can't forge it
   const origin = req.get('origin')
@@ -100,12 +90,14 @@ const checkApiClient: RequestHandler = (req, res, next) => {
     const message = client === ANONYMOUS
       ? `A request from ${origin} needs an API key that may be used from there`
       : `The API key of ${client.name} may not be used from ${origin}`
-    if (deny(req, res, 'ORIGIN_NOT_ALLOWED', new AuthorizationError(message), { logger })) return
+    deny(req, res, 'ORIGIN_NOT_ALLOWED', new AuthorizationError(message), { logger })
+    return
   }
 
   if (req.get('authorization') && !client.scopes.has(Scope.Account)) {
     const error = new AuthorizationError(`Users only sign in through the Tricktionary's own apps, ${client.name} may not act as one`)
-    if (deny(req, res, 'SIGN_IN_NOT_ALLOWED', error, { logger })) return
+    deny(req, res, 'SIGN_IN_NOT_ALLOWED', error, { logger })
+    return
   }
 
   next()
@@ -122,7 +114,8 @@ export function requireScopes (requirement: ScopeRequirement): RequestHandler {
       const error = new InsufficientScopeError(`${client.name} lacks the scopes for ${req.path}. ${describeScopeRequirement(requirement)}`, {
         extensions: { client: client.id, fields: [{ field: req.path, requires: requirement }] }
       })
-      if (deny(req, res, 'INSUFFICIENT_SCOPE', error, { logger: requestLogger(req) })) return
+      deny(req, res, 'INSUFFICIENT_SCOPE', error, { logger: requestLogger(req) })
+      return
     }
     next()
   }

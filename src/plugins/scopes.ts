@@ -1,5 +1,5 @@
 import { InsufficientScopeError } from '../errors.js'
-import { denies } from '../helpers/apiClientMiddleware.js'
+import { recordDenial } from '../helpers/apiClientMiddleware.js'
 import { describeScopeRequirement, scopeViolations } from '../helpers/scopes.js'
 
 import type { ApolloServerPlugin } from '@apollo/server'
@@ -11,7 +11,7 @@ export function scopesPlugin (requirements: ScopeRequirements): ApolloServerPlug
   return {
     async requestDidStart () {
       return {
-        async didResolveOperation ({ schema, document, operation, contextValue: { req, res, client, logger } }) {
+        async didResolveOperation ({ schema, document, operation, contextValue: { res, client } }) {
           if (operation == null) return
           const violations = scopeViolations(schema, requirements, document, operation, client.scopes)
           if (violations.length === 0) return
@@ -20,7 +20,8 @@ export function scopesPlugin (requirements: ScopeRequirements): ApolloServerPlug
           const error = new InsufficientScopeError(`${client.name} lacks the scopes for ${detail}`, {
             extensions: { client: client.id, fields: violations }
           })
-          if (denies(req, res, 'INSUFFICIENT_SCOPE', error, { logger })) throw error
+          recordDenial(res, 'INSUFFICIENT_SCOPE')
+          throw error
         }
       }
     }

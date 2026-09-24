@@ -22,23 +22,13 @@ deploy that adds to it.
 
 ## API clients and scopes
 
-Every request comes from an API client, identified by its key in the `Api-Key`
-header, or anonymous without one. `Authorization` carries the signed in user's
-Firebase ID token. `src/helpers/apiClientMiddleware.ts` identifies the client
-before any route runs.
-
-- **Built in:** `anonymous`, `web` and `admin`, in `src/services/apiClients.ts`
-  with their origins in `src/helpers/cors.ts`.
-- **Registered:** one `api-clients` document each. They may hold `public`,
-  `site` and `profiles`; signing users in and the admin are for our own apps.
-
-Keys identify a client rather than authenticate it: the apps ship theirs to
-every browser. `api-keys` holds each key's SHA-256, never the key. Super
-admins manage clients and issue and revoke keys on the admin's API clients
-page, and changes take up to a minute to reach the API. The keys of `web` and
-`admin` reach their builds as the `API_KEY` Actions variable, which the infra
-repository sets. A new environment runs with `ACCESS_CONTROL=report` until
-they have keys, as the admin needs its own to issue any.
+Every request comes from an API client: `web`, `admin`, a registered partner,
+or `anonymous` without a key. A client sends its key in the `Api-Key` header,
+`Authorization` carries the user's ID token. Keys identify a client rather
+than authenticate it, the apps ship theirs to every browser. A client's scopes
+decide what it may reach and its origins where browsers may call it from; a
+user's permissions apply on top. Super admins register clients and issue keys
+in the admin, the seed issues `web` and `admin` their first ones.
 
 | Scope | What | anonymous | web | admin |
 |---|---|---|---|---|
@@ -48,34 +38,9 @@ they have keys, as the admin needs its own to issue any.
 | `account` | signing users in and acting as them | | ✓ | ✓ |
 | `admin` | the admin | | | ✓ |
 
-**`@requiresScopes(scopes: [[...]])`** takes any one of the lists, holding
-every scope in it. On a type it applies to every field returning the type:
-`User` needs `profiles`, `account` or `admin`, so a `public` client can't reach
-users through `Trick.submitter`. Every query and mutation needs one; the API
-won't start without, and `npm run schema:check` fails CI. Descriptions state
-the requirements, as introspection doesn't show directives.
-
-**Denied**, with the reason on the usage line:
-
-- an operation selecting anything its client lacks the scopes for, as a whole
-  and before anything runs: `INSUFFICIENT_SCOPE`, 403
-- a key nobody holds: 401
-- a browser origin the client may not call from: 403
-- an `Authorization` header from a client without `account`: 403
-
-Scopes limit clients; `src/services/permissions.ts` still decides what a user
-may do.
-
-**CORS** answers with the client's origins. A preflight carries no key, so it
-gets every client's origins. `Origin` only binds browsers.
-
-**`ACCESS_CONTROL=report`** logs what access control denies instead of
-denying it. `enforce` is the default.
-
-**Usage:** each request logs an `API usage` line, `jsonPayload.usage` holding
-`client`, `kind` (`query`, `mutation` or `http`), `operation`, `target` (the
-root fields, or the route), `status` and `denied`. The infra repository counts
-them in the `api/usage` log-based metric.
+`@requiresScopes` says what a field or type needs, and every query and mutation
+has one. Each request logs an `API usage` line, which the infra repository's
+`api/usage` metric counts.
 
 ## Jobs
 
