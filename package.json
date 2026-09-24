@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "codegen": "graphql-codegen --config codegen.yml",
     "codegen:watch": "npm run codegen -- --watch",
-    "booklet:check": "tsx src/scripts/booklet-check.ts"
+    "booklet:check": "tsx src/scripts/booklet-check.ts",
+    "schema:check": "tsx src/scripts/schema-check.ts"
   },
   "engines": {
     "node": ">=24"
@@ -37,6 +38,7 @@
     "@google-cloud/storage": "^8.2.0",
     "@graphql-tools/merge": "^9.2.4",
     "@graphql-tools/schema": "^10.1.1",
+    "@graphql-tools/utils": "^12.0.1",
     "@mux/mux-node": "^15.2.0",
     "@ropescore/rulesets": "^0.19.0",
     "@sentry/node": "^10.75.0",

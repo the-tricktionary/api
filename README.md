@@ -20,6 +20,28 @@ what the code relies on and leaves the rest, and it fails on what an admin has
 to decide, like several primary rulesets. Run it on a new database and after a
 deploy that adds to it.
 
+## API clients and scopes
+
+Every request comes from an API client: `web`, `admin`, a registered partner,
+or `anonymous` without a key. A client sends its key in the `Api-Key` header,
+`Authorization` carries the user's ID token. Keys identify a client rather
+than authenticate it, the apps ship theirs to every browser. A client's scopes
+decide what it may reach and its origins where browsers may call it from; a
+user's permissions apply on top. Super admins register clients and issue keys
+in the admin, the seed issues `web` and `admin` their first ones.
+
+| Scope | What | anonymous | web | admin |
+|---|---|---|---|---|
+| `public` | tricks and their tags, levels and videos, rulesets, languages | ✓ | ✓ | ✓ |
+| `site` | interface messages, notices, event definitions, global stats, the shop | | ✓ | ✓ |
+| `profiles` | users' public profiles, checklists and speed bests | | ✓ | |
+| `account` | signing users in and acting as them | | ✓ | ✓ |
+| `admin` | the admin | | | ✓ |
+
+`@requiresScopes` says what a field or type needs, and every query and mutation
+has one. Each request logs an `API usage` line, which the infra repository's
+`api/usage` metric counts.
+
 ## Jobs
 
 `src/jobs/` holds Cloud Run jobs that run from the API's image on Cloud Scheduler

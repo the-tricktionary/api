@@ -23,8 +23,7 @@ export const productResolvers: Resolvers = {
     }
   },
   Mutation: {
-    async createCheckoutSession (_, { products, currency }, { dataSources, user, allowUser, logger }) {
-      allowUser.makePurchase.assert()
+    async createCheckoutSession (_, { products, currency }, { dataSources, user, logger }) {
       return await (createCheckoutSession({ products, user, currency }) as Promise<Stripe.Checkout.Session & { url: string }>)
     }
   },

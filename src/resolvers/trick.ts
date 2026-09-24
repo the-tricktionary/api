@@ -11,8 +11,7 @@ import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
 
 export const trickResolvers: Resolvers = {
   Query: {
-    async tricks (_, { discipline, searchQuery, filter }, { dataSources, allowUser, user }) {
-      allowUser.getTricks.assert()
+    async tricks (_, { discipline, searchQuery, filter }, { dataSources, user }) {
       let tricks: TrickDoc[]
       const { text, tokens } = parseTagQuery(searchQuery ?? '')
       if (text !== '') {
@@ -69,12 +68,10 @@ export const trickResolvers: Resolvers = {
 
       return tricks
     },
-    async trick (_, { id }, { dataSources, allowUser }) {
-      allowUser.getTricks.assert()
+    async trick (_, { id }, { dataSources }) {
       return (await dataSources.tricks.findOneById(id, { ttl: 3600 })) ?? null
     },
-    async trickBySlug (_, { slug, discipline }, { dataSources, allowUser }) {
-      allowUser.getTricks.assert()
+    async trickBySlug (_, { slug, discipline }, { dataSources }) {
       return (await dataSources.tricks.findOneBySlug({ slug, discipline }, { ttl: 3600 })) ?? null
     }
   },

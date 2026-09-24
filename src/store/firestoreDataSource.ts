@@ -7,7 +7,7 @@ import { FINAL_UPLOAD_STATUSES, groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
 import type { Discipline } from '../generated/graphql.js'
-import type { ChecklistAthlete, TagDoc, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
+import type { ApiClientDoc, ApiKeyDoc, ChecklistAthlete, TagDoc, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
 import type { SpeedAthlete } from '../helpers/speedResults.js'
@@ -539,10 +539,30 @@ export class GlobalStatsDataSource extends FirestoreDataSource<GlobalStatsDoc> {
 }
 export const globalStatsDataSource = (cache: KeyValueCache) => new GlobalStatsDataSource(collection<GlobalStatsDoc>('global-stats'), { logger: logger.child({ name: 'global-stats-data-source' }), cache })
 
+export class ApiClientDataSource extends FirestoreDataSource<ApiClientDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+}
+export const apiClientDataSource = (cache: KeyValueCache) => new ApiClientDataSource(collection<ApiClientDoc>('api-clients'), { logger: logger.child({ name: 'api-client-data-source' }), cache })
+
+export class ApiKeyDataSource extends FirestoreDataSource<ApiKeyDoc> {
+  async findAll (options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c, options)
+  }
+
+  async findManyByClient (clientId: string, options?: QueryFindArgs) {
+    return await this.findManyByQuery(c => c.where('clientId', '==', clientId), options)
+  }
+}
+export const apiKeyDataSource = (cache: KeyValueCache) => new ApiKeyDataSource(collection<ApiKeyDoc>('api-keys'), { logger: logger.child({ name: 'api-key-data-source' }), cache })
+
 export const dataSourceCache = new InMemoryLRUCache()
 
 export function createDataSources () {
   return {
+    apiClients: apiClientDataSource(dataSourceCache),
+    apiKeys: apiKeyDataSource(dataSourceCache),
     eventDefinitions: eventDefinitionDataSource(dataSourceCache),
     globalStats: globalStatsDataSource(dataSourceCache),
     groups: groupDataSource(dataSourceCache),

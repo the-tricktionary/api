@@ -1,7 +1,8 @@
 import { Timestamp } from '@google-cloud/firestore'
 import z from 'zod'
-import { Discipline, GrantType, GroupRole, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
+import { Discipline, GrantType, GroupRole, Scope, TagValueType, TimingCueType, VerificationLevel, VideoType } from './generated/graphql.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug } from './helpers/disciplines.js'
+import { originPattern } from './helpers/cors.js'
 
 import type { Grant } from './store/schema.js'
 
@@ -547,4 +548,27 @@ export const bookletOptionsSchema = z.object({
     .optional().transform(isbn => isbn ?? null),
   /** Who prints the `print` layout, named in its colophon */
   printedBy: z.string().trim().max(200).optional().transform(printedBy => printedBy === undefined || printedBy === '' ? null : printedBy)
+})
+
+/** A registered API client's ID */
+export const apiClientIdSchema = slugSchema.max(40, 'An API client ID can be at most 40 characters')
+
+/** Signing users in and the admin are for the Tricktionary's own apps */
+export const apiClientInputSchema = z.object({
+  name: z.string().trim().min(1, 'A name is required'),
+  contact: z.string().trim().nullish().transform(contact => contact == null || contact === '' ? undefined : contact),
+  scopes: z.array(z.enum([Scope.Public, Scope.Site, Scope.Profiles])).transform(scopes => [...new Set(scopes)]),
+  origins: z.array(z.string().trim().refine(source => {
+    try {
+      originPattern(source)
+      return true
+    } catch {
+      return false
+    }
+  }, 'An origin has to be a regular expression'))
+})
+
+/** An `api-clients` document */
+export const apiClientDocSchema = apiClientInputSchema.extend({
+  enabled: z.boolean().default(true)
 })

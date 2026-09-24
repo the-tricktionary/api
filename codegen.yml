@@ -37,6 +37,8 @@ generates:
         GroupInvite: ../store/schema.js#GroupInviteDoc
         Notice: ../store/schema.js#NoticeDoc
         GlobalStats: ../store/schema.js#GlobalStatsDoc
+        ApiClient: ../services/apiClients.js#ApiClientModel
+        ApiKey: ../store/schema.js#ApiKeyDoc
         UiMessageEntry: ../helpers/uiMessages.js#UiMessageEntry as UiMessageEntryModel
         NoticeText: ../helpers/notices.js#NoticeTextModel
         SpeedSegmentResult: ../helpers/speedResults.js#SpeedSegmentResult as SpeedSegmentResultModel

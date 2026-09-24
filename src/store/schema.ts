@@ -1,4 +1,4 @@
-import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
+import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Scope, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
 import { VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
@@ -553,3 +553,23 @@ export interface GlobalStatsDoc extends DocBase {
   speedSteps: number
 }
 export function isGlobalStats (t: any): t is GlobalStatsDoc { return t?.collection === 'global-stats' }
+
+/** A registered client, the document ID is its ID */
+export interface ApiClientDoc extends DocBase {
+  readonly collection: 'api-clients'
+  name: string
+  contact?: string
+  scopes: Scope[]
+  /** Regular expressions the whole origin has to match */
+  origins: string[]
+  enabled: boolean
+}
+
+/** The document ID is the key's SHA-256 in hex */
+export interface ApiKeyDoc extends DocBase {
+  readonly collection: 'api-keys'
+  clientId: string
+  /** The start of the key */
+  hint: string
+  revokedAt?: Timestamp
+}

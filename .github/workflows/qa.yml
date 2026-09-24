@@ -17,6 +17,7 @@ jobs:
       - run: npm run codegen
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run schema:check
 
   booklets:
     runs-on: ubuntu-latest

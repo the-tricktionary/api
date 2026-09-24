@@ -1,5 +1,6 @@
 import { GraphQLError, type GraphQLErrorExtensions } from 'graphql'
 import type { core } from 'zod'
+import type { ScopeRequirement } from './helpers/scopes.js'
 
 interface CustomErrorOptions<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> {
   /** Should be the same as the extended error type */
@@ -87,6 +88,22 @@ export class AuthorizationError<Extensions extends Record<string, any> | undefin
     super(errorOrMsg, {
       name: 'AuthorizationError',
       code: 'AUTHORIZATION_FAILED',
+      httpStatusCode: 403,
+      ...options
+    })
+  }
+}
+
+interface InsufficientScopeErrorExtensions {
+  client: string
+  fields: Array<{ field: string, requires: ScopeRequirement }>
+}
+/** The API client lacks a scope the request needs, like OAuth's `insufficient_scope` (RFC 6750) */
+export class InsufficientScopeError<Extensions extends Record<string, any> | undefined, Private extends Record<string, any> | undefined> extends CustomError<Extensions & InsufficientScopeErrorExtensions, Private> {
+  constructor (errorOrMsg: string | Error, options: ExtendedErrorOptions<Extensions & InsufficientScopeErrorExtensions, Private>) {
+    super(errorOrMsg, {
+      name: 'InsufficientScopeError',
+      code: 'INSUFFICIENT_SCOPE',
       httpStatusCode: 403,
       ...options
     })

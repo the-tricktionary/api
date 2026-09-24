@@ -7,6 +7,29 @@ const typeDefs = gql`
     inheritMaxAge: Boolean
   ) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION
 
+  """
+  The scopes an API client needs for a field: any one of the lists, holding
+  every scope in it. On a type it applies to every field returning the type.
+  """
+  directive @requiresScopes(scopes: [[Scope!]!]!) on FIELD_DEFINITION | OBJECT
+
+  """
+  What an API client may reach. A client sends its key in the \`Api-Key\`
+  header, a request without one is anonymous and holds \`public\` only.
+  """
+  enum Scope {
+    """Tricks and their tags, levels and videos, rulesets and languages"""
+    public
+    """The public site's own content: interface messages, notices, event definitions, global statistics and the shop"""
+    site
+    """Users' public profiles, with their checklists and speed bests"""
+    profiles
+    """Signing users in and acting as them. Only the Tricktionary's own apps hold it."""
+    account
+    """The admin interface. Only the Tricktionary's own apps hold it."""
+    admin
+  }
+
   scalar Timestamp
   scalar JSONObject
 
@@ -66,26 +89,29 @@ const typeDefs = gql`
   }
 
   type Query {
-    me: User
+    me: User @requiresScopes(scopes: [[account]])
     """
     A user by username or id, the id wins should both match. Null when there
     is no such user, and when their profile isn't public unless they are you.
     """
-    user (usernameOrId: ID!): User
+    user (usernameOrId: ID!): User @requiresScopes(scopes: [[profiles]])
     """Exact match on email, username or user id. Super admins only."""
-    findUsers (query: String!): [User!]!
+    findUsers (query: String!): [User!]! @requiresScopes(scopes: [[admin]])
     """Every user that holds at least one grant. Super admins only."""
-    usersWithGrants: [User!]!
+    usersWithGrants: [User!]! @requiresScopes(scopes: [[admin]])
+
+    """Every API client, the built in ones first. Super admins only."""
+    apiClients: [ApiClient!]! @cacheControl(maxAge: 0, scope: PRIVATE) @requiresScopes(scopes: [[admin]])
 
     """Null when there is no such group, and when you are not in it"""
-    group (groupId: ID!): Group
+    group (groupId: ID!): Group @requiresScopes(scopes: [[account]])
     """Null when there is no such member, and when you are not in their group"""
-    groupMember (memberId: ID!): GroupMember
+    groupMember (memberId: ID!): GroupMember @requiresScopes(scopes: [[account]])
     """Only \`id\` and \`name\` resolve for somebody outside the group"""
-    groupByJoinCode (joinCode: String!): Group
+    groupByJoinCode (joinCode: String!): Group @requiresScopes(scopes: [[account]])
 
-    trick (id: ID!): Trick
-    trickBySlug (discipline: Discipline!, slug: String!): Trick
+    trick (id: ID!): Trick @requiresScopes(scopes: [[public]])
+    trickBySlug (discipline: Discipline!, slug: String!): Trick @requiresScopes(scopes: [[public]])
     """
     A \`searchQuery\` may hold tag filters by slug, which every trick returned
     matches: \`#slug\` for a trick carrying the tag, \`#slug:value\` for one
@@ -98,200 +124,211 @@ const typeDefs = gql`
       discipline: Discipline,
       searchQuery: String,
       filter: TrickFilter
-    ): [Trick!]!
+    ): [Trick!]! @requiresScopes(scopes: [[public]])
 
     """Every tag, or those a trick of the discipline may carry. The trick type first, then by English name."""
-    tags (discipline: Discipline): [Tag!]! @cacheControl(maxAge: 3600)
-    tag (id: ID!): Tag @cacheControl(maxAge: 3600)
+    tags (discipline: Discipline): [Tag!]! @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[public]])
+    tag (id: ID!): Tag @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[public]])
 
-    products: [Product!]!
-    shippingRates: [Price!]!
+    products: [Product!]! @requiresScopes(scopes: [[site]])
+    shippingRates: [Price!]! @requiresScopes(scopes: [[site]])
 
-    eventDefinitions: [EventDefinition!]! @cacheControl(maxAge: 3600)
+    eventDefinitions: [EventDefinition!]! @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[site]])
 
-    rulesets: [Ruleset!]! @cacheControl(maxAge: 3600)
+    rulesets: [Ruleset!]! @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[public]])
 
-    languages: [Language!]! @cacheControl(maxAge: 3600)
+    languages: [Language!]! @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[public]])
 
     """
     The public site's interface messages in a language as a flat map keyed like
     its en.json (\`{ "trick.level": "..." }\`). Empty for a language nobody has
     translated yet.
     """
-    uiMessages (lang: String!): JSONObject! @cacheControl(maxAge: 3600)
+    uiMessages (lang: String!): JSONObject! @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[site]])
     """Every translated interface message of a language, with who last set it"""
-    uiMessageEntries (lang: String!): [UiMessageEntry!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+    uiMessageEntries (lang: String!): [UiMessageEntry!]! @cacheControl(maxAge: 0, scope: PRIVATE) @requiresScopes(scopes: [[admin]])
 
     """Trick submissions, newest first, in every status unless one is given. Trick editors only."""
-    trickSubmissions (status: TrickSubmissionStatus): [TrickSubmission!]!
+    trickSubmissions (status: TrickSubmissionStatus): [TrickSubmission!]! @requiresScopes(scopes: [[admin]])
 
     """The notices live right now, scheduled ones only inside their window"""
-    notices: [Notice!]! @cacheControl(maxAge: 60)
+    notices: [Notice!]! @cacheControl(maxAge: 60) @requiresScopes(scopes: [[site]])
     """Every notice, live or not. Super admins only."""
-    allNotices: [Notice!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+    allNotices: [Notice!]! @cacheControl(maxAge: 0, scope: PRIVATE) @requiresScopes(scopes: [[admin]])
 
     """The latest weekly snapshot"""
-    globalStats: GlobalStats @cacheControl(maxAge: 3600)
+    globalStats: GlobalStats @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[site]])
     """Oldest first, counted in \`[from, until)\`, unbounded on a side left out"""
-    globalStatsHistory (from: Timestamp, until: Timestamp): [GlobalStats!]! @cacheControl(maxAge: 3600)
+    globalStatsHistory (from: Timestamp, until: Timestamp): [GlobalStats!]! @cacheControl(maxAge: 3600) @requiresScopes(scopes: [[site]])
   }
 
   type Mutation {
     # Tricks
-    createTrick (data: CreateTrickInput!): Trick!
-    updateTrickDetails (trickId: ID!, data: UpdateTrickDetailsInput!): Trick!
-    setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation!
-    addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
-    removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
+    createTrick (data: CreateTrickInput!): Trick! @requiresScopes(scopes: [[admin]])
+    updateTrickDetails (trickId: ID!, data: UpdateTrickDetailsInput!): Trick! @requiresScopes(scopes: [[admin]])
+    setTrickLocalisation (trickId: ID!, lang: String!, data: TrickLocalisationInput!): TrickLocalisation! @requiresScopes(scopes: [[admin]])
+    addTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick! @requiresScopes(scopes: [[admin]])
+    removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick! @requiresScopes(scopes: [[admin]])
 
     # Tags (tag wranglers)
     """Refused when a tag with the slug shares a discipline with it"""
-    createTag (slug: String!, data: TagInput!): Tag!
+    createTag (slug: String!, data: TagInput!): Tag! @requiresScopes(scopes: [[admin]])
     """
     Refused when a trick carrying the tag would no longer hold a value the tag
     allows, or when a tag with its slug shares a discipline with it. Tricks
     lacking a tag it makes required are not in the way, see
     \`TrickFilter.missingRequiredTags\`.
     """
-    updateTag (tagId: ID!, data: TagInput!): Tag!
+    updateTag (tagId: ID!, data: TagInput!): Tag! @requiresScopes(scopes: [[admin]])
     """Removes the tag from every trick carrying it. Trick type tags cannot be deleted."""
-    deleteTag (tagId: ID!): Tag!
+    deleteTag (tagId: ID!): Tag! @requiresScopes(scopes: [[admin]])
     """
     Names of a tag and its values in a language other than English, which
     updateTag sets. Names left out stay, an empty one removes the translation.
     """
-    setTagLocalisation (tagId: ID!, lang: String!, data: TagLocalisationInput!): Tag!
+    setTagLocalisation (tagId: ID!, lang: String!, data: TagLocalisationInput!): Tag! @requiresScopes(scopes: [[admin]])
 
     # Checklist
-    createTrickCompletion (trickId: ID!): TrickCompletion!
-    deleteTrickCompletion (trickId: ID!): TrickCompletion
+    createTrickCompletion (trickId: ID!): TrickCompletion! @requiresScopes(scopes: [[account]])
+    deleteTrickCompletion (trickId: ID!): TrickCompletion @requiresScopes(scopes: [[account]])
 
     # Speed
-    createSpeedResult (data: SpeedResultInput!): SpeedResult!
-    updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult!
+    createSpeedResult (data: SpeedResultInput!): SpeedResult! @requiresScopes(scopes: [[account]])
+    updateSpeedResult (speedResultId: ID!, data: SpeedResultUpdateInput!): SpeedResult! @requiresScopes(scopes: [[account]])
     """Share a score with a group and say who competed, see SpeedResultGroupInput"""
-    setSpeedResultGroup (speedResultId: ID!, data: SpeedResultGroupInput!): SpeedResult!
+    setSpeedResultGroup (speedResultId: ID!, data: SpeedResultGroupInput!): SpeedResult! @requiresScopes(scopes: [[account]])
     """
     Leaves the score out of the bests of everyone who competed in it, or puts
     it back. Whoever may edit the score may set this.
     """
-    excludeSpeedResultFromPersonalBests (speedResultId: ID!, excluded: Boolean!): SpeedResult!
-    deleteSpeedResult (speedResultId: ID!): SpeedResult!
+    excludeSpeedResultFromPersonalBests (speedResultId: ID!, excluded: Boolean!): SpeedResult! @requiresScopes(scopes: [[account]])
+    deleteSpeedResult (speedResultId: ID!): SpeedResult! @requiresScopes(scopes: [[account]])
 
     # Event definitions (speed editors)
-    createEventDefinition (data: EventDefinitionCreateInput!): EventDefinition!
+    createEventDefinition (data: EventDefinitionCreateInput!): EventDefinition! @requiresScopes(scopes: [[admin]])
     """Omitted fields are left alone, a null timingTrack removes the track"""
-    updateEventDefinition (eventDefinitionId: ID!, data: EventDefinitionUpdateInput!): EventDefinition!
+    updateEventDefinition (eventDefinitionId: ID!, data: EventDefinitionUpdateInput!): EventDefinition! @requiresScopes(scopes: [[admin]])
     """Refused while any speed result refers to the event"""
-    deleteEventDefinition (eventDefinitionId: ID!): EventDefinition!
+    deleteEventDefinition (eventDefinitionId: ID!): EventDefinition! @requiresScopes(scopes: [[admin]])
     """
     Starts an upload of a timing track audio file. PUT the file, with the same
     Content-Type, to the returned \`url\` and then save the returned
     \`audioUrl\` on the event definition with updateEventDefinition.
     """
-    createTimingTrackUpload (eventDefinitionId: ID!, contentType: String!): TimingTrackUpload!
+    createTimingTrackUpload (eventDefinitionId: ID!, contentType: String!): TimingTrackUpload! @requiresScopes(scopes: [[admin]])
 
     # Shop
-    createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession!
+    createCheckoutSession (products: [ProductInput!]!, currency: Currency!): CheckoutSession! @requiresScopes(scopes: [[site]])
 
     # Rulesets
-    createRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
-    updateRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset!
-    setPrimaryRuleset (rulesId: ID!): Ruleset!
+    createRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset! @requiresScopes(scopes: [[admin]])
+    updateRuleset (rulesId: ID!, names: [LocalisedStringInput!]!): Ruleset! @requiresScopes(scopes: [[admin]])
+    setPrimaryRuleset (rulesId: ID!): Ruleset! @requiresScopes(scopes: [[admin]])
 
     # Trick levels
     """Sets the level of a trick under a ruleset. A null or empty level deletes it."""
-    setTrickLevel (trickId: ID!, rulesId: ID!, level: String): TrickLevel
+    setTrickLevel (trickId: ID!, rulesId: ID!, level: String): TrickLevel @requiresScopes(scopes: [[admin]])
     """Verifies the level at the given verification level, or recalls the verification when null."""
-    setTrickLevelVerification (trickId: ID!, rulesId: ID!, verificationLevel: VerificationLevel): TrickLevel!
+    setTrickLevelVerification (trickId: ID!, rulesId: ID!, verificationLevel: VerificationLevel): TrickLevel! @requiresScopes(scopes: [[admin]])
 
     # Trick videos
-    addTrickVideo (trickId: ID!, data: YouTubeVideoInput!): Trick!
+    addTrickVideo (trickId: ID!, data: YouTubeVideoInput!): Trick! @requiresScopes(scopes: [[admin]])
     """
     Starts a direct upload to Mux. Upload the file to the returned \`url\`, the
     video is added to the trick once Mux has processed it.
     """
-    createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload!
-    removeTrickVideo (trickId: ID!, videoId: String!): Trick!
+    createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload! @requiresScopes(scopes: [[admin]])
+    removeTrickVideo (trickId: ID!, videoId: String!): Trick! @requiresScopes(scopes: [[admin]])
     """
     Sets who a video is credited to, a null attribution removes the credit.
     Editing a credit keeps the original contribution date.
     """
-    setTrickVideoAttribution (trickId: ID!, videoId: String!, attribution: AttributionInput): Trick!
+    setTrickVideoAttribution (trickId: ID!, videoId: String!, attribution: AttributionInput): Trick! @requiresScopes(scopes: [[admin]])
 
     # Trick submissions
     """Starts a trick submission. Upload the video file with a single PUT to \`upload.url\`."""
-    createTrickSubmission (data: TrickSubmissionInput!): TrickSubmission!
+    createTrickSubmission (data: TrickSubmissionInput!): TrickSubmission! @requiresScopes(scopes: [[account]])
     """Creates the trick from the submission and credits the submitter on its video and localisation"""
-    acceptTrickSubmission (submissionId: ID!, data: AcceptTrickSubmissionInput!): TrickSubmission!
-    rejectTrickSubmission (submissionId: ID!, note: String): TrickSubmission!
+    acceptTrickSubmission (submissionId: ID!, data: AcceptTrickSubmissionInput!): TrickSubmission! @requiresScopes(scopes: [[admin]])
+    rejectTrickSubmission (submissionId: ID!, note: String): TrickSubmission! @requiresScopes(scopes: [[admin]])
 
     # Languages
-    createLanguage (lang: String!): Language!
+    createLanguage (lang: String!): Language! @requiresScopes(scopes: [[admin]])
     """English cannot be disabled"""
-    setLanguageEnabled (lang: String!, enabled: Boolean!): Language!
+    setLanguageEnabled (lang: String!, enabled: Boolean!): Language! @requiresScopes(scopes: [[admin]])
 
     # Interface messages
     """
     Sets interface messages of a language, keys that aren't included are left
     alone. English is the site's source language and cannot be set here.
     """
-    setUiMessages (lang: String!, entries: [UiMessageInput!]!): [UiMessageEntry!]!
+    setUiMessages (lang: String!, entries: [UiMessageInput!]!): [UiMessageEntry!]! @requiresScopes(scopes: [[admin]])
 
     # Notices
-    createNotice (data: NoticeInput!): Notice!
-    updateNotice (noticeId: ID!, data: NoticeInput!): Notice!
-    deleteNotice (noticeId: ID!): Notice!
+    createNotice (data: NoticeInput!): Notice! @requiresScopes(scopes: [[admin]])
+    updateNotice (noticeId: ID!, data: NoticeInput!): Notice! @requiresScopes(scopes: [[admin]])
+    deleteNotice (noticeId: ID!): Notice! @requiresScopes(scopes: [[admin]])
 
     # Groups
-    createGroup (name: String!): Group!
-    updateGroup (groupId: ID!, name: String!): Group!
+    createGroup (name: String!): Group! @requiresScopes(scopes: [[account]])
+    updateGroup (groupId: ID!, name: String!): Group! @requiresScopes(scopes: [[account]])
     """Refused while any speed score is shared with the group"""
-    deleteGroup (groupId: ID!): Group!
+    deleteGroup (groupId: ID!): Group! @requiresScopes(scopes: [[account]])
 
     """Adds an athlete the group manages, who has no account of their own"""
-    addGroupAthlete (groupId: ID!, name: String!): GroupMember!
+    addGroupAthlete (groupId: ID!, name: String!): GroupMember! @requiresScopes(scopes: [[account]])
     """The member as it should be once the update is applied"""
-    updateGroupMember (memberId: ID!, data: GroupMemberInput!): GroupMember!
+    updateGroupMember (memberId: ID!, data: GroupMemberInput!): GroupMember! @requiresScopes(scopes: [[account]])
     """One who has competed in a score the group holds is kept as an athlete it manages"""
-    removeGroupMember (memberId: ID!): GroupMember!
-    leaveGroup (groupId: ID!): Group!
+    removeGroupMember (memberId: ID!): GroupMember! @requiresScopes(scopes: [[account]])
+    leaveGroup (groupId: ID!): Group! @requiresScopes(scopes: [[account]])
 
     """
     Invites a user, found by username or id whether or not their profile is
     public. Pass a \`memberId\` to hand over an athlete the group manages.
     """
-    inviteToGroup (groupId: ID!, usernameOrId: ID!, role: GroupRole!, observer: Boolean!, memberId: ID): GroupInvite!
-    cancelGroupInvite (inviteId: ID!): GroupInvite!
+    inviteToGroup (groupId: ID!, usernameOrId: ID!, role: GroupRole!, observer: Boolean!, memberId: ID): GroupInvite! @requiresScopes(scopes: [[account]])
+    cancelGroupInvite (inviteId: ID!): GroupInvite! @requiresScopes(scopes: [[account]])
     """The invited user accepts or declines"""
-    respondToGroupInvite (inviteId: ID!, accept: Boolean!): GroupInvite!
+    respondToGroupInvite (inviteId: ID!, accept: Boolean!): GroupInvite! @requiresScopes(scopes: [[account]])
 
     """Generates a join code, replacing and invalidating any previous one"""
-    setGroupJoinCode (groupId: ID!): Group!
-    clearGroupJoinCode (groupId: ID!): Group!
+    setGroupJoinCode (groupId: ID!): Group! @requiresScopes(scopes: [[account]])
+    clearGroupJoinCode (groupId: ID!): Group! @requiresScopes(scopes: [[account]])
     """Asks to join the group a code belongs to. An admin still has to approve."""
-    requestToJoinGroup (joinCode: String!): GroupInvite!
+    requestToJoinGroup (joinCode: String!): GroupInvite! @requiresScopes(scopes: [[account]])
     """Pass a \`memberId\` to hand the newcomer an athlete the group manages"""
-    respondToGroupJoinRequest (inviteId: ID!, accept: Boolean!, memberId: ID): GroupInvite!
+    respondToGroupJoinRequest (inviteId: ID!, accept: Boolean!, memberId: ID): GroupInvite! @requiresScopes(scopes: [[account]])
 
     """
     Ticks or unticks a trick for a member of a group, admins only. Null when the
     trick was unticked.
     """
-    setGroupMemberTrickCompletion (memberId: ID!, trickId: ID!, completed: Boolean!): TrickCompletion
+    setGroupMemberTrickCompletion (memberId: ID!, trickId: ID!, completed: Boolean!): TrickCompletion @requiresScopes(scopes: [[account]])
 
     # Users
     """The signed in user's language, null clears it"""
-    setUserLang (lang: String): User!
+    setUserLang (lang: String): User! @requiresScopes(scopes: [[account]])
     """The signed in user's colour theme, null follows the system"""
-    setUserTheme (theme: Theme): User!
+    setUserTheme (theme: Theme): User! @requiresScopes(scopes: [[account]])
     """The signed in user's name and username, both are set on every update"""
-    updateUserProfile (data: UserProfileInput!): User!
+    updateUserProfile (data: UserProfileInput!): User! @requiresScopes(scopes: [[account]])
     """What others get to see of the signed in user's profile"""
-    setProfileOptions (data: ProfileOptionsInput!): User!
+    setProfileOptions (data: ProfileOptionsInput!): User! @requiresScopes(scopes: [[account]])
     """What the signed in user is emailed about"""
-    setNotificationOptions (data: NotificationOptionsInput!): User!
-    setUserGrants (userId: ID!, grants: [GrantInput!]!): User!
+    setNotificationOptions (data: NotificationOptionsInput!): User! @requiresScopes(scopes: [[account]])
+    setUserGrants (userId: ID!, grants: [GrantInput!]!): User! @requiresScopes(scopes: [[admin]])
+
+    # API clients (super admins)
+    """Refused for an ID that is taken, the built in clients' included"""
+    createApiClient (clientId: ID!, data: ApiClientInput!): ApiClient! @requiresScopes(scopes: [[admin]])
+    """Built in clients can't be changed, only their keys"""
+    updateApiClient (clientId: ID!, data: ApiClientInput!): ApiClient! @requiresScopes(scopes: [[admin]])
+    """A disabled client's keys don't work until it's enabled again"""
+    setApiClientEnabled (clientId: ID!, enabled: Boolean!): ApiClient! @requiresScopes(scopes: [[admin]])
+    """The key is only in the response, the API stores its hash"""
+    issueApiKey (clientId: ID!): IssuedApiKey! @requiresScopes(scopes: [[admin]])
+    revokeApiKey (keyId: ID!): ApiKey! @requiresScopes(scopes: [[admin]])
   }
 
   type Trick @cacheControl(maxAge: 3600) {
@@ -309,7 +346,7 @@ const typeDefs = gql`
     The video uploads of this trick that haven't finished processing yet.
     Empty for users who may not edit trick videos.
     """
-    pendingVideoUploads: [TrickVideoUpload!]! @cacheControl(maxAge: 0, scope: PRIVATE)
+    pendingVideoUploads: [TrickVideoUpload!]! @cacheControl(maxAge: 0, scope: PRIVATE) @requiresScopes(scopes: [[admin]])
     levels (rulesId: String): [TrickLevel!]!
 
     prerequisites: [Trick!]!
@@ -725,7 +762,7 @@ const typeDefs = gql`
     slowMoStart: Float
   }
 
-  type User {
+  type User @requiresScopes(scopes: [[profiles], [account], [admin]]) {
     id: ID!
     username: String
     name: String
@@ -1340,6 +1377,47 @@ const typeDefs = gql`
   input ProductInput {
     productId: String!
     quantity: Int!
+  }
+
+  """Who calls the API, identified by a key in the \`Api-Key\` header"""
+  type ApiClient {
+    id: ID!
+    name: String!
+    contact: String
+    scopes: [Scope!]!
+    """Regular expressions the whole browser origin has to match"""
+    origins: [String!]!
+    """Defined in the API: \`anonymous\`, \`web\` and \`admin\`"""
+    builtIn: Boolean!
+    enabled: Boolean!
+    """Newest first"""
+    keys: [ApiKey!]!
+    createdAt: Timestamp
+    updatedAt: Timestamp
+  }
+
+  type ApiKey {
+    """The key's SHA-256"""
+    id: ID!
+    """The start of the key"""
+    hint: String!
+    createdAt: Timestamp!
+    revokedAt: Timestamp
+  }
+
+  type IssuedApiKey {
+    """Shown this once"""
+    key: String!
+    apiKey: ApiKey!
+  }
+
+  input ApiClientInput {
+    name: String!
+    contact: String
+    """\`public\`, \`site\` and \`profiles\`, the others are for the Tricktionary's own apps"""
+    scopes: [Scope!]!
+    """Regular expressions the whole browser origin has to match, none for a client that only calls from servers"""
+    origins: [String!]!
   }
 `
 
