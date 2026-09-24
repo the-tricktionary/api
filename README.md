@@ -79,26 +79,30 @@ the PDFs.
 
 ## Tags
 
-Tricks carry tags from the `tags` collection, keyed by slug. A tag is a flag, a
+Tricks carry tags from the `tags` collection, by tag ID. A tag is a flag, a
 number (optionally bounded and stepped) or an enum with named values, and may be
-limited to disciplines. Tag wranglers define tags and their English names,
-translators translate them and trick editors apply them. A change that would
-leave a tagged trick with a value the tag no longer allows is refused.
+limited to disciplines. Its slug is what searches call it, and tags may share a
+slug as long as they share no discipline: `#slug` means the tag of the trick's
+discipline. A slug can only be reused for disciplines no tag with it covers yet.
+Tag wranglers define tags and their English names, translators translate them
+and trick editors apply them. A change that would leave a tagged trick with a
+value the tag no longer allows is refused.
 
 A number or enum tag can be required: a trick of its disciplines is only
 created, or has its tags or discipline changed, with it. Making a tag required
 leaves the tricks without it as they are, the `missingRequiredTags` trick filter
 finds them.
 
-The built in `trick-type` tag, from the seed, is a required enum tag on tricks
-of every discipline, holding the trick type. Its values are data like any enum
-tag's, the booklet orders and colours the types by them.
+The seed creates a built in trick type tag per discipline, all with the slug
+`trick-type`: required enum tags holding the trick type. Their values are data
+like any enum tag's, the booklet orders and colours the types by them.
 `npx tsx src/migrations/trick-type-tag.ts` moved the trick type there from the
 tricks' former `trickType` field.
 
-Search queries filter by tag with `#tag`, `#tag:value` or `#tag:>3`, see the
-`tricks` query. The API applies these filters itself, only the rest of the
-query goes to Algolia.
+Search queries filter by tag with `#slug`, `#slug:value` or `#slug:>3`, and the
+`tags` trick filter does the same without a query string, see the `tricks`
+query. The API applies these filters itself, only the rest of the query goes to
+Algolia.
 
 ## Search (Algolia)
 

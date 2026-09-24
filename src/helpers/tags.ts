@@ -1,6 +1,5 @@
 import { NotFoundError, ValidationError } from '../errors.js'
 import { TagValueType } from '../generated/graphql.js'
-import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
 import { localised } from './localised.js'
 
 import type z from 'zod'
@@ -22,12 +21,6 @@ export interface TrickTagModel {
 /** Allowance for floating point error when checking steps */
 const STEP_EPSILON = 1e-9
 
-/** The ID of the `trick-type` value the trick holds */
-export function trickTypeOf (trick: Pick<TrickDoc, 'tags'>): string | undefined {
-  const value = trick.tags[TRICK_TYPE_TAG_ID]
-  return Array.isArray(value) ? value[0] : undefined
-}
-
 export function tagValues (tag: Pick<TagDoc, 'values'>): TagValueModel[] {
   return Object.entries(tag.values ?? {})
     .sort(([idA, a], [idB, b]) => a.order - b.order || idA.localeCompare(idB))
@@ -42,6 +35,16 @@ export function byTagOrder (a: TagDoc, b: TagDoc) {
 
 export function tagAppliesTo (tag: Pick<TagDoc, 'disciplines'>, discipline: Discipline) {
   return tag.disciplines.length === 0 || tag.disciplines.includes(discipline)
+}
+
+/** Whether two tags could apply to a trick of the same discipline */
+export function disciplinesOverlap (a: readonly Discipline[], b: readonly Discipline[]) {
+  return a.length === 0 || b.length === 0 || a.some(discipline => b.includes(discipline))
+}
+
+/** The tag a trick of the discipline has under the slug */
+export function tagFor<T extends Pick<TagDoc, 'slug' | 'disciplines'>> (tags: readonly T[], slug: string, discipline: Discipline) {
+  return tags.find(tag => tag.slug === slug && tagAppliesTo(tag, discipline))
 }
 
 function describeNumberRange (tag: Pick<TagDoc, 'min' | 'max' | 'step'>) {
@@ -65,23 +68,23 @@ function numberAllowed (tag: Pick<TagDoc, 'min' | 'max' | 'step'>, value: number
 
 /** Why a trick of the discipline can't hold the value, null when it can */
 export function trickTagProblem (tag: TagDoc, value: TrickTagValue, discipline: Discipline): string | null {
-  if (!tagAppliesTo(tag, discipline)) return `the tag ${tag.id} does not apply to ${discipline} tricks`
+  if (!tagAppliesTo(tag, discipline)) return `the tag ${tag.slug} does not apply to ${discipline} tricks`
 
   switch (tag.valueType) {
     case TagValueType.Flag:
-      return value === true ? null : `the tag ${tag.id} holds no value`
+      return value === true ? null : `the tag ${tag.slug} holds no value`
     case TagValueType.Number:
-      if (typeof value !== 'number') return `the tag ${tag.id} holds a number`
-      return numberAllowed(tag, value) ? null : `the tag ${tag.id} holds numbers ${describeNumberRange(tag)}`
+      if (typeof value !== 'number') return `the tag ${tag.slug} holds a number`
+      return numberAllowed(tag, value) ? null : `the tag ${tag.slug} holds numbers ${describeNumberRange(tag)}`
     case TagValueType.Enum: {
-      if (!Array.isArray(value) || value.length === 0) return `the tag ${tag.id} holds one of its values`
-      if (tag.multiple !== true && value.length > 1) return `the tag ${tag.id} holds only one of its values`
-      if (new Set(value).size !== value.length) return `a value of the tag ${tag.id} is given more than once`
+      if (!Array.isArray(value) || value.length === 0) return `the tag ${tag.slug} holds one of its values`
+      if (tag.multiple !== true && value.length > 1) return `the tag ${tag.slug} holds only one of its values`
+      if (new Set(value).size !== value.length) return `a value of the tag ${tag.slug} is given more than once`
       const unknown = value.find(valueId => tag.values?.[valueId] == null)
-      return unknown == null ? null : `the tag ${tag.id} has no value ${unknown}`
+      return unknown == null ? null : `the tag ${tag.slug} has no value ${unknown}`
     }
     default:
-      return `the tag ${tag.id} has an unknown type`
+      return `the tag ${tag.slug} has an unknown type`
   }
 }
 
@@ -99,7 +102,7 @@ function assertTrickTags (values: TrickDoc['tags'], discipline: Discipline, tags
       const problem = tag != null ? trickTagProblem(tag, value, discipline) : `there is no tag ${tagId}`
       return problem != null ? [problem] : []
     }),
-    ...missingRequiredTags(values, discipline, tags).map(tag => `the tag ${tag.id} is required on ${discipline} tricks`)
+    ...missingRequiredTags(values, discipline, tags).map(tag => `the tag ${tag.slug} is required on ${discipline} tricks`)
   ]
   if (problems.length > 0) throw new ValidationError(`${refusal}: ${problems.join('; ')}`)
 }
@@ -115,7 +118,7 @@ export async function trickTagsFromInput (inputs: z.output<typeof trickTagsInput
     const tag = byId.get(input.tagId)
     if (tag == null) throw new NotFoundError(`Tag ${input.tagId} not found`, { extensions: { entity: 'tag', id: input.tagId } })
     const value = trickTagValueFromInput(tag, input)
-    if (value === undefined) mismatched.push(`the tag ${tag.id} is a ${tag.valueType} tag`)
+    if (value === undefined) mismatched.push(`the tag ${tag.slug} is a ${tag.valueType} tag`)
     else values[tag.id] = value
   }
   if (mismatched.length > 0) throw new ValidationError(`The tags cannot be set: ${mismatched.join('; ')}`)
@@ -147,8 +150,19 @@ function trickTagValueFromInput (tag: Pick<TagDoc, 'valueType'>, input: { number
 
 /** Lowercased, the value is interpreted against the tag's type when matching */
 export interface TagQueryToken {
-  tagId: string
+  slug: string
   value?: string
+}
+
+/** What a trick has to hold of a tag, it only has to carry it when empty */
+export interface TagCondition {
+  /** Enum tags, one of these */
+  values?: readonly string[] | null
+  /** Number tags */
+  min?: number | null
+  max?: number | null
+  /** Leaves out a number at `min` or `max` */
+  exclusive?: boolean
 }
 
 const TAG_TOKEN = /^#([a-z0-9]+(?:-[a-z0-9]+)*)(?::(\S+))?$/
@@ -160,40 +174,68 @@ export function parseTagQuery (query: string): { text: string, tokens: TagQueryT
   const words: string[] = []
   for (const word of query.trim().split(/\s+/)) {
     const match = TAG_TOKEN.exec(word.toLowerCase())
-    if (match != null) tokens.push({ tagId: match[1], ...(match[2] != null ? { value: match[2] } : {}) })
+    if (match != null) tokens.push({ slug: match[1], ...(match[2] != null ? { value: match[2] } : {}) })
     else if (word !== '') words.push(word)
   }
   return { text: words.join(' '), tokens }
 }
 
-/** An unknown tag, or a value the tag can't hold, matches nothing */
-function tokenMatches (token: TagQueryToken, tag: TagDoc | undefined, value: TrickTagValue | undefined) {
-  if (tag == null || value == null) return false
-  if (token.value == null) return true
-
+/** Null when the token asks for something the tag can't hold */
+function tokenCondition (token: TagQueryToken, tag: TagDoc): TagCondition | null {
+  if (token.value == null) return {}
   switch (tag.valueType) {
     case TagValueType.Number: {
-      const condition = NUMBER_CONDITION.exec(token.value)
-      if (!condition || typeof value !== 'number') return false
-      const target = parseFloat(condition[2])
-      switch (condition[1]) {
-        case '>': return value > target
-        case '>=': return value >= target
-        case '<': return value < target
-        case '<=': return value <= target
-        default: return Math.abs(value - target) <= STEP_EPSILON
+      const match = NUMBER_CONDITION.exec(token.value)
+      if (match == null) return null
+      const target = parseFloat(match[2])
+      switch (match[1]) {
+        case '>': return { min: target, exclusive: true }
+        case '>=': return { min: target }
+        case '<': return { max: target, exclusive: true }
+        case '<=': return { max: target }
+        default: return { min: target, max: target }
       }
     }
     case TagValueType.Enum:
-      return Array.isArray(value) && value.includes(token.value)
+      return { values: [token.value] }
     default:
-      return false
+      return null
   }
 }
 
-/** `tags` has to hold at least the tags the tokens name */
-export function matchesTagQuery (trick: Pick<TrickDoc, 'tags'>, tokens: readonly TagQueryToken[], tags: ReadonlyMap<string, TagDoc>) {
-  return tokens.every(token => tokenMatches(token, tags.get(token.tagId), trick.tags[token.tagId]))
+/** Numbers within the step allowance of each other are equal */
+function compare (a: number, b: number) {
+  return Math.abs(a - b) <= STEP_EPSILON ? 0 : Math.sign(a - b)
+}
+
+function conditionMet (condition: TagCondition, value: TrickTagValue | undefined) {
+  if (value == null) return false
+  if (condition.values != null && !(Array.isArray(value) && condition.values.some(valueId => value.includes(valueId)))) return false
+  if (condition.min == null && condition.max == null) return true
+  if (typeof value !== 'number') return false
+  const low = condition.min != null ? compare(value, condition.min) : 1
+  const high = condition.max != null ? compare(value, condition.max) : -1
+  return condition.exclusive === true ? low > 0 && high < 0 : low >= 0 && high <= 0
+}
+
+/**
+ * Whether the trick meets every token and filter, by the tags of its
+ * discipline. An unknown slug, or a value the tag can't hold, matches nothing.
+ */
+export function matchesTags (
+  trick: Pick<TrickDoc, 'tags' | 'discipline'>,
+  tokens: readonly TagQueryToken[],
+  filters: ReadonlyArray<TagCondition & { slug: string }>,
+  tags: readonly TagDoc[]
+) {
+  function met (slug: string, conditionFor: (tag: TagDoc) => TagCondition | null) {
+    const tag = tagFor(tags, slug, trick.discipline)
+    if (tag == null) return false
+    const condition = conditionFor(tag)
+    return condition != null && conditionMet(condition, trick.tags[tag.id])
+  }
+  return tokens.every(token => met(token.slug, tag => tokenCondition(token, tag))) &&
+    filters.every(filter => met(filter.slug, () => filter))
 }
 
 /** The names of a trick's tags and of the enum values it holds */

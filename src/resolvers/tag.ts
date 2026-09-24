@@ -2,15 +2,17 @@ import { FieldPath, FieldValue } from 'firebase-admin/firestore'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { TagValueType } from '../generated/graphql.js'
 import { localised, localisedStrings } from '../helpers/localised.js'
-import { byTagOrder, tagAppliesTo, tagValues, trickTagProblem } from '../helpers/tags.js'
+import { byTagOrder, disciplinesOverlap, tagAppliesTo, tagValues, trickTagProblem } from '../helpers/tags.js'
 import { tryIndexTricks } from '../services/algolia.js'
 import { writeInChunks } from '../store/firestoreDataSource.js'
-import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
-import { langSchema, tagIdSchema, tagInputSchema, tagLocalisationSchema } from '../validation.js'
+import { TRICK_TYPE_SLUG } from '../store/schema.js'
+import { langSchema, tagInputSchema, tagLocalisationSchema, tagSlugSchema } from '../validation.js'
 
+import type { Transaction } from 'firebase-admin/firestore'
 import type z from 'zod'
 import type { ApolloContext } from '../apollo.js'
-import type { Resolvers } from '../generated/graphql.js'
+import type { Discipline, Resolvers } from '../generated/graphql.js'
+import type { DataSources } from '../store/firestoreDataSource.js'
 import type { TagDoc, TagEnumValue, TrickDoc } from '../store/schema.js'
 
 type ParsedTag = z.output<typeof tagInputSchema>
@@ -26,8 +28,9 @@ async function existingTag (tagId: string, { dataSources }: Pick<ApolloContext, 
 }
 
 /** Keeps the existing translations of the tag and of the values it keeps */
-function tagFields (parsed: ParsedTag, existing: TagDoc | undefined, updatedBy: string): TagFields {
+function tagFields (parsed: ParsedTag, slug: string, existing: TagDoc | undefined, updatedBy: string): TagFields {
   return {
+    slug,
     valueType: parsed.valueType,
     names: { ...existing?.names, en: parsed.name },
     disciplines: parsed.disciplines,
@@ -44,7 +47,7 @@ function tagFields (parsed: ParsedTag, existing: TagDoc | undefined, updatedBy: 
         }
       : {}),
     ...(parsed.required === true ? { required: true as const } : {}),
-    ...(existing?.system ? { system: true as const } : {}),
+    ...(existing?.system === true ? { system: true as const } : {}),
     updatedBy
   }
 }
@@ -67,10 +70,21 @@ function refuse (message: string, problems: Array<{ trick: TrickDoc, problem: st
   throw new ValidationError(`${message}: ${listed.join('; ')}${more}`)
 }
 
-/** Every trick holds one of the trick type tag's values */
+/** Every trick holds one of the values of its discipline's trick type tag */
 function assertSystemTagShape (existing: TagDoc, parsed: ParsedTag) {
-  if (parsed.valueType !== TagValueType.Enum || parsed.disciplines.length > 0 || parsed.multiple === true || parsed.required !== true) {
-    throw new ValidationError(`Only the values and names of the ${existing.id} tag can change, it is a required enum tag holding one value on tricks of every discipline`)
+  const sameDisciplines = parsed.disciplines.length === existing.disciplines.length && parsed.disciplines.every(discipline => existing.disciplines.includes(discipline))
+  if (parsed.valueType !== TagValueType.Enum || !sameDisciplines || parsed.multiple === true || parsed.required !== true) {
+    throw new ValidationError(`Only the values and names of the ${existing.slug} tag can change, it is a required enum tag holding one value`)
+  }
+}
+
+/** Read in the transaction that writes the tag, so two tags can't take the slug at once */
+async function assertSlugFree (t: Transaction, collection: DataSources['tags']['collection'], slug: string, disciplines: Discipline[], ownId?: string) {
+  const taken = (await t.get(collection.where('slug', '==', slug))).docs
+    .map(dSnap => dSnap.data())
+    .find(other => other.id !== ownId && disciplinesOverlap(other.disciplines, disciplines))
+  if (taken != null) {
+    throw new CollisionError(`The tag ${localised(taken.names)} already has the slug ${slug} in a discipline this one applies to`, { extensions: { entity: 'tag', id: taken.id } })
   }
 }
 
@@ -87,23 +101,21 @@ export const tagResolvers: Resolvers = {
     }
   },
   Mutation: {
-    async createTag (_, { tagId, data }, { dataSources, allowUser, user }) {
+    async createTag (_, { slug, data }, { dataSources, allowUser, user }) {
       allowUser.createTag.assert()
       if (user == null) throw new AuthorizationError()
-      const id = tagIdSchema.parse(tagId)
+      const parsedSlug = tagSlugSchema.parse(slug)
       const parsed = tagInputSchema.parse(data)
-
-      if (id === TRICK_TYPE_TAG_ID) throw new CollisionError(`The tag ${id} is built in`, { extensions: { entity: 'tag', id } })
+      if (parsedSlug === TRICK_TYPE_SLUG) throw new ValidationError(`The slug ${parsedSlug} is kept for the built in trick type tags`)
 
       const collection = dataSources.tags.collection
+      const ref = collection.doc()
       await collection.firestore.runTransaction(async t => {
-        const dSnap = await t.get(collection.doc(id))
-        if (dSnap.exists) throw new CollisionError(`A tag with the id ${id} already exists`, { extensions: { entity: 'tag', id } })
-        t.create(collection.doc(id).withConverter(null), tagFields(parsed, undefined, user.id))
+        await assertSlugFree(t, collection, parsedSlug, parsed.disciplines)
+        t.create(ref.withConverter(null), tagFields(parsed, parsedSlug, undefined, user.id))
       })
-      await dataSources.tags.deleteFromCacheById(id)
 
-      return await existingTag(id, { dataSources })
+      return await existingTag(ref.id, { dataSources })
     },
     async updateTag (_, { tagId, data }, { dataSources, allowUser, user, logger }) {
       allowUser.editTag.assert()
@@ -113,19 +125,20 @@ export const tagResolvers: Resolvers = {
       if (existing.system === true) assertSystemTagShape(existing, parsed)
 
       const carrying = await dataSources.tricks.findManyByTag(existing.id)
-      const next: TagDoc = { id: existing.id, collection: existing.collection, createdAt: existing.createdAt, updatedAt: existing.updatedAt, ...tagFields(parsed, existing, user.id) }
+      const next: TagDoc = { id: existing.id, collection: existing.collection, createdAt: existing.createdAt, updatedAt: existing.updatedAt, ...tagFields(parsed, existing.slug, existing, user.id) }
       const problems = carrying.flatMap(trick => {
         const problem = trickTagProblem(next, trick.tags[existing.id], trick.discipline)
         return problem != null ? [{ trick, problem }] : []
       })
-      if (problems.length > 0) refuse(`The tag ${existing.id} cannot change like that, tricks carrying it would no longer fit it`, problems)
+      if (problems.length > 0) refuse(`The tag ${existing.slug} cannot change like that, tricks carrying it would no longer fit it`, problems)
 
       // a transaction keeps a concurrent translation
       const collection = dataSources.tags.collection
       const updated = await collection.firestore.runTransaction(async t => {
         const current = (await t.get(collection.doc(existing.id))).data()
         if (current == null) throw new NotFoundError(`Tag ${existing.id} not found`, { extensions: { entity: 'tag', id: existing.id } })
-        const fields = tagFields(parsed, current, user.id)
+        await assertSlugFree(t, collection, current.slug, parsed.disciplines, current.id)
+        const fields = tagFields(parsed, current.slug, current, user.id)
         t.set(collection.doc(existing.id).withConverter(null), fields)
         return { current, fields }
       })
@@ -141,7 +154,7 @@ export const tagResolvers: Resolvers = {
       allowUser.deleteTag.assert()
       if (user == null) throw new AuthorizationError()
       const tag = await existingTag(tagId, { dataSources })
-      if (tag.system === true) throw new ValidationError(`The ${tag.id} tag is built in and cannot be deleted`)
+      if (tag.system === true) throw new ValidationError(`The ${tag.slug} tag is built in and cannot be deleted`)
 
       // tricks first, so a failed delete can be retried
       const tricks = await dataSources.tricks.findManyByTag(tag.id)
@@ -176,7 +189,7 @@ export const tagResolvers: Resolvers = {
         const values = { ...current.values }
         for (const value of parsed.values ?? []) {
           const existingValue = values[value.id]
-          if (existingValue == null) throw new ValidationError(`The tag ${tag.id} has no value ${value.id}`)
+          if (existingValue == null) throw new ValidationError(`The tag ${tag.slug} has no value ${value.id}`)
           values[value.id] = { ...existingValue, names: withName(existingValue.names, parsedLang, value.name) }
         }
 

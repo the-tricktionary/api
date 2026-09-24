@@ -3,9 +3,9 @@ import { NotFoundError } from '../errors.js'
 import { Discipline } from '../generated/graphql.js'
 import { DISCIPLINE_SLUGS, disciplineFromSlug, disciplineSlug } from '../helpers/disciplines.js'
 import { localised } from '../helpers/localised.js'
-import { tagValues, trickTypeOf } from '../helpers/tags.js'
+import { tagFor, tagValues } from '../helpers/tags.js'
 import { uiMessageValues } from '../helpers/uiMessages.js'
-import { TRICK_TYPE_TAG_ID, TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
+import { TRICK_TYPE_SLUG, TRICKTIONARY_RULES_ID, trickLocalisationId } from '../store/schema.js'
 import { langSchema, rulesIdSchema } from '../validation.js'
 import { compileTypst } from './typst.js'
 import { renderDotToSvg } from './graphviz.js'
@@ -77,7 +77,7 @@ const TRICK_TYPE_PALETTE = ['#fe3500', '#1f77b4', '#2ca02c', '#9467bd', '#ff7f0e
 
 /** Everything a booklet is typeset from, as loaded from Firestore and the site */
 export interface BookletSources {
-  /** `trickType` is the value of the `trick-type` tag */
+  /** `trickType` is the value of the discipline's trick type tag */
   tricks: Array<Pick<TrickDoc, 'id' | 'slug' | 'discipline'> & { trickType: string }>
   /** The English localisations and, for another language, its localisations */
   localisations: Array<Pick<TrickLocalisationDoc, 'id' | 'trickId' | 'name' | 'alternativeNames' | 'description'>>
@@ -192,18 +192,19 @@ interface LoadContext {
 export async function loadBookletSources (options: BookletOptions, { dataSources, logger, webUrl }: LoadContext): Promise<BookletSources> {
   const { lang, rulesId, discipline, layout } = options
 
-  const [language, ruleset, tricks, siteMessages, translations, prerequisites, trickTypeTag] = await Promise.all([
+  const [language, ruleset, tricks, siteMessages, translations, prerequisites, tags] = await Promise.all([
     dataSources.languages.findOneById(lang, { ttl: 3600 }),
     rulesId == null ? null : dataSources.rulesets.findOneById(rulesId, { ttl: 3600 }),
     dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 }),
     siteEnglishMessages({ webUrl, logger }),
     lang === 'en' ? null : dataSources.uiMessages.findOneById(lang, { ttl: 3600 }),
     layout === 'print' ? dataSources.trickPrerequisites.findAll({ ttl: 3600 }) : [],
-    dataSources.tags.findOneById(TRICK_TYPE_TAG_ID, { ttl: 3600 })
+    dataSources.tags.findAll({ ttl: 3600 })
   ])
   if (!language?.enabled) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
   if (rulesId != null && !ruleset) throw new NotFoundError(`Ruleset ${rulesId} not found`, { extensions: { entity: 'ruleset', id: rulesId } })
-  if (trickTypeTag == null) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts`)
+  const trickTypeTag = tagFor(tags, TRICK_TYPE_SLUG, discipline)
+  if (trickTypeTag == null) throw new Error(`There is no ${TRICK_TYPE_SLUG} tag for ${discipline}, run src/migrations/seed.ts`)
 
   const trickIds = tricks.map(trick => trick.id)
   const localisationIds = trickIds.map(id => trickLocalisationId(id, 'en'))
@@ -218,7 +219,10 @@ export async function loadBookletSources (options: BookletOptions, { dataSources
   const inDiscipline = new Set(trickIds)
 
   return {
-    tricks: tricks.map(trick => ({ id: trick.id, slug: trick.slug, discipline: trick.discipline, trickType: trickTypeOf(trick) ?? '' })),
+    tricks: tricks.map(trick => {
+      const trickType = trick.tags[trickTypeTag.id]
+      return { id: trick.id, slug: trick.slug, discipline: trick.discipline, trickType: Array.isArray(trickType) ? trickType[0] : '' }
+    }),
     trickTypeTag,
     localisations: localisations.filter(localisation => localisation != null),
     levels: [...tricktionaryLevels, ...rulesetLevels].filter(level => inDiscipline.has(level.trickId)),

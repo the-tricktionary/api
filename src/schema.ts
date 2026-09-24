@@ -87,11 +87,12 @@ const typeDefs = gql`
     trick (id: ID!): Trick
     trickBySlug (discipline: Discipline!, slug: String!): Trick
     """
-    A \`searchQuery\` may hold tag filters, which every trick returned
-    matches: \`#tag\` for a trick carrying the tag, \`#tag:value\` for one
-    holding an enum value, and \`#tag:3\`, \`#tag:>3\`, \`#tag:>=3\`,
-    \`#tag:<3\` or \`#tag:<=3\` for a number. An unknown tag or value matches
-    nothing. The rest of the query is searched for as text.
+    A \`searchQuery\` may hold tag filters by slug, which every trick returned
+    matches: \`#slug\` for a trick carrying the tag, \`#slug:value\` for one
+    holding an enum value, and \`#slug:3\`, \`#slug:>3\`, \`#slug:>=3\`,
+    \`#slug:<3\` or \`#slug:<=3\` for a number. A slug means the tag of the
+    trick's discipline. An unknown tag or value matches nothing. The rest of
+    the query is searched for as text.
     """
     tricks (
       discipline: Discipline,
@@ -144,14 +145,16 @@ const typeDefs = gql`
     removeTrickPrerequisite (trickId: ID!, prerequisiteId: ID!): Trick!
 
     # Tags (tag wranglers)
-    createTag (tagId: ID!, data: TagInput!): Tag!
+    """Refused when a tag with the slug shares a discipline with it"""
+    createTag (slug: String!, data: TagInput!): Tag!
     """
     Refused when a trick carrying the tag would no longer hold a value the tag
-    allows. Tricks lacking a tag it makes required are not, see
+    allows, or when a tag with its slug shares a discipline with it. Tricks
+    lacking a tag it makes required are not in the way, see
     \`TrickFilter.missingRequiredTags\`.
     """
     updateTag (tagId: ID!, data: TagInput!): Tag!
-    """Removes the tag from every trick carrying it. The trick type tag cannot be deleted."""
+    """Removes the tag from every trick carrying it. Trick type tags cannot be deleted."""
     deleteTag (tagId: ID!): Tag!
     """
     Names of a tag and its values in a language other than English, which
@@ -365,8 +368,9 @@ const typeDefs = gql`
   }
 
   type Tag @cacheControl(maxAge: 3600) {
-    """A slug, as search queries spell it"""
     id: ID!
+    """What search queries call the tag, no two tags sharing a discipline share it"""
+    slug: String!
     """The name in \`lang\`, falling back to its primary subtag and then to English"""
     name (lang: String): String!
     names: [LocalisedString!]!
@@ -385,7 +389,7 @@ const typeDefs = gql`
     values: [TagValue!]!
     """Every trick of its disciplines has to carry it. Never a flag tag."""
     required: Boolean!
-    """The trick type: cannot be deleted, and only its values and names can change"""
+    """A trick type tag, one per discipline: cannot be deleted, and only its values and names can change"""
     system: Boolean!
     """How many tricks carry the tag"""
     trickCount: Int! @cacheControl(maxAge: 60)
@@ -469,6 +473,19 @@ const typeDefs = gql`
     withoutVideos: Boolean
     """Tricks lacking a tag their discipline requires"""
     missingRequiredTags: Boolean
+    """Tricks matching every one"""
+    tags: [TrickTagFilter!]
+  }
+
+  """Like the \`#slug\` of a search query, by the tag of each trick's discipline"""
+  input TrickTagFilter {
+    slug: String!
+    """Enum tags only, holding one of these values"""
+    values: [ID!]
+    """Number tags only, at least"""
+    min: Float
+    """Number tags only, at most"""
+    max: Float
   }
 
   type Ruleset @cacheControl(maxAge: 3600) {

@@ -102,10 +102,11 @@ export interface TagEnumValue {
   order: number
 }
 
-/** The document ID is the tag's slug */
 export interface TagDoc extends DocBase {
   readonly collection: 'tags'
 
+  /** What searches call the tag, no two tags sharing a discipline share it */
+  slug: string
   valueType: TagValueType
   /** lang -> display name, `en` is required */
   names: Record<string, string>
@@ -125,13 +126,14 @@ export interface TagDoc extends DocBase {
 
   /** Every trick of its disciplines has to carry it */
   required?: true
-  /** The built in `trick-type` tag, only its values and names can change */
+  /** A built in trick type tag, only its values and names can change */
   system?: true
   updatedBy?: UserDoc['id']
 }
 export function isTag (t: any): t is TagDoc { return t?.collection === 'tags' }
 
-export const TRICK_TYPE_TAG_ID = 'trick-type'
+/** The slug of the built in tags holding the trick type, one per discipline */
+export const TRICK_TYPE_SLUG = 'trick-type'
 
 export interface TrickLocalisationDoc extends DocBase {
   readonly collection: 'trick-localisations'

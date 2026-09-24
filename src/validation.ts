@@ -89,7 +89,9 @@ export const attributionInputSchema = z.object({
 const MAX_TAG_VALUES = 50
 
 /** Also the ID of an enum tag's value */
-export const tagIdSchema = slugSchema.max(40, 'An ID can be at most 40 characters')
+export const tagSlugSchema = slugSchema.max(40, 'A slug can be at most 40 characters')
+
+export const tagIdSchema = z.string().regex(/^[\w-]{1,64}$/, 'That is not a tag ID')
 
 const tagNameSchema = z.string().trim().max(60, 'A name can be at most 60 characters')
 const requiredTagNameSchema = tagNameSchema.min(1, 'A name is required')
@@ -105,7 +107,7 @@ export const tagInputSchema = z.object({
   max: tagNumberSchema.nullish(),
   step: tagNumberSchema.positive('A step has to be more than 0').nullish(),
   multiple: z.boolean().nullish(),
-  values: z.array(z.object({ id: tagIdSchema, name: requiredTagNameSchema }))
+  values: z.array(z.object({ id: tagSlugSchema, name: requiredTagNameSchema }))
     .max(MAX_TAG_VALUES, `A tag can have at most ${MAX_TAG_VALUES} values`)
     .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
     .nullish(),
@@ -126,7 +128,7 @@ export const tagInputSchema = z.object({
 /** An empty name removes the translation */
 export const tagLocalisationSchema = z.object({
   name: tagNameSchema.nullish(),
-  values: z.array(z.object({ id: tagIdSchema, name: tagNameSchema.nullish() }))
+  values: z.array(z.object({ id: tagSlugSchema, name: tagNameSchema.nullish() }))
     .refine(values => new Set(values.map(value => value.id)).size === values.length, 'Each value may only be listed once')
     .nullish()
 })
@@ -134,9 +136,16 @@ export const tagLocalisationSchema = z.object({
 export const trickTagsInputSchema = z.array(z.object({
   tagId: tagIdSchema,
   number: z.number().nullish(),
-  values: z.array(tagIdSchema).nullish()
+  values: z.array(tagSlugSchema).nullish()
 }))
   .refine(tags => new Set(tags.map(tag => tag.tagId)).size === tags.length, 'Each tag may only be listed once')
+
+export const trickTagFiltersSchema = z.array(z.object({
+  slug: tagSlugSchema,
+  values: z.array(tagSlugSchema).min(1, 'Leave values out rather than empty').nullish(),
+  min: z.number().nullish(),
+  max: z.number().nullish()
+}))
 
 // Trick submissions
 

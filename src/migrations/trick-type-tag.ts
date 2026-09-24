@@ -1,17 +1,17 @@
 /**
- * Migration: the trick type moves from the `trickType` field to the
- * `trick-type` tag, which src/migrations/seed.ts creates.
+ * Migration: the trick type moves from the `trickType` field to the trick type
+ * tags, one per discipline, which src/migrations/seed.ts creates.
  *
- *   1. names the tag and its values in every language `ui-messages` has a
- *      translation of `submit.trickType` and `enums.trickType.*` in, where
- *      the tag has no name in that language yet
- *   2. tags every trick without it from its `trickType` field, and deletes the
- *      field
+ *   1. names the tags and their values in every language `ui-messages` has a
+ *      translation of `submit.trickType` and `enums.trickType.*` in, where a
+ *      tag has no name in that language yet
+ *   2. gives every trick without it the trick type tag of its discipline, from
+ *      its `trickType` field, and deletes the field
  *   3. deletes the `trickType` field of trick submissions
  *
- * Nothing is written while a trick has neither the tag nor a `trickType` that
- * is a value of it, those tricks are listed instead. Run the Algolia reindex
- * (src/migrations/algolia-reindex.ts) after it. Idempotent.
+ * Nothing is written while a trick has neither its discipline's tag nor a
+ * `trickType` that is a value of it, those tricks are listed instead. Run the
+ * Algolia reindex (src/migrations/algolia-reindex.ts) after it. Idempotent.
  *
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write
@@ -22,10 +22,13 @@
  */
 import '../config.js'
 import { FieldPath, FieldValue } from 'firebase-admin/firestore'
+import { Discipline } from '../generated/graphql.js'
+import { tagFor } from '../helpers/tags.js'
 import { logger } from '../services/logger.js'
 import { firestore, writeInChunks } from '../store/firestoreDataSource.js'
-import { TRICK_TYPE_TAG_ID } from '../store/schema.js'
+import { TRICK_TYPE_SLUG } from '../store/schema.js'
 
+import type { DocumentReference } from 'firebase-admin/firestore'
 import type { TagDoc, TrickDoc, UiMessagesDoc } from '../store/schema.js'
 
 const dryRun = process.argv.includes('--dry-run')
@@ -42,30 +45,34 @@ const TRICK_TYPE_MESSAGES: Record<string, string> = {
 
 type LegacyTrick = Omit<TrickDoc, 'tags'> & { tags?: TrickDoc['tags'], trickType?: unknown }
 
-const tagRef = firestore.collection('tags').doc(TRICK_TYPE_TAG_ID)
+interface Migration {
+  ref: DocumentReference
+  trick: LegacyTrick
+  tag: TagDoc
+}
 
-/** The tricks to migrate, refused while one has no trick type the tag knows */
-async function legacyTricks (tag: TagDoc) {
+/** The tricks to migrate with their discipline's tag, refused while one has no trick type that tag knows */
+async function legacyTricks (tags: TagDoc[]) {
   const tricks = (await firestore.collection('tricks').get()).docs
-    .map(dSnap => ({ ref: dSnap.ref, trick: dSnap.data() as LegacyTrick }))
+    .map(dSnap => {
+      const trick = dSnap.data() as LegacyTrick
+      return { ref: dSnap.ref, trick, tag: tagFor(tags, TRICK_TYPE_SLUG, trick.discipline) }
+    })
 
-  const untyped = tricks.filter(({ trick }) => trick.tags?.[TRICK_TYPE_TAG_ID] == null && (typeof trick.trickType !== 'string' || tag.values?.[trick.trickType] == null))
+  const untyped = tricks.filter(({ trick, tag }) => tag == null || (trick.tags?.[tag.id] == null && (typeof trick.trickType !== 'string' || tag.values?.[trick.trickType] == null)))
   if (untyped.length > 0) {
-    for (const { ref, trick } of untyped) logger.error({ trickId: ref.id, slug: trick.slug, trickType: trick.trickType }, `The trick ${trick.slug} has no trick type the tag knows`)
-    throw new Error(`${untyped.length} tricks have no trick type, give them one of the ${TRICK_TYPE_TAG_ID} tag's values first`)
+    for (const { ref, trick } of untyped) logger.error({ trickId: ref.id, slug: trick.slug, discipline: trick.discipline, trickType: trick.trickType }, `The trick ${trick.slug} has no trick type its discipline's tag knows`)
+    throw new Error(`${untyped.length} tricks have no trick type, give them one of the values of their discipline's ${TRICK_TYPE_SLUG} tag first`)
   }
 
-  const legacy = tricks.filter(({ trick }) => trick.trickType !== undefined || trick.tags?.[TRICK_TYPE_TAG_ID] == null)
-  logger.info({ total: tricks.length, migrating: legacy.length, dryRun }, 'Moving the trick type of tricks to the tag')
+  const legacy = tricks.filter((migration): migration is Migration => migration.tag != null && (migration.trick.trickType !== undefined || migration.trick.tags?.[migration.tag.id] == null))
+  logger.info({ total: tricks.length, migrating: legacy.length, dryRun }, 'Moving the trick type of tricks to the tags')
   return legacy
 }
 
-async function translateTag () {
-  const translations = (await firestore.collection('ui-messages').get()).docs
-    .map(dSnap => ({ lang: dSnap.id, messages: (dSnap.data() as UiMessagesDoc).messages ?? {} }))
-
+async function translateTag (ref: DocumentReference, translations: Array<{ lang: string, messages: UiMessagesDoc['messages'] }>) {
   await firestore.runTransaction(async t => {
-    const tag = (await t.get(tagRef)).data() as TagDoc
+    const tag = (await t.get(ref)).data() as TagDoc
 
     const named = [
       { key: 'submit.trickType', path: ['names'], names: tag.names },
@@ -76,15 +83,15 @@ async function translateTag () {
     for (const { key, path, names } of named) {
       if (names == null) continue
       for (const { lang, messages } of translations) {
-        const value = messages[key]?.value.trim()
-        if ((value ?? '') !== '' && names[lang] == null) updates.push([new FieldPath(...path, lang), value])
+        const value = messages[key]?.value.trim() ?? ''
+        if (value !== '' && names[lang] == null) updates.push([new FieldPath(...path, lang), value])
       }
     }
 
-    logger.info({ tagId: TRICK_TYPE_TAG_ID, names: updates.length, dryRun }, 'Translating the trick type tag')
+    logger.info({ tagId: ref.id, names: updates.length, dryRun }, 'Translating a trick type tag')
     if (updates.length > 0 && !dryRun) {
       const [[field, value], ...more] = updates
-      t.update(tagRef, field, value, ...more.flat())
+      t.update(ref, field, value, ...more.flat())
     }
   })
 }
@@ -100,16 +107,21 @@ async function migrateSubmissions () {
 }
 
 async function migrate () {
-  const tag = (await tagRef.get()).data() as TagDoc | undefined
-  if (tag == null) throw new Error(`There is no ${TRICK_TYPE_TAG_ID} tag, run src/migrations/seed.ts first`)
-  const tricks = await legacyTricks(tag)
+  const tags = (await firestore.collection('tags').where('slug', '==', TRICK_TYPE_SLUG).get()).docs
+    .map(dSnap => ({ ...dSnap.data(), id: dSnap.id }) as TagDoc)
+  const uncovered = Object.values(Discipline).filter(discipline => tagFor(tags, TRICK_TYPE_SLUG, discipline) == null)
+  if (uncovered.length > 0) throw new Error(`There is no ${TRICK_TYPE_SLUG} tag for ${uncovered.join(', ')}, run src/migrations/seed.ts first`)
+  const tricks = await legacyTricks(tags)
 
-  await translateTag()
+  const translations = (await firestore.collection('ui-messages').get()).docs
+    .map(dSnap => ({ lang: dSnap.id, messages: (dSnap.data() as UiMessagesDoc).messages ?? {} }))
+  for (const tag of tags) await translateTag(firestore.collection('tags').doc(tag.id), translations)
+
   if (!dryRun) {
-    await writeInChunks(tricks, (batch, { ref, trick }) => {
+    await writeInChunks(tricks, (batch, { ref, trick, tag }) => {
       batch.update(
         ref,
-        new FieldPath('tags', TRICK_TYPE_TAG_ID), trick.tags?.[TRICK_TYPE_TAG_ID] ?? [trick.trickType],
+        new FieldPath('tags', tag.id), trick.tags?.[tag.id] ?? [trick.trickType],
         'trickType', FieldValue.delete()
       )
     })

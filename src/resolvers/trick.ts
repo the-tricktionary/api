@@ -3,10 +3,10 @@ import { isTag, isTrick, trickLocalisationId } from '../store/schema.js'
 import { Discipline } from '../generated/graphql.js'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
 import { createTrickWithLocalisation, mergeContributors, submitterProfile, toContributor } from '../helpers/tricks.js'
-import { assertTrickTagsFit, byTagOrder, matchesTagQuery, missingRequiredTags, parseTagQuery, tagValues, trickTagsFromInput } from '../helpers/tags.js'
+import { assertTrickTagsFit, byTagOrder, matchesTags, missingRequiredTags, parseTagQuery, tagValues, trickTagsFromInput } from '../helpers/tags.js'
 import { tryIndexTrick, searchTricks } from '../services/algolia.js'
 import { verificationLevelRank } from '../services/permissions.js'
-import { langSchema, rulesIdSchema, slugSchema, trickLocalisationSchema, trickTagsInputSchema } from '../validation.js'
+import { langSchema, rulesIdSchema, slugSchema, trickLocalisationSchema, trickTagFiltersSchema, trickTagsInputSchema } from '../validation.js'
 
 import type { Resolvers } from '../generated/graphql.js'
 import type { TrickDoc, TrickLocalisationDoc } from '../store/schema.js'
@@ -38,10 +38,10 @@ export const trickResolvers: Resolvers = {
         tricks = await dataSources.tricks.findManyByDiscipline(discipline, { ttl: 3600 })
       }
 
-      if (tokens.length > 0) {
-        const tags = await dataSources.tags.findManyByIds([...new Set(tokens.map(token => token.tagId))], { ttl: 3600 })
-        const tagsById = new Map(tags.filter(isTag).map(tag => [tag.id, tag]))
-        tricks = tricks.filter(trick => matchesTagQuery(trick, tokens, tagsById))
+      const tagFilters = filter?.tags != null ? trickTagFiltersSchema.parse(filter.tags) : []
+      if (tokens.length > 0 || tagFilters.length > 0) {
+        const tags = await dataSources.tags.findAll({ ttl: 3600 })
+        tricks = tricks.filter(trick => matchesTags(trick, tokens, tagFilters, tags))
       }
 
       if (filter?.withoutVideos === true) {

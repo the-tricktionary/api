@@ -4,12 +4,14 @@
  *   - `languages/en`, enabled
  *   - `rulesets/tricktionary`, and a primary ruleset, the Tricktionary's when
  *     there is none
- *   - `tags/trick-type`, built in, created with the default trick types
+ *   - a built in trick type tag per discipline, `tags/trick-type-<discipline>`
+ *     with the slug `trick-type`, created with the default trick types
  *
  * Creates what is missing. In what exists it fixes only what the code relies
  * on, a name is only filled in where the English one is missing, and the trick
  * types are left to the tag wranglers. More than one primary ruleset is
- * reported rather than fixed, which one stays primary is a choice for an admin.
+ * reported rather than fixed, which one stays primary is a choice for an admin,
+ * and so is another tag with the slug `trick-type`.
  *
  * Idempotent.
  *
@@ -22,9 +24,10 @@
  */
 import '../config.js'
 import { FieldPath, Firestore } from '@google-cloud/firestore'
-import { TagValueType } from '../generated/graphql.js'
+import { Discipline, TagValueType } from '../generated/graphql.js'
+import { disciplineSlug } from '../helpers/disciplines.js'
 import { logger } from '../services/logger.js'
-import { TRICK_TYPE_TAG_ID, TRICKTIONARY_RULES_ID } from '../store/schema.js'
+import { TRICK_TYPE_SLUG, TRICKTIONARY_RULES_ID } from '../store/schema.js'
 
 import type { DocumentData, DocumentReference } from '@google-cloud/firestore'
 import type { LanguageDoc, RulesetDoc, TagDoc, TagEnumValue } from '../store/schema.js'
@@ -101,34 +104,47 @@ async function seedRulesets () {
   if (primaries.length > 1) problems.push(`Several rulesets are primary, pick one in the admin: ${primaries.join(', ')}`)
 }
 
-async function seedTrickTypeTag () {
-  const tag: Fields<TagDoc> = {
-    valueType: TagValueType.Enum,
-    names: { en: TRICK_TYPE_TAG_NAME },
-    disciplines: [],
-    multiple: false,
-    values: Object.fromEntries(Object.entries(DEFAULT_TRICK_TYPES).map(([id, en], order): [string, TagEnumValue] => [id, { names: { en }, order }])),
-    required: true,
-    system: true
+async function seedTrickTypeTags () {
+  const tags = firestore.collection('tags')
+  const ids: string[] = []
+
+  for (const discipline of Object.values(Discipline)) {
+    const ref = tags.doc(`${TRICK_TYPE_SLUG}-${disciplineSlug(discipline) ?? discipline}`)
+    ids.push(ref.id)
+    const tag: Fields<TagDoc> = {
+      slug: TRICK_TYPE_SLUG,
+      valueType: TagValueType.Enum,
+      names: { en: TRICK_TYPE_TAG_NAME },
+      disciplines: [discipline],
+      multiple: false,
+      values: Object.fromEntries(Object.entries(DEFAULT_TRICK_TYPES).map(([id, en], order): [string, TagEnumValue] => [id, { names: { en }, order }])),
+      required: true,
+      system: true
+    }
+
+    await ensure(ref, tag, current => {
+      if (Object.keys(current.values ?? {}).length === 0) problems.push(`The ${ref.id} tag has no values, add trick types in the admin`)
+      const onlyDiscipline = current.disciplines?.length === 1 && current.disciplines[0] === discipline
+      return [
+        ...(current.slug === TRICK_TYPE_SLUG ? [] : [fixing(`its slug is not ${TRICK_TYPE_SLUG}`, [new FieldPath('slug'), TRICK_TYPE_SLUG])]),
+        ...(current.system === true ? [] : [fixing('it is not marked built in', [new FieldPath('system'), true])]),
+        ...(current.required === true ? [] : [fixing('it is not required', [new FieldPath('required'), true])]),
+        ...(current.valueType === TagValueType.Enum ? [] : [fixing('it is not an enum tag', [new FieldPath('valueType'), TagValueType.Enum])]),
+        ...(current.multiple === false ? [] : [fixing('it allows several values', [new FieldPath('multiple'), false])]),
+        ...(onlyDiscipline ? [] : [fixing(`it applies to more than ${discipline} tricks`, [new FieldPath('disciplines'), [discipline]])]),
+        ...missingEnglish(current.names, TRICK_TYPE_TAG_NAME)
+      ]
+    })
   }
 
-  await ensure(firestore.collection('tags').doc(TRICK_TYPE_TAG_ID), tag, current => {
-    if (Object.keys(current.values ?? {}).length === 0) problems.push(`The ${TRICK_TYPE_TAG_ID} tag has no values, add trick types in the admin`)
-    return [
-      ...(current.system === true ? [] : [fixing('it is not marked built in', [new FieldPath('system'), true])]),
-      ...(current.required === true ? [] : [fixing('it is not required', [new FieldPath('required'), true])]),
-      ...(current.valueType === TagValueType.Enum ? [] : [fixing('it is not an enum tag', [new FieldPath('valueType'), TagValueType.Enum])]),
-      ...(current.multiple === false ? [] : [fixing('it allows several values', [new FieldPath('multiple'), false])]),
-      ...((current.disciplines ?? []).length === 0 ? [] : [fixing('it is limited to disciplines', [new FieldPath('disciplines'), []])]),
-      ...missingEnglish(current.names, TRICK_TYPE_TAG_NAME)
-    ]
-  })
+  const others = (await tags.where('slug', '==', TRICK_TYPE_SLUG).get()).docs.map(dSnap => dSnap.id).filter(id => !ids.includes(id))
+  if (others.length > 0) problems.push(`Tags other than the built in ones have the slug ${TRICK_TYPE_SLUG}: ${others.join(', ')}`)
 }
 
 async function seed () {
   await seedEnglish()
   await seedRulesets()
-  await seedTrickTypeTag()
+  await seedTrickTypeTags()
 
   if (problems.length > 0) {
     for (const problem of problems) logger.error(problem)
