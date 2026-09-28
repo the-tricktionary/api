@@ -191,6 +191,11 @@ export const trickSubmissionSchema = z.object({
   acceptLicence: z.literal(true, 'The submission has to be licensed under CC BY 4.0 to be accepted')
 })
 
+export const trickVideoSubmissionSchema = z.object({
+  attributionName: attributionNameSchema,
+  acceptLicence: trickSubmissionSchema.shape.acceptLicence
+})
+
 export const acceptTrickSubmissionSchema = z.object({
   discipline: z.enum(Discipline),
   slug: slugSchema,
@@ -199,6 +204,8 @@ export const acceptTrickSubmissionSchema = z.object({
   videoType: z.enum(VideoType),
   slowMoStart: slowMoStartSchema
 })
+
+export const acceptTrickVideoSubmissionSchema = videoUploadSchema.pick({ type: true, slowMoStart: true })
 
 export const reviewNoteSchema = z.string().trim()
   .max(500, 'A note can be at most 500 characters')

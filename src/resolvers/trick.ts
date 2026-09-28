@@ -1,5 +1,6 @@
 import { isTag, isTrick, trickLocalisationId } from '../store/schema.js'
 import { AuthorizationError, CollisionError, NotFoundError, ValidationError } from '../errors.js'
+import { VideoHost } from '../generated/graphql.js'
 import { createTrickWithLocalisation, mergeContributors, submitterProfile, toContributor } from '../helpers/tricks.js'
 import { assertTrickTagsFit, byTagOrder, matchesTags, missingRequiredTags, parseTagQuery, tagValues, trickTagsFromInput } from '../helpers/tags.js'
 import { tryIndexTrick, searchTricks } from '../services/algolia.js'
@@ -29,7 +30,7 @@ export const trickResolvers: Resolvers = {
       }
 
       if (filter?.withoutVideos === true) {
-        tricks = tricks.filter(trick => (trick.videos?.length ?? 0) === 0)
+        tricks = tricks.filter(trick => !(trick.videos ?? []).some(video => video.host === VideoHost.Mux))
       }
 
       if (filter?.missingRequiredTags === true) {

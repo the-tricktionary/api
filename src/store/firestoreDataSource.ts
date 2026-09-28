@@ -6,7 +6,7 @@ import { usernameSchema } from '../validation.js'
 import { FINAL_UPLOAD_STATUSES, groupInviteExpired } from './schema.js'
 import { bestsOf, recordedMillis } from '../helpers/speedResults.js'
 
-import type { Discipline } from '../generated/graphql.js'
+import type { Discipline, TrickSubmissionKind } from '../generated/graphql.js'
 import type { ApiClientDoc, ApiKeyDoc, ChecklistAthlete, TagDoc, TrickPrereqDoc, TrickDoc, TrickLocalisationDoc, UserDoc, TrickLevelDoc, TrickCompletionDoc, SpeedResultDoc, EventDefinitionDoc, GlobalStatsDoc, GroupDoc, GroupInviteDoc, GroupMemberDoc, LanguageDoc, NoticeDoc, RulesetDoc, TrickSubmissionDoc, TrickVideoUploadDoc, UiMessagesDoc, UsernameDoc } from './schema.js'
 import { GroupInviteStatus, GroupRole, TrickSubmissionStatus } from '../generated/graphql.js'
 import type { CollectionReference, DocumentData, DocumentReference, Query, WriteBatch } from 'firebase-admin/firestore'
@@ -138,8 +138,10 @@ export class TrickSubmissionDataSource extends FirestoreDataSource<TrickSubmissi
       .where('submittedAt', '>=', since))
   }
 
-  async countByStatus (status: TrickSubmissionStatus) {
-    return await countDocuments(this.collection.where('status', '==', status))
+  async countByStatusAndKind (status: TrickSubmissionStatus, kind: TrickSubmissionKind) {
+    return await countDocuments(this.collection
+      .where('status', '==', status)
+      .where('kind', '==', kind))
   }
 
   /** Everyone's submissions in one of the two trust pools, see `TrickSubmissionDoc.trusted` */

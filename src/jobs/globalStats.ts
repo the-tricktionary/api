@@ -6,7 +6,7 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { format } from 'date-fns'
 import { utc } from '@date-fns/utc'
-import { TrickSubmissionStatus } from '../generated/graphql.js'
+import { TrickSubmissionKind, TrickSubmissionStatus } from '../generated/graphql.js'
 import { tallyCompletions } from '../helpers/globalStats.js'
 import { logger as baseLogger } from '../services/logger.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
@@ -26,7 +26,7 @@ async function globalStats () {
   const [tally, tricks, acceptedSubmissions, speed] = await Promise.all([
     tallyCompletions(dataSources.trickCompletions.streamAthletesAndTricks(), trickLevels),
     dataSources.tricks.countAll(),
-    dataSources.trickSubmissions.countByStatus(TrickSubmissionStatus.Accepted),
+    dataSources.trickSubmissions.countByStatusAndKind(TrickSubmissionStatus.Accepted, TrickSubmissionKind.Trick),
     dataSources.speedResults.countWithSteps()
   ])
 

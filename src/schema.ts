@@ -83,6 +83,13 @@ const typeDefs = gql`
     Rejected
   }
 
+  enum TrickSubmissionKind {
+    """A new trick, with its first video"""
+    Trick
+    """Another video of a trick the Tricktionary already has"""
+    Video
+  }
+
   enum Theme {
     Light
     Dark
@@ -240,6 +247,11 @@ const typeDefs = gql`
     createTrickVideoUpload (trickId: ID!, data: VideoUploadInput!): TrickVideoUpload! @requiresScopes(scopes: [[admin]])
     removeTrickVideo (trickId: ID!, videoId: String!): Trick! @requiresScopes(scopes: [[admin]])
     """
+    Moves a video to another position among the trick's videos, the public
+    site shows them in this order. An index past either end moves it to that end.
+    """
+    moveTrickVideo (trickId: ID!, videoId: String!, index: Int!): Trick! @requiresScopes(scopes: [[admin]])
+    """
     Sets who a video is credited to, a null attribution removes the credit.
     Editing a credit keeps the original contribution date.
     """
@@ -248,8 +260,16 @@ const typeDefs = gql`
     # Trick submissions
     """Starts a trick submission. Upload the video file with a single PUT to \`upload.url\`."""
     createTrickSubmission (data: TrickSubmissionInput!): TrickSubmission! @requiresScopes(scopes: [[account]])
-    """Creates the trick from the submission and credits the submitter on its video and localisation"""
+    """
+    Starts the submission of another video of a trick, held to the same limits
+    as a trick submission. Upload the video file with a single PUT to \`upload.url\`.
+    """
+    createTrickVideoSubmission (trickId: ID!, data: TrickVideoSubmissionInput!): TrickSubmission! @requiresScopes(scopes: [[account]])
+    """Creates the trick from a \`Trick\` submission and credits the submitter on its video and localisation"""
     acceptTrickSubmission (submissionId: ID!, data: AcceptTrickSubmissionInput!): TrickSubmission! @requiresScopes(scopes: [[admin]])
+    """Adds the video of a \`Video\` submission to the end of its trick's videos, credited to the submitter"""
+    acceptTrickVideoSubmission (submissionId: ID!, data: AcceptTrickVideoSubmissionInput!): TrickSubmission! @requiresScopes(scopes: [[admin]])
+    """Rejects a submission of either kind and deletes its video"""
     rejectTrickSubmission (submissionId: ID!, note: String): TrickSubmission! @requiresScopes(scopes: [[admin]])
 
     # Languages
@@ -507,6 +527,7 @@ const typeDefs = gql`
     missingLocalisation: String
     """Tricks whose level in a ruleset is missing, or verified below a level"""
     level: TrickLevelFilter
+    """Tricks without a video on Mux, the only videos the public site plays"""
     withoutVideos: Boolean
     """Tricks lacking a tag their discipline requires"""
     missingRequiredTags: Boolean
@@ -661,7 +682,6 @@ const typeDefs = gql`
     SlowMo
     """One run of the trick at natural speed, the player makes the slow motion"""
     FullSpeed
-    Explainer
   }
 
   """
@@ -715,14 +735,21 @@ const typeDefs = gql`
     updatedAt: Timestamp!
   }
 
-  """A trick a user has offered, waiting for a trick editor to review it"""
+  """
+  A trick, or another video of a trick, that a user has offered, waiting for a
+  trick editor to review it
+  """
   type TrickSubmission @cacheControl(maxAge: 0, scope: PRIVATE) {
     id: ID!
+    kind: TrickSubmissionKind!
     submitter: User!
     attributionName: String!
+    """The new trick's, or that of the trick a video is for when it was submitted"""
     discipline: Discipline!
-    lang: String!
-    name: String!
+    """Language of the text fields, null on a \`Video\` submission"""
+    lang: String
+    """Null on a \`Video\` submission"""
+    name: String
     alternativeNames: [String!]
     description: String
     status: TrickSubmissionStatus!
@@ -732,7 +759,10 @@ const typeDefs = gql`
     video: Video
     reviewNote: String
     reviewedAt: Timestamp
-    """The trick this became, only set once the submission was accepted"""
+    """
+    The trick a \`Video\` submission is for, or the trick a \`Trick\` submission
+    became, which is only set once it was accepted
+    """
     trick: Trick
     createdAt: Timestamp!
     updatedAt: Timestamp!
@@ -751,6 +781,13 @@ const typeDefs = gql`
     acceptLicence: Boolean!
   }
 
+  input TrickVideoSubmissionInput {
+    """The name to credit the submitter by, copied as it is given"""
+    attributionName: String!
+    """Must be true: the submitter grants a CC BY 4.0 licence to the video"""
+    acceptLicence: Boolean!
+  }
+
   input AcceptTrickSubmissionInput {
     discipline: Discipline!
     slug: String!
@@ -759,6 +796,11 @@ const typeDefs = gql`
     """Every tag the discipline requires, the trick type among them"""
     tags: [TrickTagInput!]!
     videoType: VideoType!
+    slowMoStart: Float
+  }
+
+  input AcceptTrickVideoSubmissionInput {
+    type: VideoType!
     slowMoStart: Float
   }
 
@@ -823,7 +865,7 @@ const typeDefs = gql`
     """Only visible to the user themselves and to super admins, empty for everyone else"""
     grants: [Grant!]! @cacheControl(maxAge: 0, scope: PRIVATE)
 
-    """The tricks the user has submitted, newest first. Only the user themselves and trick editors may read it."""
+    """The user's submissions, newest first. Only the user themselves and trick editors may read it."""
     trickSubmissions: [TrickSubmission!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
@@ -1046,6 +1088,7 @@ const typeDefs = gql`
     maxCompletions: Int!
     """One entry per Tricktionary level that has tricks, lowest first"""
     levels: [GlobalLevelStats!]!
+    """Accepted \`Trick\` submissions"""
     acceptedSubmissions: Int!
     speedResults: Int!
     speedSteps: Float!

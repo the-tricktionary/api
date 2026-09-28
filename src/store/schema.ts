@@ -1,5 +1,5 @@
 import type { Discipline, GrantType, GroupInviteKind, GroupInviteStatus, GroupRole, ProfileOptions, Scope, TagValueType, Theme, TimingCueType, TrickSubmissionStatus, VerificationLevel, VideoHost, VideoType } from '../generated/graphql.js'
-import { VideoUploadStatus } from '../generated/graphql.js'
+import { TrickSubmissionKind, VideoUploadStatus } from '../generated/graphql.js'
 import { Timestamp } from '@google-cloud/firestore'
 
 export interface DocBase {
@@ -158,8 +158,7 @@ export function trickLocalisationLang (id: TrickLocalisationDoc['id'], trickId: 
   return id.startsWith(`${trickId}-`) ? id.slice(trickId.length + 1) : undefined
 }
 
-/** A trick a signed in user has offered, waiting for a trick editor to review it */
-export interface TrickSubmissionDoc extends DocBase {
+interface TrickSubmissionDocBase extends DocBase {
   readonly collection: 'trick-submissions'
 
   userId: UserDoc['id']
@@ -173,12 +172,8 @@ export interface TrickSubmissionDoc extends DocBase {
    */
   submittedAt: Timestamp
 
+  /** The new trick's, or that of the trick a video is for when it was submitted */
   discipline: Discipline
-  /** Language of `name`, `alternativeNames` and `description` */
-  lang: string
-  name: string
-  alternativeNames?: string[]
-  description?: string
 
   status: TrickSubmissionStatus
   /** The Mux upload the video arrives through, the document ID in `trick-video-uploads` */
@@ -189,12 +184,34 @@ export interface TrickSubmissionDoc extends DocBase {
   reviewedBy?: UserDoc['id']
   reviewedAt?: Timestamp
   reviewNote?: string
-  /** The trick an accepted submission became */
-  trickId?: TrickDoc['id']
   /** Firestore's TTL policy deletes the document once this passes, set on rejection */
   expiresAt?: Timestamp
 }
+
+/** A new trick a signed in user has offered, with its first video */
+export interface NewTrickSubmissionDoc extends TrickSubmissionDocBase {
+  kind: TrickSubmissionKind.Trick
+
+  /** Language of `name`, `alternativeNames` and `description` */
+  lang: string
+  name: string
+  alternativeNames?: string[]
+  description?: string
+
+  /** The trick an accepted submission became */
+  trickId?: TrickDoc['id']
+}
+
+/** Another video of a trick that exists, offered by a signed in user */
+export interface TrickVideoSubmissionDoc extends TrickSubmissionDocBase {
+  kind: TrickSubmissionKind.Video
+  trickId: TrickDoc['id']
+}
+
+/** Both kinds share the collection and its limits */
+export type TrickSubmissionDoc = NewTrickSubmissionDoc | TrickVideoSubmissionDoc
 export function isTrickSubmission (t: any): t is TrickSubmissionDoc { return t?.collection === 'trick-submissions' }
+export function isVideoSubmission (submission: TrickSubmissionDoc): submission is TrickVideoSubmissionDoc { return submission.kind === TrickSubmissionKind.Video }
 
 export const TRICK_SUBMISSION_REJECTED_TTL_DAYS = 30
 

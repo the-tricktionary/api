@@ -7,7 +7,10 @@ import type { UserDoc } from '../store/schema.js'
 /** The window both daily limits roll over */
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000
 
-/** Every count a trick submission is held to, per trust status of the submitter */
+/**
+ * Every count a submission is held to, per trust status of the submitter. New
+ * tricks and videos for existing ones count together.
+ */
 export const SUBMISSION_LIMITS = {
   /** Submissions of one user that nobody has reviewed yet */
   pendingPerUser: { regular: 5, trusted: 50 },
@@ -49,7 +52,7 @@ export async function assertWithinSubmissionLimits (userId: UserDoc['id'], trust
   const dailyLimit = SUBMISSION_LIMITS.dailyPerUser[pool]
   if (daily >= dailyLimit) {
     throw new RateLimitError(
-      `You have submitted ${dailyLimit} tricks in the last day, which is as many as you may, try again later`,
+      `You have made ${dailyLimit} submissions in the last day, which is as many as you may, try again later`,
       { extensions: { scope: 'user', limit: dailyLimit } }
     )
   }

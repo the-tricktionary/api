@@ -14,7 +14,7 @@ import { renderAdminDigest } from '../helpers/adminDigestEmail.js'
 import { logger as baseLogger } from '../services/logger.js'
 import { siteEnglishMessages } from '../services/siteMessages.js'
 import { createDataSources, firestore, writeInChunks } from '../store/firestoreDataSource.js'
-import { trickLevelId, trickLocalisationId } from '../store/schema.js'
+import { isVideoSubmission, trickLevelId, trickLocalisationId } from '../store/schema.js'
 import { runJob } from './runJob.js'
 
 import type { DocumentData, DocumentReference } from 'firebase-admin/firestore'
@@ -87,12 +87,20 @@ async function adminDigest () {
     addedAt: trick.addedAt
   }))
 
+  const submissionTrickIds = [...new Set(submissions.flatMap(submission => isVideoSubmission(submission) ? [submission.trickId] : []))]
+  const submissionTrickSnaps = submissionTrickIds.length > 0 ? await firestore.getAll(...submissionTrickIds.map(trickId => localisations.doc(trickLocalisationId(trickId, 'en')))) : []
+  const submissionTrickNames = new Map(submissionTrickIds.flatMap((trickId, idx) => {
+    const name = submissionTrickSnaps[idx]?.get('name') as string | undefined
+    return name != null ? [[trickId, name] as const] : []
+  }))
+
   const [translated, levelled] = await Promise.all([
     existingDocs(addedTricks.flatMap(trick => [...langs].map(lang => localisations.doc(trickLocalisationId(trick.id, lang))))),
     existingDocs(tricks.flatMap(trick => [...rulesIds].map(rulesId => levels.doc(trickLevelId(trick.id, rulesId)))))
   ])
   const sources = {
     submissions,
+    submissionTrickNames,
     tricks,
     missingLangs: new Map(addedTricks.map(trick => [trick.id, new Set([...langs].filter(lang => !translated.has(trickLocalisationId(trick.id, lang))))])),
     levels: new Map(tricks.map(trick => [trick.id, new Map([...rulesIds].flatMap(rulesId => {

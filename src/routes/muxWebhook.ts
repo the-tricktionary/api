@@ -114,6 +114,14 @@ async function addAssetToSubmission (submissionId: TrickSubmissionDoc['id'], upl
     return
   }
 
+  // Mux redelivers events, and a review may have come since: the asset is then
+  // on the trick, or was deleted with the rejection
+  if (submission.video?.assetId === asset.id) {
+    await finishUpload(upload.id, { status: VideoUploadStatus.Ready, assetId: asset.id }, context)
+    logger.info({ submissionId, assetId: asset.id }, 'Mux asset is already on the trick submission')
+    return
+  }
+
   if (submission.status !== TrickSubmissionStatus.Pending) {
     const reason = 'The submission was rejected before the video was ready'
     await tryDeleteAsset(asset.id, logger)
@@ -142,14 +150,7 @@ async function addAssetToSubmission (submissionId: TrickSubmissionDoc['id'], upl
     attribution: submissionAttribution(submission)
   }
 
-  // Mux retries a webhook until we acknowledge it, so the asset may already
-  // be on the submission
-  if (submission.video?.assetId === asset.id) {
-    logger.info({ submissionId, assetId: asset.id }, 'Mux asset is already on the trick submission')
-  } else {
-    await dataSources.trickSubmissions.updateOnePartial(submissionId, { video })
-  }
-
+  await dataSources.trickSubmissions.updateOnePartial(submissionId, { video })
   await finishUpload(upload.id, { status: VideoUploadStatus.Ready, assetId: asset.id }, context)
   logger.info({ uploadId: upload.id, submissionId, assetId: asset.id, playbackId: asset.playbackId }, 'Added a Mux video to a trick submission')
 }
