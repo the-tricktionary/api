@@ -527,7 +527,7 @@ const typeDefs = gql`
     missingLocalisation: String
     """Tricks whose level in a ruleset is missing, or verified below a level"""
     level: TrickLevelFilter
-    """Tricks without a full speed or slow motion video on Mux, the videos the public site plays"""
+    """Tricks without a video on Mux, the only videos the public site plays"""
     withoutVideos: Boolean
     """Tricks lacking a tag their discipline requires"""
     missingRequiredTags: Boolean
@@ -682,7 +682,6 @@ const typeDefs = gql`
     SlowMo
     """One run of the trick at natural speed, the player makes the slow motion"""
     FullSpeed
-    Explainer
   }
 
   """
