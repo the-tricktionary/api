@@ -1,5 +1,4 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
-import { GrpcStatus } from 'firebase-admin/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
 import { TrickSubmissionStatus, VideoType } from '../generated/graphql.js'
 import { trickTagsFromInput } from '../helpers/tags.js'
@@ -18,6 +17,14 @@ import type { TrickVideoUploadWithUrl } from '../services/mux.js'
 import type { TrickSubmissionDoc } from '../store/schema.js'
 
 type Context = Pick<ApolloContext, 'dataSources'>
+
+/**
+ * The gRPC status a write fails with when its precondition does not hold.
+ * Firestore's `GrpcStatus` is a lazy, non-enumerable export, which the copies
+ * of the module Sentry's instrumentation hands out leave behind, so it reads as
+ * undefined wherever Sentry runs. The codes are fixed by gRPC itself.
+ */
+const FAILED_PRECONDITION = 9
 
 /** A submission answered with its once-only upload URL, see `TrickVideoUploadWithUrl` */
 interface TrickSubmissionWithUpload extends TrickSubmissionDoc {
@@ -65,7 +72,7 @@ async function commitReview<T> (write: () => Promise<T>) {
   try {
     return await write()
   } catch (err) {
-    if ((err as { code?: unknown }).code === GrpcStatus.FAILED_PRECONDITION) {
+    if ((err as { code?: unknown }).code === FAILED_PRECONDITION) {
       throw new ValidationError('That submission has already been reviewed')
     }
     throw err
