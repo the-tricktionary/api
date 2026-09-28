@@ -299,9 +299,6 @@ export const trickSubmissionResolvers: Resolvers = {
     }
   },
   TrickSubmission: {
-    kind (submission) {
-      return submission.kind ?? TrickSubmissionKind.Trick
-    },
     async submitter (submission, _, { dataSources }) {
       const user = await dataSources.users.findOneById(submission.userId, { ttl: 60 })
       if (!user) throw new NotFoundError(`User ${submission.userId} not found`, { extensions: { entity: 'user', id: submission.userId } })

@@ -190,8 +190,7 @@ interface TrickSubmissionDocBase extends DocBase {
 
 /** A new trick a signed in user has offered, with its first video */
 export interface NewTrickSubmissionDoc extends TrickSubmissionDocBase {
-  /** Absent on the submissions from before videos could be submitted on their own */
-  kind?: TrickSubmissionKind.Trick
+  kind: TrickSubmissionKind.Trick
 
   /** Language of `name`, `alternativeNames` and `description` */
   lang: string

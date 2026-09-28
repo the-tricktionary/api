@@ -138,11 +138,6 @@ export class TrickSubmissionDataSource extends FirestoreDataSource<TrickSubmissi
       .where('submittedAt', '>=', since))
   }
 
-  async countByStatus (status: TrickSubmissionStatus) {
-    return await countDocuments(this.collection.where('status', '==', status))
-  }
-
-  /** Submissions from before there were video submissions have no kind, so `Trick` matches none of them */
   async countByStatusAndKind (status: TrickSubmissionStatus, kind: TrickSubmissionKind) {
     return await countDocuments(this.collection
       .where('status', '==', status)

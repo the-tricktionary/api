@@ -1,9 +1,9 @@
-import { GrantType, TrickSubmissionKind } from '../generated/graphql.js'
+import { GrantType } from '../generated/graphql.js'
 import { verificationLevelRank } from '../services/permissions.js'
 import { isVideoSubmission } from '../store/schema.js'
 
 import type { Timestamp } from '@google-cloud/firestore'
-import type { Discipline, VerificationLevel } from '../generated/graphql.js'
+import type { Discipline, TrickSubmissionKind, VerificationLevel } from '../generated/graphql.js'
 import type { RulesetDoc, TrickDoc, TrickSubmissionDoc, UserDoc } from '../store/schema.js'
 
 export interface DigestTrick {
@@ -88,7 +88,7 @@ export function adminDigestFor (
       .filter(submission => inWindow(submission.submittedAt, from, until))
       .map(submission => ({
         id: submission.id,
-        kind: submission.kind ?? TrickSubmissionKind.Trick,
+        kind: submission.kind,
         name: isVideoSubmission(submission) ? sources.submissionTrickNames.get(submission.trickId) ?? submission.trickId : submission.name,
         discipline: submission.discipline,
         attributionName: submission.attributionName

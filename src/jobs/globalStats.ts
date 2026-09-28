@@ -23,16 +23,13 @@ async function globalStats () {
   const countedAt = Timestamp.now()
 
   const trickLevels = await dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID)
-  const [tally, tricks, accepted, acceptedVideos, speed] = await Promise.all([
+  const [tally, tricks, acceptedSubmissions, speed] = await Promise.all([
     tallyCompletions(dataSources.trickCompletions.streamAthletesAndTricks(), trickLevels),
     dataSources.tricks.countAll(),
-    dataSources.trickSubmissions.countByStatus(TrickSubmissionStatus.Accepted),
-    // the older submissions have no kind, so the tricks are counted as
-    // everything accepted but the videos
-    dataSources.trickSubmissions.countByStatusAndKind(TrickSubmissionStatus.Accepted, TrickSubmissionKind.Video),
+    // new tricks, the videos submitted for existing ones are not counted
+    dataSources.trickSubmissions.countByStatusAndKind(TrickSubmissionStatus.Accepted, TrickSubmissionKind.Trick),
     dataSources.speedResults.countWithSteps()
   ])
-  const acceptedSubmissions = accepted - acceptedVideos
 
   const snapshot: Omit<GlobalStatsDoc, 'id' | 'collection' | 'createdAt' | 'updatedAt'> = {
     countedAt,
