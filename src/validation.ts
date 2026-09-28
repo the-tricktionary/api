@@ -205,7 +205,7 @@ export const acceptTrickSubmissionSchema = z.object({
   slowMoStart: slowMoStartSchema
 })
 
-export const acceptTrickVideoSubmissionSchema = acceptTrickSubmissionSchema.pick({ videoType: true, slowMoStart: true })
+export const acceptTrickVideoSubmissionSchema = videoUploadSchema.pick({ type: true, slowMoStart: true })
 
 export const reviewNoteSchema = z.string().trim()
   .max(500, 'A note can be at most 500 characters')

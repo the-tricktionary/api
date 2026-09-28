@@ -7,7 +7,7 @@ import { optionalAttributionSchema, videoUploadSchema, youTubeVideoSchema } from
 
 import type { ApolloContext } from '../apollo.js'
 import type { AttributionInput, Resolvers } from '../generated/graphql.js'
-import type { TrickDoc, Video, YouTubeVideo } from '../store/schema.js'
+import type { TrickDoc, UserDoc, Video, YouTubeVideo } from '../store/schema.js'
 
 /** The credit to store, refused when it names an account that does not exist */
 async function creditedAttribution (input: AttributionInput | null | undefined, { dataSources }: Pick<ApolloContext, 'dataSources'>) {
@@ -20,6 +20,36 @@ async function creditedAttribution (input: AttributionInput | null | undefined, 
   }
 
   return attribution(input.name, Timestamp.now(), credited?.id)
+}
+
+/**
+ * Rewrites the trick's videos in a transaction, so a concurrent change to
+ * another video is kept. A null from `rewrite` writes nothing.
+ */
+async function rewriteVideos (
+  trickId: TrickDoc['id'],
+  videoId: string,
+  userId: UserDoc['id'],
+  rewrite: (videos: Video[], index: number) => Video[] | null,
+  { dataSources }: Pick<ApolloContext, 'dataSources'>
+) {
+  const dRef = dataSources.tricks.collection.doc(trickId)
+
+  await dataSources.tricks.collection.firestore.runTransaction(async t => {
+    const trick = (await t.get(dRef)).data()
+    if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+    const index = trick.videos.findIndex(video => video.videoId === videoId)
+    if (index === -1) throw new NotFoundError(`Trick ${trickId} has no video ${videoId}`, { extensions: { entity: 'video', id: videoId } })
+
+    const videos = rewrite(trick.videos, index)
+    if (videos) t.update(dRef.withConverter(null), { videos, updatedBy: userId })
+  })
+
+  // the transaction bypassed the data source cache
+  await dataSources.tricks.deleteFromCacheById(trickId)
+
+  return await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
 }
 
 export const trickVideoResolvers: Resolvers = {
@@ -91,64 +121,27 @@ export const trickVideoResolvers: Resolvers = {
       allowUser.editTrickVideos.assert()
       if (!user) throw new AuthorizationError()
 
-      const collection = dataSources.tricks.collection
-      const dRef = collection.doc(trickId)
-
-      // the whole array is written back, so it has to be read and rebuilt in a
-      // transaction for a concurrent change to another video not to be lost
-      await collection.firestore.runTransaction(async t => {
-        const trick = (await t.get(dRef)).data()
-        if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
-
-        const from = trick.videos.findIndex(video => video.videoId === videoId)
-        if (from === -1) throw new NotFoundError(`Trick ${trickId} has no video ${videoId}`, { extensions: { entity: 'video', id: videoId } })
-        const to = Math.min(Math.max(index, 0), trick.videos.length - 1)
-        if (from === to) return
-
-        const videos = [...trick.videos]
-        videos.splice(to, 0, ...videos.splice(from, 1))
-        t.update(dRef.withConverter(null), { videos, updatedBy: user.id })
-      })
-
-      // the transaction bypassed the data source cache
-      await dataSources.tricks.deleteFromCacheById(trickId)
-
-      return await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
+      return await rewriteVideos(trickId, videoId, user.id, (videos, from) => {
+        const to = Math.min(Math.max(index, 0), videos.length - 1)
+        if (from === to) return null
+        const moved = [...videos]
+        moved.splice(to, 0, ...moved.splice(from, 1))
+        return moved
+      }, { dataSources })
     },
     async setTrickVideoAttribution (_, { trickId, videoId, attribution: input }, { dataSources, allowUser, user }) {
       allowUser.editTrickVideos.assert()
       if (!user) throw new AuthorizationError()
       const attribution = await creditedAttribution(optionalAttributionSchema.parse(input), { dataSources })
 
-      const collection = dataSources.tricks.collection
-      const dRef = collection.doc(trickId)
-
-      // the whole array is written back, so it has to be read and rebuilt in a
-      // transaction for a concurrent change to another video not to be lost
-      await collection.firestore.runTransaction(async t => {
-        const trick = (await t.get(dRef)).data()
-        if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
-
-        const current = trick.videos.find(video => video.videoId === videoId)
-        if (!current) throw new NotFoundError(`Trick ${trickId} has no video ${videoId}`, { extensions: { entity: 'video', id: videoId } })
-
+      return await rewriteVideos(trickId, videoId, user.id, (videos, idx) => {
         // the key is dropped rather than set to undefined, which Firestore rejects
-        const { attribution: previous, ...uncredited } = current
+        const { attribution: previous, ...uncredited } = videos[idx]
         // contributors are ordered by their date, so editing a credit keeps the
         // one the contribution already carries
         const credit = attribution && previous ? { ...attribution, at: previous.at } : attribution
-        const videos: Video[] = trick.videos.map(video => video === current
-          ? { ...uncredited, ...(credit ? { attribution: credit } : {}) }
-          : video
-        )
-
-        t.update(dRef.withConverter(null), { videos, updatedBy: user.id })
-      })
-
-      // the transaction bypassed the data source cache
-      await dataSources.tricks.deleteFromCacheById(trickId)
-
-      return await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
+        return videos.map((video, i) => i === idx ? { ...uncredited, ...(credit ? { attribution: credit } : {}) } : video)
+      }, { dataSources })
     }
   },
   Trick: {

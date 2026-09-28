@@ -172,7 +172,7 @@ interface TrickSubmissionDocBase extends DocBase {
    */
   submittedAt: Timestamp
 
-  /** The new trick's, or that of the trick a video is for, as it was when it was submitted */
+  /** The new trick's, or that of the trick a video is for when it was submitted */
   discipline: Discipline
 
   status: TrickSubmissionStatus
@@ -205,11 +205,10 @@ export interface NewTrickSubmissionDoc extends TrickSubmissionDocBase {
 /** Another video of a trick that exists, offered by a signed in user */
 export interface TrickVideoSubmissionDoc extends TrickSubmissionDocBase {
   kind: TrickSubmissionKind.Video
-  /** The trick the video is for */
   trickId: TrickDoc['id']
 }
 
-/** A submission waiting for a trick editor to review it, both kinds share the collection and its limits */
+/** Both kinds share the collection and its limits */
 export type TrickSubmissionDoc = NewTrickSubmissionDoc | TrickVideoSubmissionDoc
 export function isTrickSubmission (t: any): t is TrickSubmissionDoc { return t?.collection === 'trick-submissions' }
 export function isVideoSubmission (submission: TrickSubmissionDoc): submission is TrickVideoSubmissionDoc { return submission.kind === TrickSubmissionKind.Video }

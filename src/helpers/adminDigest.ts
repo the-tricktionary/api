@@ -34,7 +34,7 @@ export interface DigestLevel {
 
 export interface DigestSubmission extends Pick<TrickSubmissionDoc, 'id' | 'discipline' | 'attributionName'> {
   kind: TrickSubmissionKind
-  /** The new trick's, or the English name of the trick a video is for */
+  /** For a video, its trick's English name */
   name: string
 }
 

@@ -1,12 +1,9 @@
 /**
- * Migration: every trick submission gets a `kind`. The ones from before videos
- * could be submitted on their own have none, and are all new tricks, so they
- * get `Trick`.
+ * Migration: gives every trick submission without a `kind` the `Trick` kind.
  *
- * Firestore cannot query for a missing field, so the whole collection is read.
- * Run it before deploying the API that requires the field, which the API
- * running until then ignores, and once more after, for the submissions that
- * API created in between. Idempotent.
+ * Firestore cannot query for a missing field, so it reads the whole collection.
+ * Run it before deploying the API that requires `kind`, and again after, for
+ * submissions created in between. Idempotent.
  *
  * Requirements:
  *   - GOOGLE_APPLICATION_CREDENTIALS pointing at a service account with write

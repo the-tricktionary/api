@@ -26,7 +26,6 @@ async function globalStats () {
   const [tally, tricks, acceptedSubmissions, speed] = await Promise.all([
     tallyCompletions(dataSources.trickCompletions.streamAthletesAndTricks(), trickLevels),
     dataSources.tricks.countAll(),
-    // new tricks, the videos submitted for existing ones are not counted
     dataSources.trickSubmissions.countByStatusAndKind(TrickSubmissionStatus.Accepted, TrickSubmissionKind.Trick),
     dataSources.speedResults.countWithSteps()
   ])

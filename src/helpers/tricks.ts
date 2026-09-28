@@ -1,5 +1,6 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { CollisionError } from '../errors.js'
+import { VideoHost, VideoType } from '../generated/graphql.js'
 import { tryIndexTrick } from '../services/algolia.js'
 import { trickLocalisationId } from '../store/schema.js'
 
@@ -80,6 +81,14 @@ export async function createTrickWithLocalisation (trick: NewTrick, { dataSource
   await tryIndexTrick(trickId, { dataSources, logger })
 
   return created
+}
+
+/** The types that show the trick rather than explain it */
+const TRICK_VIDEO_TYPES: readonly VideoType[] = [VideoType.FullSpeed, VideoType.SlowMo]
+
+/** Whether the public site plays the video */
+export function isTrickVideo (video: Video) {
+  return video.host === VideoHost.Mux && TRICK_VIDEO_TYPES.includes(video.type)
 }
 
 /** A submitter as everybody gets to see them, nothing beyond what their profile shows */

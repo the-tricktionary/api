@@ -18,11 +18,8 @@ import type { DocBase, MuxVideo, NewTrickSubmissionDoc, TrickSubmissionDoc, Tric
 
 type Context = Pick<ApolloContext, 'dataSources'>
 
-/** A submission as it is created, the data source fills in the rest */
-type NewSubmission<T extends TrickSubmissionDoc> = Omit<T, Exclude<keyof DocBase, 'id'>>
-
-/** What every submission starts with, whatever its kind */
-type SubmissionStart = Pick<TrickSubmissionDoc, 'id' | 'userId' | 'trusted' | 'licenceAcceptedAt' | 'submittedAt' | 'status' | 'uploadId'>
+/** What sets a kind of submission apart, `createSubmission` fills in the rest */
+type SubmissionFields<T extends TrickSubmissionDoc> = Omit<T, keyof DocBase | 'userId' | 'trusted' | 'licenceAcceptedAt' | 'submittedAt' | 'status' | 'uploadId'>
 
 /**
  * The gRPC status a write fails with when its precondition does not hold.
@@ -48,41 +45,43 @@ async function existingSubmission (submissionId: string, { dataSources }: Contex
   return submission
 }
 
-/**
- * Holds the submitter to the limits, which both kinds of submission count
- * toward together, and starts the upload of the video. The upload names the
- * submission it belongs to, so its ID is minted first.
- */
-async function startSubmission (user: UserDoc, origin: string | undefined, { dataSources }: Context) {
+/** Checks the limits both kinds share, then starts the upload, which names the submission */
+async function createSubmission (
+  fields: SubmissionFields<NewTrickSubmissionDoc> | SubmissionFields<TrickVideoSubmissionDoc>,
+  user: UserDoc,
+  origin: string | undefined,
+  { dataSources }: Context
+) {
   const trusted = isTrustedSubmitter(user)
   await assertWithinSubmissionLimits(user.id, trusted, { dataSources })
 
-  const submissionId = dataSources.trickSubmissions.collection.doc().id
+  const id = dataSources.trickSubmissions.collection.doc().id
   const upload = await createVideoUpload({
-    owner: { submissionId },
+    owner: { submissionId: id },
     userId: user.id,
     type: VideoType.FullSpeed,
     origin
   }, { dataSources })
 
   const now = Timestamp.now()
-  const start: SubmissionStart = {
-    id: submissionId,
+  const submission = await (dataSources.trickSubmissions.createOne({
+    ...fields,
+    id,
     userId: user.id,
     trusted,
     licenceAcceptedAt: now,
     submittedAt: now,
     status: TrickSubmissionStatus.Pending,
     uploadId: upload.id
-  }
-  return { start, upload }
+  }) as Promise<TrickSubmissionDoc>)
+
+  const withUpload: TrickSubmissionWithUpload = { ...submission, upload }
+  return withUpload
 }
 
-/** Stores the submission, answered with the upload URL its video goes to */
-async function storeSubmission (submission: NewSubmission<NewTrickSubmissionDoc> | NewSubmission<TrickVideoSubmissionDoc>, upload: TrickVideoUploadWithUrl, { dataSources }: Context) {
-  const created = await (dataSources.trickSubmissions.createOne(submission) as Promise<TrickSubmissionDoc>)
-  const withUpload: TrickSubmissionWithUpload = { ...created, upload }
-  return withUpload
+/** The submitted video as the trick holds it, of the type the editor picked */
+function acceptedVideo (video: MuxVideo, type: VideoType, slowMoStart: number | null | undefined): MuxVideo {
+  return { ...video, type, ...(slowMoStart != null ? { slowMoStart } : {}) }
 }
 
 /** A submission still open to a review, read fresh so a review can be held to its version */
@@ -94,19 +93,20 @@ async function pendingSubmission (submissionId: string, context: Context) {
   return submission
 }
 
+/** What a review writes onto the submission */
+type Review = UpdateData<TrickSubmissionDoc> & {
+  status: TrickSubmissionStatus.Accepted | TrickSubmissionStatus.Rejected
+  reviewedBy: UserDoc['id']
+}
+
 /**
  * Queues the review onto the submission and onto the submitter's counters. The
  * submission is only written if it has not changed since it was read, so two
  * editors reviewing at once cannot both count.
  */
-function queueReview (
-  submission: TrickSubmissionDoc,
-  review: UpdateData<TrickSubmissionDoc>,
-  counter: 'accepted' | 'rejected',
-  writer: ReviewWriter,
-  { dataSources }: Context
-) {
-  writer.update(dataSources.trickSubmissions.collection.doc(submission.id), review, { lastUpdateTime: submission.updatedAt })
+function queueReview (submission: TrickSubmissionDoc, review: Review, writer: ReviewWriter, { dataSources }: Context) {
+  const counter = review.status === TrickSubmissionStatus.Accepted ? 'accepted' : 'rejected'
+  writer.update(dataSources.trickSubmissions.collection.doc(submission.id), { ...review, reviewedAt: Timestamp.now() }, { lastUpdateTime: submission.updatedAt })
   writer.update(dataSources.users.collection.doc(submission.userId), { [`submissionStats.${counter}`]: FieldValue.increment(1) })
 }
 
@@ -153,9 +153,7 @@ export const trickSubmissionResolvers: Resolvers = {
       const language = await dataSources.languages.findOneById(lang, { ttl: 3600 })
       if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
 
-      const { start, upload } = await startSubmission(user, req.get('origin'), { dataSources })
-      const submission: NewSubmission<NewTrickSubmissionDoc> = {
-        ...start,
+      return await createSubmission({
         kind: TrickSubmissionKind.Trick,
         attributionName: parsed.attributionName,
         discipline: parsed.discipline,
@@ -163,8 +161,7 @@ export const trickSubmissionResolvers: Resolvers = {
         name: parsed.name,
         ...(parsed.alternativeNames?.length ? { alternativeNames: parsed.alternativeNames } : {}),
         ...(parsed.description ? { description: parsed.description } : {})
-      }
-      return await storeSubmission(submission, upload, { dataSources })
+      }, user, req.get('origin'), { dataSources })
     },
     async createTrickVideoSubmission (_, { trickId, data }, { dataSources, allowUser, user, req }) {
       allowUser.createTrickSubmission.assert()
@@ -174,15 +171,12 @@ export const trickSubmissionResolvers: Resolvers = {
       const trick = await dataSources.tricks.findOneById(trickId, { ttl: 3600 })
       if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
 
-      const { start, upload } = await startSubmission(user, req.get('origin'), { dataSources })
-      const submission: NewSubmission<TrickVideoSubmissionDoc> = {
-        ...start,
+      return await createSubmission({
         kind: TrickSubmissionKind.Video,
         attributionName: parsed.attributionName,
         discipline: trick.discipline,
         trickId: trick.id
-      }
-      return await storeSubmission(submission, upload, { dataSources })
+      }, user, req.get('origin'), { dataSources })
     },
     async acceptTrickSubmission (_, { submissionId, data }, { dataSources, allowUser, user, logger }) {
       allowUser.reviewTrickSubmissions.assert()
@@ -206,11 +200,6 @@ export const trickSubmissionResolvers: Resolvers = {
         submittedBy: submission.userId,
         attribution
       }
-      const review: UpdateData<TrickSubmissionDoc> = {
-        status: TrickSubmissionStatus.Accepted,
-        reviewedBy: user.id,
-        reviewedAt: Timestamp.now()
-      }
 
       // the review is part of the transaction that creates the trick, so
       // neither can happen without the other
@@ -222,14 +211,12 @@ export const trickSubmissionResolvers: Resolvers = {
           ? { ...parsed.localisation, submittedBy: submission.userId, attribution }
           : { ...parsed.localisation, submittedBy: user.id },
         ...(submittedInEnglish ? {} : { translation: { ...ownText, lang: submission.lang } }),
-        videos: [{
-          ...video,
-          type: parsed.videoType,
-          ...(parsed.slowMoStart != null ? { slowMoStart: parsed.slowMoStart } : {})
-        }],
+        videos: [acceptedVideo(video, parsed.videoType, parsed.slowMoStart)],
         submittedBy: submission.userId,
         updatedBy: user.id,
-        alsoWrite: (t, trickId) => { queueReview(submission, { ...review, trickId }, 'accepted', t, { dataSources }) }
+        alsoWrite: (t, trickId) => {
+          queueReview(submission, { status: TrickSubmissionStatus.Accepted, reviewedBy: user.id, trickId }, t, { dataSources })
+        }
       }, { dataSources, logger }))
 
       return await reviewedSubmission(submission, { dataSources })
@@ -245,28 +232,16 @@ export const trickSubmissionResolvers: Resolvers = {
       if (!video) throw new ValidationError('The video of that submission has not finished processing yet')
 
       const { trickId } = submission
-      const accepted: MuxVideo = {
-        ...video,
-        type: parsed.videoType,
-        ...(parsed.slowMoStart != null ? { slowMoStart: parsed.slowMoStart } : {})
-      }
       const trickRef = dataSources.tricks.collection.doc(trickId)
 
-      // the review is part of the transaction that adds the video, so neither
-      // can happen without the other
+      // the video and the review land together or not at all
       await commitReview(async () => {
         await firestore.runTransaction(async t => {
           const trick = (await t.get(trickRef)).data()
           if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
 
-          // at the end, where it changes nothing about the video the site shows
-          // first until an editor moves it
-          t.update(trickRef.withConverter(null), { videos: FieldValue.arrayUnion(accepted), updatedBy: user.id })
-          queueReview(submission, {
-            status: TrickSubmissionStatus.Accepted,
-            reviewedBy: user.id,
-            reviewedAt: Timestamp.now()
-          }, 'accepted', t, { dataSources })
+          t.update(trickRef.withConverter(null), { videos: FieldValue.arrayUnion(acceptedVideo(video, parsed.type, parsed.slowMoStart)), updatedBy: user.id })
+          queueReview(submission, { status: TrickSubmissionStatus.Accepted, reviewedBy: user.id }, t, { dataSources })
         })
       })
 
@@ -286,10 +261,9 @@ export const trickSubmissionResolvers: Resolvers = {
       queueReview(submission, {
         status: TrickSubmissionStatus.Rejected,
         reviewedBy: user.id,
-        reviewedAt: Timestamp.now(),
         expiresAt: rejectedSubmissionExpiry(),
         ...(reviewNote ? { reviewNote } : {})
-      }, 'rejected', batch, { dataSources })
+      }, batch, { dataSources })
       await commitReview(async () => await batch.commit())
 
       // deleted once the rejection is recorded, so a lost race leaves the asset be

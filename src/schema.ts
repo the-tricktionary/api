@@ -527,6 +527,7 @@ const typeDefs = gql`
     missingLocalisation: String
     """Tricks whose level in a ruleset is missing, or verified below a level"""
     level: TrickLevelFilter
+    """Tricks without a full speed or slow motion video on Mux, the videos the public site plays"""
     withoutVideos: Boolean
     """Tricks lacking a tag their discipline requires"""
     missingRequiredTags: Boolean
@@ -744,9 +745,9 @@ const typeDefs = gql`
     kind: TrickSubmissionKind!
     submitter: User!
     attributionName: String!
-    """The new trick's, or that of the trick a video is for as it was when the video was submitted"""
+    """The new trick's, or that of the trick a video is for when it was submitted"""
     discipline: Discipline!
-    """Language of the text fields, null on a \`Video\` submission, which has none"""
+    """Language of the text fields, null on a \`Video\` submission"""
     lang: String
     """Null on a \`Video\` submission"""
     name: String
@@ -800,7 +801,7 @@ const typeDefs = gql`
   }
 
   input AcceptTrickVideoSubmissionInput {
-    videoType: VideoType!
+    type: VideoType!
     slowMoStart: Float
   }
 
@@ -865,7 +866,7 @@ const typeDefs = gql`
     """Only visible to the user themselves and to super admins, empty for everyone else"""
     grants: [Grant!]! @cacheControl(maxAge: 0, scope: PRIVATE)
 
-    """The tricks the user has submitted, newest first. Only the user themselves and trick editors may read it."""
+    """The user's submissions, newest first. Only the user themselves and trick editors may read it."""
     trickSubmissions: [TrickSubmission!]! @cacheControl(maxAge: 0, scope: PRIVATE)
   }
 
@@ -1088,7 +1089,7 @@ const typeDefs = gql`
     maxCompletions: Int!
     """One entry per Tricktionary level that has tricks, lowest first"""
     levels: [GlobalLevelStats!]!
-    """Accepted submissions of new tricks, videos submitted for existing tricks are not counted"""
+    """Accepted \`Trick\` submissions"""
     acceptedSubmissions: Int!
     speedResults: Int!
     speedSteps: Float!
