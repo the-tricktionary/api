@@ -85,6 +85,16 @@ export default [
       }],
       '@typescript-eslint/no-empty-function': 'warn',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        // a lazy, non-enumerable export, which is undefined wherever Sentry
+        // instruments modules, as it does in production but not locally
+        paths: ['@google-cloud/firestore', 'firebase-admin/firestore'].map(name => ({
+          name,
+          importNames: ['GrpcStatus'],
+          allowTypeImports: true,
+          message: 'GrpcStatus is undefined when Sentry is enabled, compare against the numeric gRPC status code instead.'
+        }))
+      }],
       'no-console': 'warn'
     }
   }
