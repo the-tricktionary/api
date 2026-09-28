@@ -1,5 +1,6 @@
-import { GrantType } from '../generated/graphql.js'
+import { GrantType, TrickSubmissionKind } from '../generated/graphql.js'
 import { verificationLevelRank } from '../services/permissions.js'
+import { isVideoSubmission } from '../store/schema.js'
 
 import type { Timestamp } from '@google-cloud/firestore'
 import type { Discipline, VerificationLevel } from '../generated/graphql.js'
@@ -16,6 +17,8 @@ export interface DigestTrick {
 export interface DigestSources {
   /** Pending ones */
   submissions: readonly TrickSubmissionDoc[]
+  /** English names of the tricks the video submissions are for */
+  submissionTrickNames: ReadonlyMap<TrickDoc['id'], string>
   /** The ones added in any window, and those with a level changed in one */
   tricks: readonly DigestTrick[]
   missingLangs: ReadonlyMap<TrickDoc['id'], ReadonlySet<string>>
@@ -29,8 +32,14 @@ export interface DigestLevel {
   changedAt: Timestamp
 }
 
+export interface DigestSubmission extends Pick<TrickSubmissionDoc, 'id' | 'discipline' | 'attributionName'> {
+  kind: TrickSubmissionKind
+  /** The new trick's, or the English name of the trick a video is for */
+  name: string
+}
+
 export interface AdminDigest {
-  submissions: Array<Pick<TrickSubmissionDoc, 'id' | 'name' | 'discipline' | 'attributionName'>>
+  submissions: DigestSubmission[]
   toTranslate: Array<{ trick: DigestTrick, langs: string[] }>
   toLevel: Array<{ trick: DigestTrick, rulesets: Array<{ name: string, verify: boolean }> }>
   siteMessagesChanged: boolean
@@ -77,7 +86,13 @@ export function adminDigestFor (
   const submissions = interests.submissions
     ? sources.submissions
       .filter(submission => inWindow(submission.submittedAt, from, until))
-      .map(({ id, name, discipline, attributionName }) => ({ id, name, discipline, attributionName }))
+      .map(submission => ({
+        id: submission.id,
+        kind: submission.kind ?? TrickSubmissionKind.Trick,
+        name: isVideoSubmission(submission) ? sources.submissionTrickNames.get(submission.trickId) ?? submission.trickId : submission.name,
+        discipline: submission.discipline,
+        attributionName: submission.attributionName
+      }))
       .sort(byName)
     : []
 

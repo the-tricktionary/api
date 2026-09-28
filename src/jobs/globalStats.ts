@@ -6,7 +6,7 @@
 import { Timestamp } from '@google-cloud/firestore'
 import { format } from 'date-fns'
 import { utc } from '@date-fns/utc'
-import { TrickSubmissionStatus } from '../generated/graphql.js'
+import { TrickSubmissionKind, TrickSubmissionStatus } from '../generated/graphql.js'
 import { tallyCompletions } from '../helpers/globalStats.js'
 import { logger as baseLogger } from '../services/logger.js'
 import { createDataSources } from '../store/firestoreDataSource.js'
@@ -23,12 +23,16 @@ async function globalStats () {
   const countedAt = Timestamp.now()
 
   const trickLevels = await dataSources.trickLevels.findManyByRuleset(TRICKTIONARY_RULES_ID)
-  const [tally, tricks, acceptedSubmissions, speed] = await Promise.all([
+  const [tally, tricks, accepted, acceptedVideos, speed] = await Promise.all([
     tallyCompletions(dataSources.trickCompletions.streamAthletesAndTricks(), trickLevels),
     dataSources.tricks.countAll(),
     dataSources.trickSubmissions.countByStatus(TrickSubmissionStatus.Accepted),
+    // the older submissions have no kind, so the tricks are counted as
+    // everything accepted but the videos
+    dataSources.trickSubmissions.countByStatusAndKind(TrickSubmissionStatus.Accepted, TrickSubmissionKind.Video),
     dataSources.speedResults.countWithSteps()
   ])
+  const acceptedSubmissions = accepted - acceptedVideos
 
   const snapshot: Omit<GlobalStatsDoc, 'id' | 'collection' | 'createdAt' | 'updatedAt'> = {
     countedAt,

@@ -1,5 +1,6 @@
 import { format, subDays } from 'date-fns'
 import { utc } from '@date-fns/utc'
+import { TrickSubmissionKind } from '../generated/graphql.js'
 
 import type { Timestamp } from '@google-cloud/firestore'
 import type { Discipline } from '../generated/graphql.js'
@@ -50,11 +51,17 @@ function sections (digest: AdminDigest, adminUrl: string, messages: FlatMessages
   const result: Section[] = []
 
   if (digest.submissions.length > 0) {
+    const count = digest.submissions.length
+    const videos = digest.submissions.filter(submission => submission.kind === TrickSubmissionKind.Video).length
+    const what = [
+      count > videos ? plural(count - videos, 'trick', 'tricks') : null,
+      videos > 0 ? plural(videos, 'video', 'videos') : null
+    ].filter(part => part != null).join(' and ')
     result.push({
       heading: 'Submissions to review',
-      intro: `${plural(digest.submissions.length, 'trick was', 'tricks were')} submitted and ${digest.submissions.length === 1 ? 'is' : 'are'} waiting for a review.`,
+      intro: `${what} ${count === 1 ? 'was' : 'were'} submitted and ${count === 1 ? 'is' : 'are'} waiting for a review.`,
       lines: digest.submissions.map(submission => ({
-        text: submission.name,
+        text: submission.kind === TrickSubmissionKind.Video ? `Video of ${submission.name}` : submission.name,
         detail: `${discipline(submission.discipline)}, by ${submission.attributionName}`,
         href: url('/submissions')
       }))

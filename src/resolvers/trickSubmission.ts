@@ -1,22 +1,28 @@
 import { FieldValue, Timestamp } from '@google-cloud/firestore'
 import { AuthorizationError, NotFoundError, ValidationError } from '../errors.js'
-import { TrickSubmissionStatus, VideoType } from '../generated/graphql.js'
+import { TrickSubmissionKind, TrickSubmissionStatus, VideoType } from '../generated/graphql.js'
 import { trickTagsFromInput } from '../helpers/tags.js'
 import { createTrickWithLocalisation, submissionAttribution, submitterProfile } from '../helpers/tricks.js'
 import { createVideoUpload, tryDeleteAsset } from '../services/mux.js'
 import { assertWithinSubmissionLimits, isTrustedSubmitter } from '../services/submissionLimits.js'
 import { firestore } from '../store/firestoreDataSource.js'
-import { rejectedSubmissionExpiry } from '../store/schema.js'
-import { acceptTrickSubmissionSchema, reviewNoteSchema, trickSubmissionSchema } from '../validation.js'
+import { isVideoSubmission, rejectedSubmissionExpiry } from '../store/schema.js'
+import { acceptTrickSubmissionSchema, acceptTrickVideoSubmissionSchema, reviewNoteSchema, trickSubmissionSchema, trickVideoSubmissionSchema } from '../validation.js'
 
 import type { DocumentReference, Precondition, UpdateData } from 'firebase-admin/firestore'
 import type { ApolloContext } from '../apollo.js'
 import type { Resolvers } from '../generated/graphql.js'
 import type { NewTrickLocalisation } from '../helpers/tricks.js'
 import type { TrickVideoUploadWithUrl } from '../services/mux.js'
-import type { TrickSubmissionDoc } from '../store/schema.js'
+import type { DocBase, MuxVideo, NewTrickSubmissionDoc, TrickSubmissionDoc, TrickVideoSubmissionDoc, UserDoc } from '../store/schema.js'
 
 type Context = Pick<ApolloContext, 'dataSources'>
+
+/** A submission as it is created, the data source fills in the rest */
+type NewSubmission<T extends TrickSubmissionDoc> = Omit<T, Exclude<keyof DocBase, 'id'>>
+
+/** What every submission starts with, whatever its kind */
+type SubmissionStart = Pick<TrickSubmissionDoc, 'id' | 'userId' | 'trusted' | 'licenceAcceptedAt' | 'submittedAt' | 'status' | 'uploadId'>
 
 /**
  * The gRPC status a write fails with when its precondition does not hold.
@@ -27,7 +33,7 @@ type Context = Pick<ApolloContext, 'dataSources'>
 const FAILED_PRECONDITION = 9
 
 /** A submission answered with its once-only upload URL, see `TrickVideoUploadWithUrl` */
-interface TrickSubmissionWithUpload extends TrickSubmissionDoc {
+type TrickSubmissionWithUpload = TrickSubmissionDoc & {
   upload: TrickVideoUploadWithUrl
 }
 
@@ -40,6 +46,43 @@ async function existingSubmission (submissionId: string, { dataSources }: Contex
   const submission = await dataSources.trickSubmissions.findOneById(submissionId)
   if (!submission) throw new NotFoundError(`Trick submission ${submissionId} not found`, { extensions: { entity: 'trick-submission', id: submissionId } })
   return submission
+}
+
+/**
+ * Holds the submitter to the limits, which both kinds of submission count
+ * toward together, and starts the upload of the video. The upload names the
+ * submission it belongs to, so its ID is minted first.
+ */
+async function startSubmission (user: UserDoc, origin: string | undefined, { dataSources }: Context) {
+  const trusted = isTrustedSubmitter(user)
+  await assertWithinSubmissionLimits(user.id, trusted, { dataSources })
+
+  const submissionId = dataSources.trickSubmissions.collection.doc().id
+  const upload = await createVideoUpload({
+    owner: { submissionId },
+    userId: user.id,
+    type: VideoType.FullSpeed,
+    origin
+  }, { dataSources })
+
+  const now = Timestamp.now()
+  const start: SubmissionStart = {
+    id: submissionId,
+    userId: user.id,
+    trusted,
+    licenceAcceptedAt: now,
+    submittedAt: now,
+    status: TrickSubmissionStatus.Pending,
+    uploadId: upload.id
+  }
+  return { start, upload }
+}
+
+/** Stores the submission, answered with the upload URL its video goes to */
+async function storeSubmission (submission: NewSubmission<NewTrickSubmissionDoc> | NewSubmission<TrickVideoSubmissionDoc>, upload: TrickVideoUploadWithUrl, { dataSources }: Context) {
+  const created = await (dataSources.trickSubmissions.createOne(submission) as Promise<TrickSubmissionDoc>)
+  const withUpload: TrickSubmissionWithUpload = { ...created, upload }
+  return withUpload
 }
 
 /** A submission still open to a review, read fresh so a review can be held to its version */
@@ -110,37 +153,36 @@ export const trickSubmissionResolvers: Resolvers = {
       const language = await dataSources.languages.findOneById(lang, { ttl: 3600 })
       if (!language) throw new NotFoundError(`Language ${lang} not found`, { extensions: { entity: 'language', id: lang } })
 
-      const trusted = isTrustedSubmitter(user)
-      await assertWithinSubmissionLimits(user.id, trusted, { dataSources })
-
-      // the upload names the submission it belongs to, so its ID is minted first
-      const submissionId = dataSources.trickSubmissions.collection.doc().id
-      const upload = await createVideoUpload({
-        owner: { submissionId },
-        userId: user.id,
-        type: VideoType.FullSpeed,
-        origin: req.get('origin')
-      }, { dataSources })
-
-      const now = Timestamp.now()
-      const submission = await (dataSources.trickSubmissions.createOne({
-        id: submissionId,
-        userId: user.id,
-        trusted,
+      const { start, upload } = await startSubmission(user, req.get('origin'), { dataSources })
+      const submission: NewSubmission<NewTrickSubmissionDoc> = {
+        ...start,
+        kind: TrickSubmissionKind.Trick,
         attributionName: parsed.attributionName,
-        licenceAcceptedAt: now,
-        submittedAt: now,
         discipline: parsed.discipline,
         lang,
         name: parsed.name,
         ...(parsed.alternativeNames?.length ? { alternativeNames: parsed.alternativeNames } : {}),
-        ...(parsed.description ? { description: parsed.description } : {}),
-        status: TrickSubmissionStatus.Pending,
-        uploadId: upload.id
-      }) as Promise<TrickSubmissionDoc>)
+        ...(parsed.description ? { description: parsed.description } : {})
+      }
+      return await storeSubmission(submission, upload, { dataSources })
+    },
+    async createTrickVideoSubmission (_, { trickId, data }, { dataSources, allowUser, user, req }) {
+      allowUser.createTrickSubmission.assert()
+      if (!user) throw new AuthorizationError()
+      const parsed = trickVideoSubmissionSchema.parse(data)
 
-      const withUpload: TrickSubmissionWithUpload = { ...submission, upload }
-      return withUpload
+      const trick = await dataSources.tricks.findOneById(trickId, { ttl: 3600 })
+      if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+      const { start, upload } = await startSubmission(user, req.get('origin'), { dataSources })
+      const submission: NewSubmission<TrickVideoSubmissionDoc> = {
+        ...start,
+        kind: TrickSubmissionKind.Video,
+        attributionName: parsed.attributionName,
+        discipline: trick.discipline,
+        trickId: trick.id
+      }
+      return await storeSubmission(submission, upload, { dataSources })
     },
     async acceptTrickSubmission (_, { submissionId, data }, { dataSources, allowUser, user, logger }) {
       allowUser.reviewTrickSubmissions.assert()
@@ -148,6 +190,7 @@ export const trickSubmissionResolvers: Resolvers = {
       const parsed = acceptTrickSubmissionSchema.parse(data)
 
       const submission = await pendingSubmission(submissionId, { dataSources })
+      if (isVideoSubmission(submission)) throw new ValidationError('That submission is a video of a trick that exists, accept it with acceptTrickVideoSubmission')
       const video = submission.video
       if (!video) throw new ValidationError('The video of that submission has not finished processing yet')
       const tags = await trickTagsFromInput(parsed.tags, parsed.discipline, { dataSources })
@@ -191,6 +234,47 @@ export const trickSubmissionResolvers: Resolvers = {
 
       return await reviewedSubmission(submission, { dataSources })
     },
+    async acceptTrickVideoSubmission (_, { submissionId, data }, { dataSources, allowUser, user }) {
+      allowUser.reviewTrickSubmissions.assert()
+      if (!user) throw new AuthorizationError()
+      const parsed = acceptTrickVideoSubmissionSchema.parse(data)
+
+      const submission = await pendingSubmission(submissionId, { dataSources })
+      if (!isVideoSubmission(submission)) throw new ValidationError('That submission is a new trick, accept it with acceptTrickSubmission')
+      const video = submission.video
+      if (!video) throw new ValidationError('The video of that submission has not finished processing yet')
+
+      const { trickId } = submission
+      const accepted: MuxVideo = {
+        ...video,
+        type: parsed.videoType,
+        ...(parsed.slowMoStart != null ? { slowMoStart: parsed.slowMoStart } : {})
+      }
+      const trickRef = dataSources.tricks.collection.doc(trickId)
+
+      // the review is part of the transaction that adds the video, so neither
+      // can happen without the other
+      await commitReview(async () => {
+        await firestore.runTransaction(async t => {
+          const trick = (await t.get(trickRef)).data()
+          if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+          // at the end, where it changes nothing about the video the site shows
+          // first until an editor moves it
+          t.update(trickRef.withConverter(null), { videos: FieldValue.arrayUnion(accepted), updatedBy: user.id })
+          queueReview(submission, {
+            status: TrickSubmissionStatus.Accepted,
+            reviewedBy: user.id,
+            reviewedAt: Timestamp.now()
+          }, 'accepted', t, { dataSources })
+        })
+      })
+
+      // the transaction bypassed the data source cache
+      await dataSources.tricks.deleteFromCacheById(trickId)
+
+      return await reviewedSubmission(submission, { dataSources })
+    },
     async rejectTrickSubmission (_, { submissionId, note }, { dataSources, allowUser, user, logger }) {
       allowUser.reviewTrickSubmissions.assert()
       if (!user) throw new AuthorizationError()
@@ -215,13 +299,16 @@ export const trickSubmissionResolvers: Resolvers = {
     }
   },
   TrickSubmission: {
+    kind (submission) {
+      return submission.kind ?? TrickSubmissionKind.Trick
+    },
     async submitter (submission, _, { dataSources }) {
       const user = await dataSources.users.findOneById(submission.userId, { ttl: 60 })
       if (!user) throw new NotFoundError(`User ${submission.userId} not found`, { extensions: { entity: 'user', id: submission.userId } })
       return submitterProfile(user)
     },
     async upload (submission, _, { dataSources }) {
-      const carried = (submission as Partial<TrickSubmissionWithUpload>).upload
+      const carried = (submission as { upload?: TrickVideoUploadWithUrl }).upload
       if (carried) return carried
 
       const upload = await dataSources.trickVideoUploads.findOneById(submission.uploadId)

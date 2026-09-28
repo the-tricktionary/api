@@ -87,6 +87,34 @@ export const trickVideoResolvers: Resolvers = {
 
       return updated
     },
+    async moveTrickVideo (_, { trickId, videoId, index }, { dataSources, allowUser, user }) {
+      allowUser.editTrickVideos.assert()
+      if (!user) throw new AuthorizationError()
+
+      const collection = dataSources.tricks.collection
+      const dRef = collection.doc(trickId)
+
+      // the whole array is written back, so it has to be read and rebuilt in a
+      // transaction for a concurrent change to another video not to be lost
+      await collection.firestore.runTransaction(async t => {
+        const trick = (await t.get(dRef)).data()
+        if (!trick) throw new NotFoundError(`Trick ${trickId} not found`, { extensions: { entity: 'trick', id: trickId } })
+
+        const from = trick.videos.findIndex(video => video.videoId === videoId)
+        if (from === -1) throw new NotFoundError(`Trick ${trickId} has no video ${videoId}`, { extensions: { entity: 'video', id: videoId } })
+        const to = Math.min(Math.max(index, 0), trick.videos.length - 1)
+        if (from === to) return
+
+        const videos = [...trick.videos]
+        videos.splice(to, 0, ...videos.splice(from, 1))
+        t.update(dRef.withConverter(null), { videos, updatedBy: user.id })
+      })
+
+      // the transaction bypassed the data source cache
+      await dataSources.tricks.deleteFromCacheById(trickId)
+
+      return await (dataSources.tricks.findOneById(trickId) as Promise<TrickDoc>)
+    },
     async setTrickVideoAttribution (_, { trickId, videoId, attribution: input }, { dataSources, allowUser, user }) {
       allowUser.editTrickVideos.assert()
       if (!user) throw new AuthorizationError()
